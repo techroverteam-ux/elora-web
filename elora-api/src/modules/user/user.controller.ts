@@ -107,6 +107,38 @@ export const getUserById = async (
   }
 };
 
+// --- NEW FUNCTION: Get Users by Role Code ---
+export const getUsersByRole = async (req: Request, res: Response) => {
+  try {
+    const { roleCode } = req.params;
+
+    // Normalize input
+    const searchString = String(roleCode).toUpperCase();
+
+    // FIX: Search by 'code' OR 'name' (Handles "RECCE" vs "RECCE-101")
+    const role = await Role.findOne({
+      $or: [{ code: searchString }, { name: searchString }],
+    });
+
+    if (!role) {
+      return res
+        .status(404)
+        .json({ message: `Role '${searchString}' not found` });
+    }
+
+    // Find Users with this Role ID
+    const users = await User.find({ role: role._id, isActive: true }).select(
+      "name email mobile",
+    );
+
+    res.status(200).json({ users });
+  } catch (error: any) {
+    res
+      .status(500)
+      .json({ message: "Failed to fetch users", error: error.message });
+  }
+};
+
 // @desc    Update user details
 // @route   PUT /api/v1/users/:id
 // @access  Private (Admin with 'users.edit' permission)
