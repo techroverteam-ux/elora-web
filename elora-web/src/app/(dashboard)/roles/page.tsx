@@ -7,7 +7,7 @@ import { Plus, Shield, Trash2, Loader2, Edit2 } from "lucide-react";
 import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
 
-const MODULES = ["user", "role", "recce", "installation"];
+const MODULES = ["user", "role", "store", "recce", "installation"];
 
 const generateDefaultPermissions = () => {
   return MODULES.reduce(

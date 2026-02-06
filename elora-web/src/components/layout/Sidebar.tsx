@@ -2,9 +2,18 @@
 
 import React from "react";
 import Link from "next/link";
-import Image from "next/image"; // Added Image import
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Shield, Map, Hammer, X } from "lucide-react";
+// 1. IMPORT THE STORE ICON HERE
+import {
+  LayoutDashboard,
+  Users,
+  Shield,
+  Map,
+  Hammer,
+  X,
+  Store,
+} from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 
 interface SidebarProps {
@@ -35,6 +44,14 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       icon: Shield,
       roles: ["SUPER_ADMIN", "ADMIN"],
     },
+    // --- NEW LINK ADDED HERE ---
+    {
+      name: "Store Operations",
+      href: "/stores",
+      icon: Store,
+      roles: ["SUPER_ADMIN", "ADMIN"],
+    },
+    // ---------------------------
     {
       name: "Recce",
       href: "/recce",
@@ -43,7 +60,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
     },
     {
       name: "Installation",
-      href: "/install",
+      href: "/installation",
       icon: Hammer,
       roles: ["SUPER_ADMIN", "FIELD_STAFF"],
     },
@@ -56,7 +73,6 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   return (
     <>
       {/* MOBILE OVERLAY: Dark background when menu is open on mobile */}
-      {/* z-30 ensures it sits below the sidebar (z-40) but above content */}
       <div
         className={`fixed inset-0 z-30 bg-gray-600 bg-opacity-75 transition-opacity md:hidden ${
           isOpen
@@ -75,8 +91,6 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         md:translate-x-0 md:fixed md:inset-y-0
       `}
       >
-        {/* Note: changed 'md:static' back to 'md:fixed' to fix the desktop layout */}
-
         <div className="flex-1 flex flex-col min-h-0">
           {/* Sidebar Header with LOGO */}
           <div className="flex items-center justify-between h-16 flex-shrink-0 px-4 bg-gray-800">
@@ -84,11 +98,11 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
               {/* Logo Container */}
               <div className="relative h-8 w-8">
                 <Image
-                  src="/logo.svg"
+                  src="/logo.svg" // Make sure this matches your actual file name (logo.png or logo.svg)
                   alt="Elora Logo"
                   fill
                   className="object-contain"
-                  priority // Loads image immediately
+                  priority
                 />
               </div>
               {/* Company Name */}

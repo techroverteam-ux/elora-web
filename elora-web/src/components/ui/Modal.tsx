@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useEffect } from "react";
 import { X } from "lucide-react";
 
@@ -11,7 +9,6 @@ interface ModalProps {
 }
 
 const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
-  // Prevent scrolling when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -26,33 +23,30 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Dark Overlay */}
+    // FIX: Changed 'bg-gray-900' or similar to 'bg-black/50 backdrop-blur-sm'
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all">
+      {/* Container - added onClick.stopPropagation to prevent closing when clicking inside */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Modal Content */}
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="relative w-full max-w-md transform rounded-lg bg-white p-6 shadow-xl transition-all">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium leading-6 text-gray-900">
-              {title}
-            </h3>
-            <button
-              onClick={onClose}
-              className="rounded-full p-1 hover:bg-gray-100 transition-colors"
-            >
-              <X className="h-5 w-5 text-gray-500" />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="mt-2">{children}</div>
+        className="bg-white rounded-lg shadow-xl w-full max-w-2xl transform transition-all flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500 transition-colors p-1 hover:bg-gray-100 rounded-full"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
+
+        {/* Body */}
+        <div className="p-6 overflow-y-auto">{children}</div>
       </div>
+
+      {/* Click outside overlay to close */}
+      <div className="absolute inset-0 -z-10" onClick={onClose}></div>
     </div>
   );
 };
