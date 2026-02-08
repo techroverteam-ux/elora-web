@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "elora-web/package.json",
+      "use": "@vercel/next"
+    },
+    {
+      "src": "elora-api/src/server.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "elora-api/src/server.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "elora-web/$1"
+    }
+  ]
+}

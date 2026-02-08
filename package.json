@@ -1,0 +1,16 @@
+{
+  "name": "elora-crafting-arts",
+  "version": "1.0.0",
+  "description": "Elora Crafting Arts - Full Stack Application",
+  "scripts": {
+    "start": "concurrently \"npm run api\" \"npm run web\"",
+    "api": "cd elora-api && npm run dev",
+    "web": "cd elora-web && npm run dev",
+    "install-all": "cd elora-api && npm install && cd ../elora-web && npm install",
+    "build": "cd elora-api && npm install && cd ../elora-web && npm install && npm run build",
+    "vercel-build": "cd elora-web && npm install && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
