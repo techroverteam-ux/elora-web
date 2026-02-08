@@ -3,26 +3,13 @@
 import React, { useEffect, useState, useRef } from "react";
 import api from "@/src/lib/api";
 import { Store, StoreStatus } from "@/src/types/store";
-import {
-  Upload,
-  Search,
-  Loader2,
-  MoreVertical,
-  FileSpreadsheet,
-  MapPin,
-  Trash2,
-  UserPlus,
-  CheckSquare,
-  Square,
-  Download,
-  Eye,
-  Edit,
-  X,
-} from "lucide-react";
+import { Upload, Search, Loader2, MoreVertical, FileSpreadsheet, MapPin, Trash2, UserPlus, CheckSquare, Square, Download, Eye, Edit, X, Plus } from "lucide-react";
+import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
 
 export default function StoresPage() {
+  const { darkMode } = useTheme();
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
@@ -53,6 +40,39 @@ export default function StoresPage() {
   // Dropdown Menu State
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [isAddStoreOpen, setIsAddStoreOpen] = useState(false);
+  const [newStoreData, setNewStoreData] = useState({
+    srNo: '',
+    zone: '',
+    state: '',
+    district: '',
+    vendorCode: '',
+    dealerCode: '',
+    city: '',
+    dealerName: '',
+    dealerAddress: '',
+    poNumber: '',
+    invoiceRemarks: '',
+    poMonth: '',
+    boardType: '',
+    width: '',
+    height: '',
+    qty: '',
+    boardSize: '',
+    boardRate: '',
+    totalBoardCost: '',
+    angleCharges: '',
+    scaffoldingCharges: '',
+    transportation: '',
+    flanges: '',
+    lollipop: '',
+    oneWayVision: '',
+    sunboard: '',
+    totalCost: '',
+    remark: '',
+    imagesAttached: '',
+    invoiceNo: ''
+  });
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -79,6 +99,41 @@ export default function StoresPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const downloadTemplate = () => {
+    const headers = [
+      'Sr. No.', 'Zone', 'State', 'District', 'Vendor Code & Name', 'Dealer Code', 'City',
+      'Dealer\'s Name', 'Dealer\'s Address', 'PO Number', 'Invoice Remarks', 'PO Month',
+      'Dealer Board Type', 'Width (Ft.)', 'Height (Ft.)', 'Qty', 'Board Size (Sq.Ft.)',
+      'Board Rate/Sq.Ft.', 'Total Board Cost (w/o taxes)', 'Angle Charges (if any)',
+      'Scaffolding Charges (if any)', 'Transportation (if any)', 'Flanges per pc (if any)',
+      'Lollipop per pc (if any)', 'One Way Vision (if any)', '3 mm Sunboard (if any)',
+      'Total Cost w/0 Tax', 'Remark', 'Images Attached in PPT (yes/no)', 'INVOICE NO:'
+    ];
+
+    const sampleData = Array.from({ length: 10 }, (_, i) => [
+      i + 1, 'North', 'Rajasthan', 'Jodhpur', `VENDOR_${String(i + 1).padStart(3, '0')}`,
+      `DLR_${String(i + 1).padStart(3, '0')}`, 'Jodhpur', `Dealer Name ${i + 1}`,
+      `Address ${i + 1}, Jodhpur`, `PO${String(i + 1).padStart(4, '0')}`, 'Standard Invoice',
+      'January 2024', 'Outdoor Banner', '10', '6', '1', '60', '150', '9000', '500',
+      '300', '200', '100', '50', '0', '0', '10150', 'Sample remark', 'yes',
+      `INV${String(i + 1).padStart(4, '0')}`
+    ]);
+
+    const csvContent = [headers, ...sampleData]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `store_template_${Date.now()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   // --- DOWNLOAD PPT LOGIC (FIXED) ---
@@ -291,92 +346,115 @@ export default function StoresPage() {
   );
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* HEADER & ACTIONS */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-4 pb-20">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Store Operations</h1>
-          <p className="text-sm text-gray-500">
-            Manage recce and installation workflow
-          </p>
+          <h1 className={`text-2xl font-bold ${
+            darkMode ? 'text-white' : 'text-gray-900'
+          }`}>Stores</h1>
+          <p className={`text-sm ${
+            darkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>Manage store operations</p>
         </div>
         <div className="flex gap-2">
-          {/* ASSIGN BUTTONS (Visible when stores are selected) */}
           {selectedStoreIds.size > 0 && (
-            <div className="flex gap-2 mr-2 animate-in fade-in slide-in-from-right-4">
-              <button
-                onClick={() => openAssignModal("RECCE")}
-                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shadow-sm"
-              >
-                <UserPlus className="h-4 w-4 mr-2" />
-                Assign Recce ({selectedStoreIds.size})
-              </button>
-            </div>
+            <button
+              onClick={() => openAssignModal("RECCE")}
+              className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Assign ({selectedStoreIds.size})
+            </button>
           )}
-
+          <button
+            onClick={() => setIsAddStoreOpen(true)}
+            className="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Store
+          </button>
           <button
             onClick={() => {
               setUploadStats(null);
               setSelectedFiles([]);
               setIsUploadOpen(true);
             }}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm"
           >
             <Upload className="h-4 w-4 mr-2" />
             Bulk Upload
           </button>
+          <button
+            onClick={downloadTemplate}
+            className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Template
+          </button>
         </div>
       </div>
 
-      {/* STATS CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <p className="text-xs text-gray-500 uppercase font-semibold">
-            Total Stores
-          </p>
-          <p className="text-2xl font-bold text-gray-900">{stores.length}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className={`p-3 rounded-xl border ${
+          darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
+        }`}>
+          <p className={`text-xs font-medium uppercase ${
+            darkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>Total</p>
+          <p className={`text-xl font-bold ${
+            darkMode ? 'text-white' : 'text-gray-900'
+          }`}>{stores.length}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <p className="text-xs text-gray-500 uppercase font-semibold">
-            Unassigned
-          </p>
-          <p className="text-2xl font-bold text-orange-600">
-            {
-              stores.filter((s) => s.currentStatus === StoreStatus.UPLOADED)
-                .length
-            }
+        <div className={`p-3 rounded-xl border ${
+          darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
+        }`}>
+          <p className={`text-xs font-medium uppercase ${
+            darkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>Unassigned</p>
+          <p className="text-xl font-bold text-orange-500">
+            {stores.filter((s) => s.currentStatus === StoreStatus.UPLOADED).length}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <p className="text-xs text-gray-500 uppercase font-semibold">
-            Recce Assigned
-          </p>
-          <p className="text-2xl font-bold text-blue-600">
-            {
-              stores.filter(
-                (s) => s.currentStatus === StoreStatus.RECCE_ASSIGNED,
-              ).length
-            }
+        <div className={`p-3 rounded-xl border ${
+          darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
+        }`}>
+          <p className={`text-xs font-medium uppercase ${
+            darkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>Assigned</p>
+          <p className="text-xl font-bold text-blue-500">
+            {stores.filter((s) => s.currentStatus === StoreStatus.RECCE_ASSIGNED).length}
           </p>
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white shadow rounded-lg border border-gray-200 overflow-visible">
-        {/* Filters */}
-        <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row gap-4 justify-between bg-gray-50/50">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+      <div className={`rounded-xl border overflow-hidden ${
+        darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
+      }`}>
+        <div className={`p-4 border-b flex gap-4 justify-between ${
+          darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'
+        }`}>
+          <div className="relative flex-1 max-w-md">
+            <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+              darkMode ? 'text-gray-400' : 'text-gray-400'
+            }`} />
             <input
               type="text"
               placeholder="Search stores..."
-              className="pl-10 pr-4 py-2 w-full border rounded-md text-sm focus:ring-blue-500 outline-none"
+              className={`pl-10 pr-4 py-2 w-full border rounded-lg text-sm ${
+                darkMode 
+                  ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+              } focus:outline-none focus:border-yellow-500`}
             />
           </div>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="border rounded-md px-3 py-2 text-sm focus:ring-blue-500 outline-none bg-white"
+            className={`border rounded-lg px-3 py-2 text-sm ${
+              darkMode 
+                ? 'bg-gray-800 border-gray-600 text-white' 
+                : 'bg-white border-gray-300 text-gray-900'
+            } focus:outline-none focus:border-yellow-500`}
           >
             <option value="ALL">All Status</option>
             {Object.values(StoreStatus).map((status) => (
@@ -387,53 +465,55 @@ export default function StoresPage() {
           </select>
         </div>
 
-        {/* Table Content */}
         {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
+          <div className="flex justify-center items-center h-32">
+            <Loader2 className="animate-spin h-6 w-6 text-yellow-500" />
           </div>
         ) : filteredStores.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            <MapPin className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No stores found matching your criteria.</p>
+          <div className={`p-8 text-center ${
+            darkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>
+            <MapPin className={`h-8 w-8 mx-auto mb-2 ${
+              darkMode ? 'text-gray-600' : 'text-gray-300'
+            }`} />
+            <p className="text-sm">No stores found</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 border-t border-gray-200">
-              <thead className="bg-gray-100">
+            <table className="min-w-full">
+              <thead className={darkMode ? 'bg-gray-800/50' : 'bg-gray-100'}>
                 <tr>
-                  {/* CHECKBOX HEADER */}
-                  <th className="px-6 py-4 text-left w-10">
-                    <button
-                      onClick={toggleAllSelection}
-                      className="flex items-center justify-center text-gray-600 hover:text-black transition-colors"
-                    >
-                      {selectedStoreIds.size === filteredStores.length &&
-                      filteredStores.length > 0 ? (
-                        <CheckSquare className="h-6 w-6 text-blue-600" />
+                  <th className="px-4 py-3 text-left w-10">
+                    <button onClick={toggleAllSelection}>
+                      {selectedStoreIds.size === filteredStores.length && filteredStores.length > 0 ? (
+                        <CheckSquare className="h-4 w-4 text-yellow-500" />
                       ) : (
-                        <Square className="h-6 w-6" />
+                        <Square className={`h-4 w-4 ${
+                          darkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`} />
                       )}
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Store Info
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Assigned To
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Action
-                  </th>
+                  <th className={`px-4 py-3 text-left text-xs font-medium uppercase ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>Store</th>
+                  <th className={`px-4 py-3 text-left text-xs font-medium uppercase ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>Location</th>
+                  <th className={`px-4 py-3 text-left text-xs font-medium uppercase ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>Status</th>
+                  <th className={`px-4 py-3 text-left text-xs font-medium uppercase ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>Assigned</th>
+                  <th className={`px-4 py-3 text-right text-xs font-medium uppercase ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>Action</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className={`divide-y ${
+                darkMode ? 'divide-gray-700' : 'divide-gray-200'
+              }`}>
                 {filteredStores.map((store) => {
                   const isSelected = selectedStoreIds.has(store._id);
                   const isMenuOpen = openMenuId === store._id;

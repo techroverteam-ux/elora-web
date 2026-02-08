@@ -2,12 +2,14 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Loader2, AlertCircle, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
+import { useTheme } from "@/src/context/ThemeContext";
 import api from "@/src/lib/api";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { darkMode, toggleDarkMode } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,7 +22,7 @@ export default function LoginPage() {
 
     try {
       await api.post("/auth/login", { email, password });
-      login();
+      await login();
     } catch (err: any) {
       if (err?.response?.data?.message) {
         setError(err.response.data.message);
@@ -33,90 +35,103 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className="
-    relative min-h-screen flex items-center justify-center px-4
-    bg-gradient-to-br from-[#c4d6fc] via-[#ffffff] to-[#c4d6fc]
-    bg-[length:200%_200%] animate-gradient
-  "
-    >
-      {/* Subtle background glow for depth */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="h-[520px] w-[520px] rounded-full bg-blue-300/20 blur-3xl" />
-      </div>
-
-      {/* Login Card */}
-      <div className="relative w-full max-w-md bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-gray-100">
-        {/* Branding */}
-        <div className="flex flex-col items-center mb-8">
+    <div className={`min-h-screen flex transition-colors duration-300 ${
+      darkMode ? 'bg-black' : 'bg-white'
+    }`}>
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-500 relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10 flex flex-col justify-center items-center text-white p-12">
           <Image
             src="/logo.svg"
-            alt="Elora Logo"
-            width={56}
-            height={56}
-            className="mb-3"
+            alt="Logo"
+            width={300}
+            height={150}
+            className="mb-8"
             priority
           />
-          <h1 className="text-2xl font-semibold text-gray-900">Elora System</h1>
-          <p className="mt-1 text-sm text-gray-500 text-center">
-            Sign in to access the management portal
+          <h1 className="text-4xl font-black mb-4 text-center">
+            Transform Your Business
+          </h1>
+          <p className="text-xl text-center opacity-90 max-w-md">
+            Professional branding solutions from design to installation
           </p>
+          <div className="mt-12 grid grid-cols-2 gap-6 text-center">
+            <div>
+              <div className="text-3xl font-bold">500+</div>
+              <div className="text-sm opacity-80">Happy Clients</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">5+</div>
+              <div className="text-sm opacity-80">Years Experience</div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Right Side - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
+        <div className="w-full max-w-md">
+          {/* Mobile Logo */}
+          <div className="lg:hidden text-center mb-8">
+            <Image
+              src="/logo.svg"
+              alt="Logo"
+              width={180}
+              height={90}
+              className="mx-auto mb-4"
+              priority
+            />
+          </div>
+
+          <div className="bg-white rounded-3xl shadow-2xl p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+              <p className="text-gray-600">Sign in to your admin dashboard</p>
+            </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-4">
-            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Email Address
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@elora.com"
-                className="
-                w-full rounded-lg border border-gray-300 bg-white
-                pl-10 pr-3 py-2.5 text-sm text-gray-900
-                placeholder:text-gray-400
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
-                focus:outline-none transition
-              "
+                placeholder="Enter your email"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 pl-12 pr-4 py-4 text-gray-900 placeholder:text-gray-500 focus:border-yellow-500 focus:bg-white focus:outline-none transition-all"
               />
             </div>
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="
-                w-full rounded-lg border border-gray-300 bg-white
-                pl-10 pr-3 py-2.5 text-sm text-gray-900
-                placeholder:text-gray-400
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
-                focus:outline-none transition
-              "
+                placeholder="Enter your password"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 pl-12 pr-4 py-4 text-gray-900 placeholder:text-gray-500 focus:border-yellow-500 focus:bg-white focus:outline-none transition-all"
               />
             </div>
           </div>
@@ -125,24 +140,21 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="
-            w-full flex items-center justify-center gap-2
-            rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white
-            hover:bg-blue-700 active:scale-[0.99]
-            focus:outline-none focus:ring-2 focus:ring-blue-500/30
-            disabled:opacity-60 disabled:cursor-not-allowed
-            transition
-          "
+            className="w-full flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 py-4 text-lg font-bold text-white hover:from-yellow-600 hover:to-orange-600 focus:outline-none focus:ring-4 focus:ring-yellow-500/30 disabled:opacity-60 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isLoading ? "Signing in..." : "Sign In"}
+            {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
+            {isLoading ? "Signing in..." : "Sign In to Dashboard"}
           </button>
         </form>
 
         {/* Footer */}
-        <p className="mt-6 text-center text-xs text-gray-400">
-          Unauthorized access is prohibited.
-        </p>
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-500">
+            Secure admin access • Protected by encryption
+          </p>
+        </div>
+          </div>
+        </div>
       </div>
     </div>
   );

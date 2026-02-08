@@ -34,7 +34,7 @@ export const protect = async (
     // 2. Verify Token
     const decoded = jwt.verify(
       token,
-      process.env.JWT_ACCESS_SECRET as string,
+      process.env.JWT_SECRET as string,
     ) as JwtPayload;
 
     // 3. Find User & Populate Role (Critical for RBAC)

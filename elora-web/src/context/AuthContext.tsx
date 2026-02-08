@@ -18,7 +18,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   // Function to check if user is logged in
@@ -36,14 +36,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Run checkAuth when app loads
-  // useEffect(() => {
-  //   checkAuth();
-  // }, []);
+  useEffect(() => {
+    checkAuth();
+    
+    // Auto-logout on session timeout
+    const interval = setInterval(() => {
+      checkAuth();
+    }, 5 * 60 * 1000); // Check every 5 minutes
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Login function (Called after successful API login)
-  const login = () => {
-    checkAuth(); // Simply re-fetch user data
-    router.push("/dashboard"); // Redirect to dashboard
+  const login = async () => {
+    await checkAuth(); // Wait for user data
+    router.push("/dashboard"); // Then redirect to dashboard
   };
 
   // Logout function

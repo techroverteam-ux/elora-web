@@ -3,18 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/context/AuthContext";
+import { useTheme } from "@/src/context/ThemeContext";
 import Header from "@/src/components/layout/Header";
 import Sidebar from "@/src/components/layout/Sidebar";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const { darkMode } = useTheme();
   const router = useRouter();
-
-  // NEW: State to manage mobile sidebar visibility
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -32,16 +28,14 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Pass state and setter to Sidebar */}
+    <div className={`min-h-screen transition-colors duration-300 ${
+      darkMode ? 'bg-black' : 'bg-gray-50'
+    }`}>
       <Sidebar isOpen={isMobileMenuOpen} setIsOpen={setIsMobileMenuOpen} />
-
-      <div className="md:pl-64 flex flex-col flex-1">
-        {/* Pass setter to Header so the button works */}
-        <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
-
-        <main className="flex-1 pb-8">
-          <div className="mt-8 px-4 sm:px-6 lg:px-8">{children}</div>
+      <div className="md:pl-72 flex flex-col flex-1">
+        <Header />
+        <main className="flex-1 p-6">
+          {children}
         </main>
       </div>
     </div>

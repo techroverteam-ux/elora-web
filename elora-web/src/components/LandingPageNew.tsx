@@ -360,8 +360,24 @@ const LandingPage = () => {
             our team travels to your location for professional installation.
           </p>
           
-          <div className="flex justify-center">
-            <MapPin className="w-16 h-16 text-yellow-500" />
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="flex justify-center">
+              <MapPin className="w-16 h-16 text-yellow-500" />
+            </div>
+            <div className={`rounded-2xl overflow-hidden border ${
+              darkMode ? 'border-purple-700/50' : 'border-gray-200'
+            }`}>
+              <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024.123456789!2d77.1234567!3d28.1234567!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjjCsDA3JzI0LjQiTiA3N8KwMDcnMjQuNCJF!5e0!3m2!1sen!2sin!4v1234567890123!5m2!1sen!2sin"
+                width="100%" 
+                height="300" 
+                style={{border:0}} 
+                allowFullScreen 
+                loading="lazy" 
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Service Areas Map"
+              ></iframe>
+            </div>
           </div>
         </div>
       </section>
@@ -404,25 +420,152 @@ const LandingPage = () => {
           : 'bg-gray-50 border-gray-200'
       }`}>
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="text-2xl font-bold text-yellow-500 mb-4">Contact Info</h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-yellow-500" />
-                  <span>+91 98765 43210</span>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mb-4">
+              Get Your <span className="text-yellow-500">Free Quote</span>
+            </h2>
+            <p className={`text-lg ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Ready to transform your business? Contact us today!
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-12 mb-12">
+            {/* Contact Form */}
+            <div className={`p-8 rounded-2xl border ${
+              darkMode 
+                ? 'bg-purple-900/30 border-purple-700/50' 
+                : 'bg-white border-gray-200 shadow-lg'
+            }`}>
+              <h3 className="text-2xl font-bold text-yellow-500 mb-6">Send Message</h3>
+              <form className="space-y-4">
+                <div>
+                  <input 
+                    type="text" 
+                    placeholder="Your Name" 
+                    className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                      darkMode 
+                        ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
                 </div>
-                <div className="flex items-center gap-3">
-                  <MessageCircle className="w-5 h-5 text-yellow-500" />
-                  <span>WhatsApp Us</span>
+                <div>
+                  <input 
+                    type="email" 
+                    placeholder="Your Email" 
+                    className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                      darkMode 
+                        ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
                 </div>
-                <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-yellow-500" />
-                  <span>info@eloracraftingarts.com</span>
+                <div>
+                  <input 
+                    type="tel" 
+                    placeholder="Your Phone" 
+                    className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                      darkMode 
+                        ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
                 </div>
-              </div>
+                <div>
+                  <select className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                    darkMode 
+                      ? 'bg-gray-800 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}>
+                    <option>Select Service</option>
+                    <option>Banner Printing</option>
+                    <option>Brand Design</option>
+                    <option>Installation Service</option>
+                    <option>Complete Package</option>
+                  </select>
+                </div>
+                <div>
+                  <textarea 
+                    rows={4} 
+                    placeholder="Tell us about your project..." 
+                    className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                      darkMode 
+                        ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  ></textarea>
+                </div>
+                <button 
+                  type="submit" 
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all hover:shadow-lg"
+                >
+                  Send Message
+                </button>
+              </form>
             </div>
             
+            {/* Contact Info */}
+            <div>
+              <h3 className="text-2xl font-bold text-yellow-500 mb-6">Contact Info</h3>
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <Phone className="w-6 h-6 text-yellow-500 mt-1" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Call Us</h4>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>+91 98765 43210</p>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Mon-Sat 9AM-7PM</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <MessageCircle className="w-6 h-6 text-yellow-500 mt-1" />
+                  <div>
+                    <h4 className="font-semibold mb-1">WhatsApp</h4>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>+91 98765 43210</p>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Quick Response</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <Mail className="w-6 h-6 text-yellow-500 mt-1" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Email</h4>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>info@eloracraftingarts.com</p>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>24/7 Support</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <MapPin className="w-6 h-6 text-yellow-500 mt-1" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Service Areas</h4>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Pan India Coverage</p>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>We come to your location</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Quick Action Buttons */}
+              <div className="mt-8 space-y-3">
+                <a 
+                  href="tel:+919876543210" 
+                  className="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex items-center justify-center gap-3"
+                >
+                  <Phone className="w-5 h-5" />
+                  Call Now
+                </a>
+                <a 
+                  href="https://wa.me/919876543210" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex items-center justify-center gap-3"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+          
+          {/* Bottom Footer */}
+          <div className="grid md:grid-cols-3 gap-8 pt-8 border-t border-gray-200">
             <div>
               <h4 className="text-lg font-semibold mb-4">Services</h4>
               <ul className={`space-y-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -440,6 +583,16 @@ const LandingPage = () => {
                 <li>Shopping Malls</li>
                 <li>Roadside Stalls</li>
                 <li>Business Districts</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
+              <ul className={`space-y-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <li><a href="#services" className="hover:text-yellow-500 transition-colors">Our Services</a></li>
+                <li><a href="#gallery" className="hover:text-yellow-500 transition-colors">Portfolio</a></li>
+                <li><a href="#process" className="hover:text-yellow-500 transition-colors">Our Process</a></li>
+                <li><a href="#contact" className="hover:text-yellow-500 transition-colors">Contact Us</a></li>
               </ul>
             </div>
           </div>
