@@ -29,6 +29,17 @@ const connectDB = async () => {
 };
 
 export default async (req: any, res: any) => {
-  await connectDB();
-  return app(req, res);
+  try {
+    await connectDB();
+    return app(req, res);
+  } catch (error: any) {
+    console.error('Serverless handler error:', error);
+    return res.status(500).json({
+      error: {
+        code: 500,
+        message: error.message,
+        stack: error.stack
+      }
+    });
+  }
 };
