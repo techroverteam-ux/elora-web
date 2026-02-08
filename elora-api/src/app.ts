@@ -36,7 +36,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(err.status || 500).json({
     error: {
       code: err.status || 500,
-      message: err.message || 'A server error has occurred',
+      message: err.message,
       ...(err.stack && { stack: err.stack }),
       ...(err.errors && { details: err.errors })
     }
