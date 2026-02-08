@@ -11,14 +11,8 @@ const app = express();
 // Middlewares
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://eloracraftingarts.vercel.app",
-      /\.vercel\.app$/
-    ],
+    origin: true,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   }),
 );
 app.use(express.json());
