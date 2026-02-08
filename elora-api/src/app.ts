@@ -30,4 +30,17 @@ app.use("/api/v1/roles", roleRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/stores", storeRoutes);
 
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('API Error:', err);
+  res.status(err.status || 500).json({
+    error: {
+      code: err.status || 500,
+      message: err.message || 'A server error has occurred',
+      ...(err.stack && { stack: err.stack }),
+      ...(err.errors && { details: err.errors })
+    }
+  });
+});
+
 export default app;
