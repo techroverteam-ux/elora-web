@@ -14,12 +14,12 @@ export const seedSuperAdmin = async () => {
         role: { view: true, create: true, edit: true, delete: true },
       },
     });
-    console.log("✅ Super Admin role created");
+    console.log("Super Admin role created");
   }
 
   const existingUser = await User.findOne({ email: "admin@elora.com" });
   if (existingUser) {
-    console.log("ℹ️ Super Admin user already exists");
+    console.log("ℹSuper Admin user already exists");
     return;
   }
 
@@ -30,5 +30,5 @@ export const seedSuperAdmin = async () => {
     role: superAdminRole._id,
   });
 
-  console.log("✅ Super Admin user seeded");
+  console.log("Super Admin user seeded");
 };
