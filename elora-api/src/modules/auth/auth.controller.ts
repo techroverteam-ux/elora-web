@@ -3,38 +3,49 @@ import User from "../user/user.model";
 import { generateAccessToken } from "../../utils/jwt";
 
 export const login = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  const user = await User.findOne({ email }).populate("role");
-  if (!user || !user.isActive) {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
+    const user = await User.findOne({ email }).populate("role");
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
 
-  const isMatch = await user.comparePassword(password);
-  if (!isMatch) {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
 
-  const token = generateAccessToken({
-    userId: user._id,
-    role: user.role,
-  });
-
-  res.cookie("access_token", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: false, // true in production
-  });
-
-  res.status(200).json({
-    message: "Login successful",
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
+    const token = generateAccessToken({
+      userId: user._id,
       role: user.role,
-    },
-  });
+    });
+
+    res.cookie("access_token", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false, // true in production
+    });
+
+    res.status(200).json({
+      message: "Login successful",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error: any) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      error: {
+        code: 500,
+        message: error.message || 'Login failed',
+        stack: error.stack
+      }
+    });
+  }
 };
 
 // @desc    Logout user / Clear cookie
