@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Bell, Search, LogOut, User, Settings } from 'lucide-react';
+import { Bell, Search, LogOut, User, Settings, Menu } from 'lucide-react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 
-export default function Header() {
+interface HeaderProps {
+  onMobileMenuToggle?: () => void;
+}
+
+export default function Header({ onMobileMenuToggle }: HeaderProps) {
   const { user, logout } = useAuth();
   const { darkMode } = useTheme();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -24,8 +28,18 @@ export default function Header() {
         : 'bg-white/95 backdrop-blur border-gray-200'
     }`}>
       <div className="flex items-center justify-between px-6 py-4">
+        {/* Mobile menu button */}
+        <button
+          onClick={onMobileMenuToggle}
+          className={`md:hidden p-2 rounded-lg transition-colors ${
+            darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600'
+          }`}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
         {/* Search */}
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 max-w-md ml-4 md:ml-0">
           <div className="relative">
             <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
               darkMode ? 'text-gray-400' : 'text-gray-500'

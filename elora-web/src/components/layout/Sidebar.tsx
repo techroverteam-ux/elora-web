@@ -68,7 +68,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       {/* MOBILE OVERLAY */}
       <div
         className={`fixed inset-0 z-30 bg-black/50 transition-opacity md:hidden ${
-          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setIsOpen(false)}
       ></div>

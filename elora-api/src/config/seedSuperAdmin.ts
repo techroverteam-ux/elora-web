@@ -12,6 +12,7 @@ export const seedSuperAdmin = async () => {
         dashboard: { view: true },
         user: { view: true, create: true, edit: true, delete: true },
         role: { view: true, create: true, edit: true, delete: true },
+        store: { view: true, create: true, edit: true, delete: true },
       },
     });
     console.log("Super Admin role created");
