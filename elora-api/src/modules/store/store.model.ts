@@ -14,11 +14,15 @@ export enum StoreStatus {
 
 export interface StoreDocument extends Document {
   projectID: string;
-  dealerCode: string; // NEW: The Unique ID
-  storeCode?: string; // Now Optional
+  dealerCode: string;
+  storeCode?: string;
   storeName?: string;
+  vendorCode?: string; // NEW: Added Vendor Code
 
   location: {
+    zone?: string; // NEW
+    state?: string; // NEW
+    district?: string; // NEW
     city?: string;
     area?: string;
     address?: string;
@@ -31,9 +35,34 @@ export interface StoreDocument extends Document {
     mobile?: string;
   };
 
+  // NEW: Commercial Details (PO & Invoice)
+  commercials: {
+    poNumber?: string;
+    poMonth?: string;
+    invoiceNumber?: string;
+    invoiceRemarks?: string;
+    totalCost?: number;
+  };
+
+  // NEW: Detailed Costing Breakdown
+  costDetails: {
+    boardRate?: number;
+    totalBoardCost?: number;
+    angleCharges?: number;
+    scaffoldingCharges?: number;
+    transportation?: number;
+    flanges?: number;
+    lollipop?: number;
+    oneWayVision?: number;
+    sunboard?: number;
+  };
+
   specs: {
     boardSize?: string;
     type?: string;
+    width?: number; // NEW
+    height?: number; // NEW
+    qty?: number; // NEW
   };
 
   currentStatus: StoreStatus;
@@ -55,21 +84,25 @@ export interface StoreDocument extends Document {
   installation?: {
     assignedDate?: Date;
     submittedDate?: Date;
-    photos?: { final: string };
+    photos?: {
+      after1?: string;
+      after2?: string;
+    };
   };
 }
 
 const StoreSchema = new Schema<StoreDocument>(
   {
     projectID: { type: String },
-
-    // PRIMARY KEY SWITCH: dealerCode is now the unique identifier
     dealerCode: { type: String, required: true, unique: true, index: true },
-    storeCode: { type: String }, // Optional
-
+    storeCode: { type: String },
     storeName: { type: String },
+    vendorCode: { type: String }, // NEW
 
     location: {
+      zone: { type: String }, // NEW
+      state: { type: String }, // NEW
+      district: { type: String }, // NEW
       city: { type: String },
       area: { type: String },
       address: { type: String },
@@ -85,9 +118,34 @@ const StoreSchema = new Schema<StoreDocument>(
       mobile: { type: String },
     },
 
+    // NEW SECTION
+    commercials: {
+      poNumber: { type: String },
+      poMonth: { type: String },
+      invoiceNumber: { type: String },
+      invoiceRemarks: { type: String },
+      totalCost: { type: Number },
+    },
+
+    // NEW SECTION
+    costDetails: {
+      boardRate: { type: Number },
+      totalBoardCost: { type: Number },
+      angleCharges: { type: Number },
+      scaffoldingCharges: { type: Number },
+      transportation: { type: Number },
+      flanges: { type: Number },
+      lollipop: { type: Number },
+      oneWayVision: { type: Number },
+      sunboard: { type: Number },
+    },
+
     specs: {
       boardSize: { type: String },
       type: { type: String },
+      width: { type: Number }, // NEW
+      height: { type: Number }, // NEW
+      qty: { type: Number }, // NEW
     },
 
     currentStatus: {
@@ -118,7 +176,10 @@ const StoreSchema = new Schema<StoreDocument>(
     installation: {
       assignedDate: Date,
       submittedDate: Date,
-      photos: { final: String },
+      photos: {
+        after1: String,
+        after2: String,
+      },
     },
   },
   { timestamps: true },

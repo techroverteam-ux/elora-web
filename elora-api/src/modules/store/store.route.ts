@@ -1,5 +1,6 @@
 import express from "express";
-import multer from "multer"; // Import Multer
+import multer from "multer";
+import path from "path"; // Import path
 import {
   createStore,
   getAllStores,
@@ -19,33 +20,42 @@ import { checkPermission } from "../../middlewares/rbac.middleware";
 
 const router = express.Router();
 
-// --- MULTER CONFIGURATION ---
-// We save files temporarily to an 'uploads/' folder.
-// The controller will delete the file after processing.
-const upload = multer({ dest: "uploads/" });
+// --- FIX: USE DISK STORAGE TO KEEP EXTENSIONS ---
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    // Create unique filename + Append original extension (e.g., .jpg)
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage: storage });
+// ------------------------------------------------
 
 router.use(protect);
 
 router.post(
   "/upload",
-  checkPermission("store", "create"),
-  upload.array("files"), // CHANGED FROM single("file") TO array("files")
+  checkPermission("stores", "create"),
+  upload.array("files"),
   uploadStoresBulk,
 );
 
-// 2. Standard CRUD Routes
 router
   .route("/")
-  .post(checkPermission("store", "create"), createStore)
-  .get(checkPermission("store", "view"), getAllStores);
+  .post(checkPermission("stores", "create"), createStore)
+  .get(checkPermission("stores", "view"), getAllStores);
 
 router
   .route("/:id")
-  .get(checkPermission("store", "view"), getStoreById)
-  .put(checkPermission("store", "edit"), updateStore)
-  .delete(checkPermission("store", "delete"), deleteStore);
+  .get(checkPermission("stores", "view"), getStoreById)
+  .put(checkPermission("stores", "edit"), updateStore)
+  .delete(checkPermission("stores", "delete"), deleteStore);
 
-router.post("/assign", checkPermission("store", "edit"), assignStoresBulk);
+router.post("/assign", checkPermission("stores", "edit"), assignStoresBulk);
 
 router.post(
   "/:id/recce",
@@ -60,17 +70,23 @@ router.post(
 
 router.get("/:id/ppt/recce", protect, generateReccePPT);
 
-router.post("/:id/recce/review", checkPermission("store", "edit"), reviewRecce);
+router.post(
+  "/:id/recce/review",
+  checkPermission("stores", "edit"),
+  reviewRecce,
+);
 
-// NEW: Installation Submission Route
+// --- UPDATED: Accept TWO Installation Images ---
 router.post(
   "/:id/installation",
   protect,
-  upload.fields([{ name: "final", maxCount: 1 }]),
+  upload.fields([
+    { name: "after1", maxCount: 1 },
+    { name: "after2", maxCount: 1 },
+  ]),
   submitInstallation,
 );
 
-// NEW: Installation PPT Route
 router.get("/:id/ppt/installation", protect, generateInstallationPPT);
 
 export default router;

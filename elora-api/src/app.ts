@@ -5,6 +5,7 @@ import authRoutes from "./modules/auth/auth.routes";
 import roleRoutes from "./modules/role/role.routes";
 import userRoutes from "./modules/user/user.routes";
 import storeRoutes from "./modules/store/store.route";
+import path from "path";
 
 const app = express();
 
@@ -29,18 +30,26 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/roles", roleRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/stores", storeRoutes);
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('API Error:', err);
-  res.status(err.status || 500).json({
-    error: {
-      code: err.status || 500,
-      message: err.message,
-      ...(err.stack && { stack: err.stack }),
-      ...(err.errors && { details: err.errors })
-    }
-  });
-});
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    console.error("API Error:", err);
+    res.status(err.status || 500).json({
+      error: {
+        code: err.status || 500,
+        message: err.message,
+        ...(err.stack && { stack: err.stack }),
+        ...(err.errors && { details: err.errors }),
+      },
+    });
+  },
+);
 
 export default app;

@@ -10,29 +10,40 @@ export const createUser = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const { name, email, password, roleId } = req.body;
+    // 1. Accept 'roles' array instead of single 'roleId'
+    const { name, email, password, roles } = req.body;
 
-    // 1. Check if user already exists
+    // 2. Check if user exists
     const userExists = await User.findOne({ email });
     if (userExists) {
       res.status(400).json({ message: "User with this email already exists" });
       return;
     }
 
-    // 2. Validate Role
-    const role = await Role.findById(roleId);
-    if (!role) {
-      res.status(400).json({ message: "Invalid Role ID" });
+    // 3. Validate Roles
+    // Ensure 'roles' is an array and not empty
+    if (!roles || !Array.isArray(roles) || roles.length === 0) {
+      res.status(400).json({ message: "At least one role is required" });
       return;
     }
 
-    // 3. Create User
+    // Check if all provided Role IDs exist in DB
+    const foundRoles = await Role.find({ _id: { $in: roles } });
+    if (foundRoles.length !== roles.length) {
+      res.status(400).json({ message: "One or more Invalid Role IDs" });
+      return;
+    }
+
+    // 4. Create User
     const user = await User.create({
       name,
       email,
-      password, // Pre-save hook will hash this
-      role: roleId,
+      password,
+      roles: roles, // Save array of IDs
     });
+
+    // Populate roles for response
+    await user.populate("roles", "name");
 
     res.status(201).json({
       message: "User created successfully",
@@ -40,7 +51,7 @@ export const createUser = async (
         _id: user._id,
         name: user.name,
         email: user.email,
-        role: role.name,
+        roles: user.roles, // Return array
       },
     });
   } catch (error) {
@@ -61,10 +72,9 @@ export const getAllUsers = async (
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Fetch users and populate their Role name
     const users = await User.find({})
-      .select("-password") // Exclude password
-      .populate("role", "name code")
+      .select("-password")
+      .populate("roles", "name code") // Changed 'role' to 'roles'
       .skip(skip)
       .limit(limit);
 
@@ -83,7 +93,6 @@ export const getAllUsers = async (
     res.status(500).json({ message: "Server Error" });
   }
 };
-
 // @desc    Get single user by ID
 // @route   GET /api/v1/users/:id
 // @access  Private
@@ -94,7 +103,7 @@ export const getUserById = async (
   try {
     const user = await User.findById(req.params.id)
       .select("-password")
-      .populate("role", "name code permissions");
+      .populate("roles", "name code permissions"); // Changed 'role' to 'roles'
 
     if (!user) {
       res.status(404).json({ message: "User not found" });
@@ -111,11 +120,9 @@ export const getUserById = async (
 export const getUsersByRole = async (req: Request, res: Response) => {
   try {
     const { roleCode } = req.params;
-
-    // Normalize input
     const searchString = String(roleCode).toUpperCase();
 
-    // FIX: Search by 'code' OR 'name' (Handles "RECCE" vs "RECCE-101")
+    // Find the Role ID first
     const role = await Role.findOne({
       $or: [{ code: searchString }, { name: searchString }],
     });
@@ -126,10 +133,12 @@ export const getUsersByRole = async (req: Request, res: Response) => {
         .json({ message: `Role '${searchString}' not found` });
     }
 
-    // Find Users with this Role ID
-    const users = await User.find({ role: role._id, isActive: true }).select(
-      "name email mobile",
-    );
+    // Find users where 'roles' array CONTAINS this role._id
+    // MongoDB automatically handles searching inside arrays with this syntax
+    const users = await User.find({
+      roles: role._id,
+      isActive: true,
+    }).select("name email mobile roles");
 
     res.status(200).json({ users });
   } catch (error: any) {
@@ -147,7 +156,7 @@ export const updateUser = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const { name, email, roleId, isActive, password } = req.body;
+    const { name, email, roles, isActive, password } = req.body; // 'roles' instead of 'roleId'
 
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -155,27 +164,37 @@ export const updateUser = async (
       return;
     }
 
-    // Update fields
+    // Update basic fields
     user.name = name || user.name;
     user.email = email || user.email;
     user.isActive = isActive !== undefined ? isActive : user.isActive;
 
-    // Handle Role Change
-    if (roleId) {
-      const roleExists = await Role.findById(roleId);
-      if (!roleExists) {
-        res.status(400).json({ message: "Invalid Role ID" });
+    // Handle Roles Change
+    if (roles) {
+      if (!Array.isArray(roles) || roles.length === 0) {
+        res.status(400).json({ message: "Roles must be a non-empty array" });
         return;
       }
-      user.role = roleId;
+
+      // Verify all new roles exist
+      const foundRoles = await Role.find({ _id: { $in: roles } });
+      if (foundRoles.length !== roles.length) {
+        res.status(400).json({ message: "One or more Invalid Role IDs" });
+        return;
+      }
+
+      user.roles = roles as any; // Update array
     }
 
-    // Handle Password Change (Only if provided)
+    // Handle Password Change
     if (password) {
-      user.password = password; // The pre-save hook will detect modification and hash it
+      user.password = password;
     }
 
     await user.save();
+
+    // Populate for response
+    await user.populate("roles", "name");
 
     res.status(200).json({
       message: "User updated successfully",
@@ -184,6 +203,7 @@ export const updateUser = async (
         name: user.name,
         email: user.email,
         isActive: user.isActive,
+        roles: user.roles,
       },
     });
   } catch (error) {

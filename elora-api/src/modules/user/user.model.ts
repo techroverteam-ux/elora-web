@@ -5,7 +5,7 @@ export interface UserDocument extends Document {
   name: string;
   email: string;
   password: string;
-  role: mongoose.Types.ObjectId;
+  roles: mongoose.Types.ObjectId;
   isActive: boolean;
   comparePassword(password: string): Promise<boolean>;
 }
@@ -15,7 +15,7 @@ const UserSchema = new Schema<UserDocument>(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: Schema.Types.ObjectId, ref: "Role", required: true },
+    roles: [{ type: Schema.Types.ObjectId, ref: "Role", required: true }],
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },

@@ -14,17 +14,17 @@ const router = express.Router();
 
 router.use(protect);
 
-// PERMANENT FIX: Permission is SINGULAR ("user")
+// FIX: Changed "user" to "users" to match DB permissions
 router
   .route("/")
-  .post(checkPermission("user", "create"), createUser)
-  .get(checkPermission("user", "view"), getAllUsers);
+  .post(checkPermission("users", "create"), createUser)
+  .get(checkPermission("users", "view"), getAllUsers);
 
 router
   .route("/:id")
-  .get(checkPermission("user", "view"), getUserById)
-  .put(checkPermission("user", "edit"), updateUser)
-  .delete(checkPermission("user", "delete"), deleteUser);
+  .get(checkPermission("users", "view"), getUserById)
+  .put(checkPermission("users", "edit"), updateUser)
+  .delete(checkPermission("users", "delete"), deleteUser);
 
 router.get("/role/:roleCode", protect, getUsersByRole);
 

@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 
 /**
- * @param resource - The key in your permissions map (e.g., 'users', 'roles', 'reports')
- * @param action - The specific boolean flag to check ('view', 'create', 'edit', 'delete')
+ * Checks if the user has at least ONE role that grants the required permission.
+ * * @param resource - The key in your permissions map (e.g., 'users', 'roles')
+ * @param action - The specific flag ('view', 'create', 'edit', 'delete')
  */
 export const checkPermission = (
   resource: string,
@@ -10,28 +11,38 @@ export const checkPermission = (
 ) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.user || !req.user.role) {
-        res.status(403).json({ message: "Access denied. No role assigned." });
+      // 1. Basic Check: Does user exist and have roles?
+      if (
+        !req.user ||
+        !req.user.roles ||
+        !Array.isArray(req.user.roles) ||
+        req.user.roles.length === 0
+      ) {
+        res.status(403).json({ message: "Access denied. No roles assigned." });
         return;
       }
 
-      // Access the Mongoose Map
-      const rolePermissions = req.user.role.permissions;
+      let isAuthorized = false;
 
-      // Check if the resource exists in the role's permissions
-      const resourcePermission = rolePermissions.get(resource);
+      // 2. Loop through ALL assigned roles
+      for (const role of req.user.roles) {
+        // Ensure role has permissions property
+        if (!role.permissions) continue;
 
-      if (!resourcePermission) {
-        res.status(403).json({
-          message: `Access denied. No permissions defined for module: ${resource}`,
-        });
-        return;
+        // Mongoose Map: Use .get() to access the resource
+        const resourcePermission = role.permissions.get(resource);
+
+        // If permission exists for this resource AND the specific action is true
+        if (resourcePermission && resourcePermission[action] === true) {
+          isAuthorized = true;
+          break; // Stop looking, we found a valid role!
+        }
       }
 
-      // Check the specific boolean flag
-      if (!resourcePermission[action]) {
+      // 3. Final Decision
+      if (!isAuthorized) {
         res.status(403).json({
-          message: `Access denied. You do not have '${action}' permission for ${resource}.`,
+          message: `Access denied. None of your assigned roles permit '${action}' on '${resource}'.`,
         });
         return;
       }

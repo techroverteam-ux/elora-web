@@ -6,7 +6,7 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email }).populate("role");
+    const user = await User.findOne({ email }).populate("roles");
     if (!user || !user.isActive) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -18,7 +18,7 @@ export const login = async (req: Request, res: Response) => {
 
     const token = generateAccessToken({
       userId: user._id,
-      role: user.role,
+      role: user.roles,
     });
 
     res.cookie("access_token", token, {
@@ -34,17 +34,17 @@ export const login = async (req: Request, res: Response) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: user.roles,
       },
     });
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       error: {
         code: 500,
-        message: error.message || 'Login failed',
-        stack: error.stack
-      }
+        message: error.message || "Login failed",
+        stack: error.stack,
+      },
     });
   }
 };
