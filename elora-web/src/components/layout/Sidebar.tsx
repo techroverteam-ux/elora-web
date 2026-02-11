@@ -46,7 +46,6 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       if (!perms) return false;
 
       // Check standard object access (e.g., perms['recce'].view)
-      // We use optional chaining (?.) to prevent crashes if the module key is missing
       if (perms[moduleName]?.view === true) {
         return true;
       }
@@ -174,7 +173,6 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
             <nav className="flex-1 px-4 space-y-2">
               {navigation.map((item) => {
                 // --- DYNAMIC ACCESS CHECK ---
-                // If 'alwaysShow' is true OR user has permission for this module
                 const hasAccess =
                   (item as any).alwaysShow || canView(item.module);
 
@@ -245,7 +243,6 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                     darkMode ? "text-gray-400" : "text-gray-600"
                   }`}
                 >
-                  {/* Display Logic: "FirstRoleName [+N others]" */}
                   {user?.roles && user.roles.length > 0 ? (
                     <>
                       {user.roles[0].name}

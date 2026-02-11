@@ -33,7 +33,7 @@ export const seedSuperAdmin = async () => {
     const existingUser = await User.findOne({ email: "admin@elora.com" });
 
     if (existingUser) {
-      // --- FIX STARTS HERE ---
+      // --- FIX LOGIC ---
       // Cast to 'any' so we can check 'roles.length' without TS complaining
       const userAny = existingUser as any;
 
@@ -52,7 +52,6 @@ export const seedSuperAdmin = async () => {
         console.log("ℹ Super Admin user already exists and is valid.");
       }
       return;
-      // --- FIX ENDS HERE ---
     }
 
     // 3. Create User if doesn't exist

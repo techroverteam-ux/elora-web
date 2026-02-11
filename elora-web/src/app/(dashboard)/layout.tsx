@@ -33,7 +33,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }`}>
       <Sidebar isOpen={isMobileMenuOpen} setIsOpen={setIsMobileMenuOpen} />
       <div className="md:pl-72 flex flex-col flex-1">
-        <Header />
+        <Header onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
         <main className="flex-1 p-6">
           {children}
         </main>
