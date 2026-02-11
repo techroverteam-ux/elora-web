@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, use } from "react"; // Added 'use'
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react"; // 1. Removed 'use'
+import { useRouter, useParams } from "next/navigation"; // 2. Added 'useParams'
 import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
 import {
@@ -16,16 +16,13 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-// Unwrap params using React.use() for Next.js 15+
-export default function RecceSubmissionPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+// 3. Removed { params } prop entirely
+export default function RecceSubmissionPage() {
   const router = useRouter();
 
-  // Unwrap the params promise
-  const { id } = use(params);
+  // 4. Get ID using the hook instead of use(params)
+  const params = useParams();
+  const id = params?.id as string;
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,21 +47,55 @@ export default function RecceSubmissionPage({
     closeUp: string | null;
   }>({ front: null, side: null, closeUp: null });
 
+  const API_BASE_URL = "http://localhost:5000";
+
   useEffect(() => {
+    if (!id) return;
+
     const fetchStore = async () => {
       try {
         const { data } = await api.get(`/stores/${id}`);
-        setStore(data.store);
+        const s = data.store; // shorter reference
+        setStore(s);
 
-        // If dimensions exist (e.g. from Excel), pre-fill them
-        if (data.store.specs?.boardSize) {
-          // Simple parser: "10 x 5" -> width=10, height=5
-          const parts = data.store.specs.boardSize.toLowerCase().split("x");
-          if (parts.length === 2) {
-            setWidth(parts[0].trim());
-            setHeight(parts[1].trim());
+        // --- NEW LOGIC START: Check for existing Recce Data ---
+        if (s.recce && s.recce.submittedDate) {
+          // 1. Pre-fill Dimensions
+          if (s.recce.sizes) {
+            setWidth(String(s.recce.sizes.width));
+            setHeight(String(s.recce.sizes.height));
+          }
+
+          // 2. Pre-fill Notes
+          if (s.recce.notes) {
+            setNotes(s.recce.notes);
+          }
+
+          // 3. Pre-fill Images
+          // We convert the server path ("uploads/file.jpg") to a full URL
+          // ("http://localhost:5000/uploads/file.jpg")
+          setPreviews({
+            front: s.recce.photos?.front
+              ? `${API_BASE_URL}/${s.recce.photos.front}`
+              : null,
+            side: s.recce.photos?.side
+              ? `${API_BASE_URL}/${s.recce.photos.side}`
+              : null,
+            closeUp: s.recce.photos?.closeUp
+              ? `${API_BASE_URL}/${s.recce.photos.closeUp}`
+              : null,
+          });
+        } else {
+          // --- Fallback: If NO recce yet, use target specs from Excel ---
+          if (s.specs?.boardSize) {
+            const parts = s.specs.boardSize.toLowerCase().split("x");
+            if (parts.length === 2) {
+              setWidth(parts[0].trim());
+              setHeight(parts[1].trim());
+            }
           }
         }
+        // --- NEW LOGIC END ---
       } catch (error) {
         toast.error("Failed to load store details");
       } finally {
@@ -82,7 +113,6 @@ export default function RecceSubmissionPage({
       const file = e.target.files[0];
       setPhotos((prev) => ({ ...prev, [type]: file }));
 
-      // Create preview URL
       const url = URL.createObjectURL(file);
       setPreviews((prev) => ({ ...prev, [type]: url }));
     }
@@ -100,19 +130,17 @@ export default function RecceSubmissionPage({
     formData.append("height", height);
     formData.append("notes", notes);
 
-    // Append files
     formData.append("front", photos.front);
     formData.append("side", photos.side);
     formData.append("closeUp", photos.closeUp);
 
     try {
-      // NOTE: Using the route we created earlier: /stores/:id/recce
       await api.post(`/stores/${id}/recce`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       toast.success("Recce Submitted Successfully!");
-      router.push("/recce"); // Go back to list
+      router.push("/recce");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Submission failed");
     } finally {
@@ -248,7 +276,8 @@ export default function RecceSubmissionPage({
               <FileText className="h-5 w-5 text-orange-600" /> Remarks
             </h3>
             <textarea
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+              // ADDED: text-gray-900 (for dark text) and placeholder-gray-500 (for readable placeholder)
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
               placeholder="Any obstruction? Electrical issues?"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
