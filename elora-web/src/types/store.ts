@@ -13,11 +13,15 @@ export enum StoreStatus {
 export interface Store {
   _id: string;
   projectID: string;
-  dealerCode: string; // Added this
+  dealerCode: string;
   storeCode?: string;
   storeName: string;
+  vendorCode?: string;
 
   location: {
+    zone?: string;
+    state?: string;
+    district?: string;
     city: string;
     area: string;
     address: string;
@@ -25,10 +29,37 @@ export interface Store {
     coordinates?: { lat: number; lng: number };
   };
 
-  // This was missing!
+  contact?: {
+    personName?: string;
+    mobile?: string;
+  };
+
+  commercials?: {
+    poNumber?: string;
+    poMonth?: string;
+    invoiceNumber?: string;
+    invoiceRemarks?: string;
+    totalCost?: number;
+  };
+
+  costDetails?: {
+    boardRate?: number;
+    totalBoardCost?: number;
+    angleCharges?: number;
+    scaffoldingCharges?: number;
+    transportation?: number;
+    flanges?: number;
+    lollipop?: number;
+    oneWayVision?: number;
+    sunboard?: number;
+  };
+
   specs?: {
-    boardSize: string;
+    boardSize?: string;
     type?: string;
+    width?: number;
+    height?: number;
+    qty?: number;
   };
 
   currentStatus: StoreStatus;
@@ -39,7 +70,6 @@ export interface Store {
     priority: "HIGH" | "MEDIUM" | "LOW";
   };
 
-  // Optional: If you need to show recce details on frontend later
   recce?: {
     assignedDate?: string;
     submittedDate?: string;
@@ -48,5 +78,15 @@ export interface Store {
     notes?: string;
   };
 
+  installation?: {
+    assignedDate?: string;
+    submittedDate?: string;
+    photos?: {
+      after1?: string;
+      after2?: string;
+    };
+  };
+
   createdAt: string;
+  updatedAt: string;
 }

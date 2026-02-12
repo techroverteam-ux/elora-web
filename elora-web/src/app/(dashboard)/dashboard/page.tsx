@@ -1,94 +1,250 @@
 "use client";
 
-import React from 'react';
-import { Users, ShieldCheck, UserCheck, Activity, TrendingUp, BarChart3 } from 'lucide-react';
-import { useTheme } from '@/src/context/ThemeContext';
+import React, { useEffect, useState } from "react";
+import {
+  Users,
+  ShieldCheck,
+  UserCheck,
+  Activity,
+  TrendingUp,
+  BarChart3,
+  MapPin,
+  FileText,
+  Download,
+  Loader2,
+  Calendar,
+  CheckCircle2,
+} from "lucide-react";
+import { useTheme } from "@/src/context/ThemeContext";
+import api from "@/src/lib/api";
+import { StoreStatus } from "@/src/types/store";
 
 export default function DashboardPage() {
   const { darkMode } = useTheme();
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const { data } = await api.get("/dashboard/stats");
+      setStats(data);
+    } catch (error) {
+      console.error("Failed to fetch dashboard stats", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Compact Header */}
+    <div className="space-y-6 pb-20">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={`text-2xl font-bold ${
-            darkMode ? 'text-white' : 'text-gray-900'
-          }`}>Dashboard</h1>
-          <p className={`text-sm ${
-            darkMode ? 'text-gray-400' : 'text-gray-500'
-          }`}>Overview & Analytics</p>
+          <h1
+            className={`text-2xl font-bold ${
+              darkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            Dashboard
+          </h1>
+          <p
+            className={`text-sm ${
+              darkMode ? "text-gray-400" : "text-gray-500"
+            }`}
+          >
+            Overview & Analytics
+          </p>
         </div>
-        <div className={`px-3 py-1 rounded-lg text-xs font-medium ${
-          darkMode ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
-        }`}>
+        <div
+          className={`px-3 py-1 rounded-lg text-xs font-medium ${
+            darkMode
+              ? "bg-green-500/20 text-green-400"
+              : "bg-green-100 text-green-700"
+          }`}
+        >
           System Online
         </div>
       </div>
 
-      {/* Compact KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="Users" value="124" icon={<Users className="h-4 w-4" />} darkMode={darkMode} />
-        <StatCard title="Active" value="98" icon={<UserCheck className="h-4 w-4" />} darkMode={darkMode} />
-        <StatCard title="Roles" value="6" icon={<ShieldCheck className="h-4 w-4" />} darkMode={darkMode} />
-        <StatCard title="Health" value="99%" icon={<Activity className="h-4 w-4" />} darkMode={darkMode} />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Stores"
+          value={stats?.kpi?.totalStores || 0}
+          icon={<MapPin className="h-4 w-4" />}
+          darkMode={darkMode}
+          trend={`+${stats?.kpi?.newStoresToday || 0} today`}
+        />
+        <StatCard
+          title="Recce Completed"
+          value={stats?.kpi?.recceDoneTotal || 0}
+          icon={<Activity className="h-4 w-4" />}
+          darkMode={darkMode}
+          trend={`+${stats?.kpi?.recceDoneToday || 0} today`}
+          color="blue"
+        />
+        <StatCard
+          title="Installations"
+          value={stats?.kpi?.installationDoneTotal || 0}
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          darkMode={darkMode}
+          trend={`+${stats?.kpi?.installationDoneToday || 0} today`}
+          color="green"
+        />
+        <StatCard
+          title="Pending Actions"
+          value={stats?.kpi?.totalStores - stats?.kpi?.recceDoneTotal} // Rough estimate
+          icon={<Activity className="h-4 w-4" />}
+          darkMode={darkMode}
+          color="orange"
+        />
       </div>
 
-      {/* Compact Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className={`rounded-xl p-4 border ${
-          darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
-        }`}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className={`text-sm font-semibold ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>Growth</h3>
-            <TrendingUp className="h-4 w-4 text-yellow-500" />
-          </div>
-          <div className="flex items-end gap-1 h-16">
-            {[40, 55, 70, 65, 80, 95].map((value, i) => (
-              <div key={i} className="flex-1 bg-yellow-500 rounded-t" style={{ height: `${value}%` }} />
-            ))}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ASSIGNED PERSONNEL TABLE */}
+        <div
+          className={`col-span-1 lg:col-span-2 rounded-xl border p-5 ${
+            darkMode
+              ? "bg-purple-900/30 border-purple-700/50"
+              : "bg-white border-gray-200"
+          }`}
+        >
+          <h3
+            className={`text-lg font-bold mb-4 ${
+              darkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            Assigned Personnel
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead
+                className={`text-xs uppercase ${
+                  darkMode
+                    ? "text-gray-400 bg-gray-800/50"
+                    : "text-gray-500 bg-gray-50"
+                }`}
+              >
+                <tr>
+                  <th className="px-4 py-3 rounded-l-lg">Name</th>
+                  <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Assigned</th>
+                  <th className="px-4 py-3 rounded-r-lg">Completed</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200/10">
+                {stats?.personnelStats?.map((person: any) => (
+                  <tr
+                    key={person._id}
+                    className={`border-b ${
+                      darkMode ? "border-gray-700" : "border-gray-100"
+                    }`}
+                  >
+                    <td
+                      className={`px-4 py-3 font-medium ${
+                        darkMode ? "text-white" : "text-gray-900"
+                      }`}
+                    >
+                      {person.name}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold ${
+                          person.role === "RECCE"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {person.role}
+                      </span>
+                    </td>
+                    <td
+                      className={`px-4 py-3 font-bold ${
+                        darkMode ? "text-white" : "text-gray-900"
+                      }`}
+                    >
+                      {person.assignedCount}
+                    </td>
+                    <td className="px-4 py-3 text-green-500 font-bold">
+                      {person.completedCount}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <div className={`rounded-xl p-4 border ${
-          darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
-        }`}>
-          <h3 className={`text-sm font-semibold mb-3 ${
-            darkMode ? 'text-white' : 'text-gray-900'
-          }`}>Roles</h3>
-          <div className="space-y-2">
-            {[{l:'Admin',v:40},{l:'Manager',v:25},{l:'Staff',v:35}].map((item,i) => (
-              <div key={i} className="flex items-center justify-between text-xs">
-                <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>{item.l}</span>
-                <div className="flex items-center gap-2">
-                  <div className={`w-12 h-1 rounded-full ${
-                    darkMode ? 'bg-gray-700' : 'bg-gray-200'
-                  }`}>
-                    <div className="bg-yellow-500 h-1 rounded-full" style={{width:`${item.v}%`}} />
+        {/* RECENT DOWNLOADS / STORES */}
+        <div className="space-y-6">
+          {/* Recent Stores */}
+          <div
+            className={`rounded-xl border p-5 ${
+              darkMode
+                ? "bg-purple-900/30 border-purple-700/50"
+                : "bg-white border-gray-200"
+            }`}
+          >
+            <h3
+              className={`text-lg font-bold mb-4 ${
+                darkMode ? "text-white" : "text-gray-900"
+              }`}
+            >
+              New Stores
+            </h3>
+            <div className="space-y-4">
+              {stats?.recentStores?.map((store: any) => (
+                <div
+                  key={store._id}
+                  className={`flex items-start gap-3 p-3 rounded-lg border ${
+                    darkMode
+                      ? "bg-gray-800/50 border-gray-700"
+                      : "bg-gray-50 border-gray-100"
+                  }`}
+                >
+                  <div
+                    className={`p-2 rounded-full mt-1 ${
+                      darkMode ? "bg-gray-700" : "bg-white"
+                    }`}
+                  >
+                    <MapPin className="w-4 h-4 text-yellow-500" />
                   </div>
-                  <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{item.v}%</span>
+                  <div>
+                    <h4
+                      className={`text-sm font-bold ${
+                        darkMode ? "text-white" : "text-gray-900"
+                      }`}
+                    >
+                      {store.storeName}
+                    </h4>
+                    <p
+                      className={`text-xs ${
+                        darkMode ? "text-gray-400" : "text-gray-500"
+                      }`}
+                    >
+                      {store.location?.city} • {store.dealerCode}
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-[10px] uppercase font-bold text-gray-400">
+                        {store.currentStatus?.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={`rounded-xl p-4 border ${
-          darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
-        }`}>
-          <h3 className={`text-sm font-semibold mb-3 ${
-            darkMode ? 'text-white' : 'text-gray-900'
-          }`}>Recent Activity</h3>
-          <div className="space-y-2">
-            {['User created','Role updated','System backup'].map((activity,i) => (
-              <div key={i} className={`text-xs p-2 rounded border-l-2 border-yellow-500 ${
-                darkMode ? 'bg-gray-800/50 text-gray-300' : 'bg-gray-50 text-gray-600'
-              }`}>
-                {activity}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -96,25 +252,73 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon, darkMode }: {
-  title: string; value: string; icon: React.ReactNode; darkMode: boolean;
+function StatCard({
+  title,
+  value,
+  icon,
+  darkMode,
+  trend,
+  color = "yellow",
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  darkMode: boolean;
+  trend?: string;
+  color?: string;
 }) {
+  const colorClasses: any = {
+    yellow: {
+      bg: "bg-yellow-500/20",
+      text: "text-yellow-500",
+      border: "border-yellow-500",
+    },
+    blue: { bg: "bg-blue-500/20", text: "text-blue-500", border: "border-blue-500" },
+    green: {
+      bg: "bg-green-500/20",
+      text: "text-green-500",
+      border: "border-green-500",
+    },
+    orange: {
+      bg: "bg-orange-500/20",
+      text: "text-orange-500",
+      border: "border-orange-500",
+    },
+  };
+
+  const selectedColor = colorClasses[color] || colorClasses.yellow;
+
   return (
-    <div className={`p-3 rounded-xl border transition-all hover:scale-105 ${
-      darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
-    }`}>
-      <div className="flex items-center justify-between">
+    <div
+      className={`p-4 rounded-xl border transition-all hover:scale-105 hover:shadow-lg ${
+        darkMode
+          ? "bg-purple-900/30 border-purple-700/50"
+          : "bg-white border-gray-200"
+      }`}
+    >
+      <div className="flex items-start justify-between">
         <div>
-          <p className={`text-xs font-medium ${
-            darkMode ? 'text-gray-400' : 'text-gray-500'
-          }`}>{title}</p>
-          <p className={`text-lg font-bold ${
-            darkMode ? 'text-white' : 'text-gray-900'
-          }`}>{value}</p>
+          <p
+            className={`text-xs font-medium uppercase tracking-wider ${
+              darkMode ? "text-gray-400" : "text-gray-500"
+            }`}
+          >
+            {title}
+          </p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <h3
+              className={`text-2xl font-black ${
+                darkMode ? "text-white" : "text-gray-900"
+              }`}
+            >
+              {value}
+            </h3>
+          </div>
+          {trend && (
+            <p className="text-xs text-green-500 font-medium mt-1">{trend}</p>
+          )}
         </div>
-        <div className={`p-2 rounded-lg ${
-          darkMode ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
-        }`}>
+        <div className={`p-2 rounded-lg ${selectedColor.bg} ${selectedColor.text}`}>
           {icon}
         </div>
       </div>

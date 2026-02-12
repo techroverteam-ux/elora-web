@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import api from "@/src/lib/api";
 import { Role, PermissionSet } from "@/src/types/auth";
-import { Plus, Shield, Trash2, Loader2, Edit2, Search } from "lucide-react";
+import { Plus, Shield, Trash2, Loader2, Edit2, Search, FileText } from "lucide-react";
 import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
@@ -134,6 +134,21 @@ export default function RolesPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const response = await api.get("/roles/export", { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "Roles.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error("Failed to export roles");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -161,13 +176,24 @@ export default function RolesPage() {
             Manage system permissions
           </p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Role
-        </button>
+        <div className="flex gap-2">
+            <button
+                onClick={handleExport}
+                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
+                    darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+            >
+                <FileText className="h-4 w-4 mr-2" />
+                Export
+            </button>
+            <button
+            onClick={openCreateModal}
+            className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm"
+            >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Role
+            </button>
+        </div>
       </div>
 
       <div

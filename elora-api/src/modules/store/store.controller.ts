@@ -221,32 +221,69 @@ export const createStore = async (req: Request, res: Response) => {
 
 export const getAllStores = async (req: Request | any, res: Response) => {
   try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const { status, search, city } = req.query;
+
     let query: any = {};
 
-    // --- FIX START: Check roles array instead of single role object ---
+    // 1. Role-based Access Control
     const userRoles = req.user.roles || [];
-
-    // Check if user has SUPER_ADMIN or ADMIN role in their list
     const isSuperAdmin = userRoles.some((r: any) => r.code === "SUPER_ADMIN");
     const isAdmin = userRoles.some((r: any) => r.code === "ADMIN");
 
-    // If NOT Super Admin or Admin, restrict visibility to assigned tasks only
     if (!isSuperAdmin && !isAdmin) {
-      query = {
-        $or: [
-          { "workflow.recceAssignedTo": req.user._id },
-          { "workflow.installationAssignedTo": req.user._id },
-        ],
-      };
+      query.$or = [
+        { "workflow.recceAssignedTo": req.user._id },
+        { "workflow.installationAssignedTo": req.user._id },
+      ];
     }
-    // --- FIX END ---
 
+    // 2. Status Filter
+    if (status && status !== "ALL") {
+      query.currentStatus = status;
+    }
+
+    // 3. City Filter
+    if (city) {
+      query["location.city"] = city;
+    }
+
+    // 4. Search (Store Name, Dealer Code, City)
+    if (search) {
+      const searchRegex = { $regex: search, $options: "i" };
+      query.$and = [
+        ...(query.$and || []),
+        {
+          $or: [
+            { storeName: searchRegex },
+            { dealerCode: searchRegex },
+            { "location.city": searchRegex },
+            { "location.area": searchRegex },
+          ],
+        },
+      ];
+    }
+
+    const total = await Store.countDocuments(query);
     const stores = await Store.find(query)
       .populate("workflow.recceAssignedTo", "name email")
       .populate("workflow.installationAssignedTo", "name email")
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.status(200).json({ stores });
+    res.status(200).json({
+      stores,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        page,
+        limit,
+      },
+    });
   } catch (error: any) {
     console.error("Get All Stores Error:", error);
     res

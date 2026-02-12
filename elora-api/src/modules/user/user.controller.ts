@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import User from "./user.model";
 import Role from "../role/role.model";
+import * as XLSX from "xlsx";
 
 // @desc    Create a new user (Admin only)
 // @route   POST /api/v1/users
@@ -236,5 +237,42 @@ export const deleteUser = async (
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// @desc    Export users to Excel
+// @route   GET /api/v1/users/export
+// @access  Private (Admin)
+export const exportUsers = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const users = await User.find({}).populate("roles", "name");
+
+    const data = users.map((user: any) => ({
+      "User ID": user._id.toString(),
+      Name: user.name,
+      Email: user.email,
+      Roles: user.roles.map((r: any) => r.name).join(", "),
+      Status: user.isActive ? "Active" : "Inactive",
+      "Created At": new Date(user.createdAt).toLocaleDateString(),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+
+    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", "attachment; filename=Users.xlsx");
+    res.send(buffer);
+  } catch (error) {
+    console.error("Export Error:", error);
+    res.status(500).json({ message: "Failed to export users" });
   }
 };

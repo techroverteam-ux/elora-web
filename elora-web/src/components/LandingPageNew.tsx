@@ -2,16 +2,73 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { ArrowRight, CheckCircle, MapPin, Phone, Mail, MessageCircle, Sun, Moon } from 'lucide-react';
+import { ArrowRight, CheckCircle, MapPin, Phone, Mail, MessageCircle, Sun, Moon, Loader2 } from 'lucide-react';
+import api from '@/src/lib/api';
+import { Store, StoreStatus } from '@/src/types/store';
+import toast, { Toaster } from 'react-hot-toast';
 
 const LandingPage = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [completedStores, setCompletedStores] = useState<Store[]>([]);
+  const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(true);
+  
+  // Enquiry Form State
+  const [enquiry, setEnquiry] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    service: 'Select Service',
+    message: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const isDark = localStorage.getItem('darkMode') === 'true';
     setDarkMode(isDark);
+    fetchPortfolio();
   }, []);
+
+  const fetchPortfolio = async () => {
+    try {
+      const { data } = await api.get('/stores');
+      // Filter for COMPLETED stores that have both Before/After photos
+      const portfolio = data.stores.filter((s: Store) => 
+        s.currentStatus === StoreStatus.COMPLETED &&
+        s.recce?.photos?.front && 
+        s.installation?.photos?.after1
+      ).slice(0, 6); // Take top 6
+      setCompletedStores(portfolio);
+    } catch (error) {
+      console.error("Failed to fetch portfolio", error);
+    } finally {
+      setIsLoadingPortfolio(false);
+    }
+  };
+
+  const handleEnquirySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enquiry.name || !enquiry.phone) {
+      return toast.error("Name and Phone are required");
+    }
+    
+    setIsSubmitting(true);
+    try {
+      await api.post('/enquiries', enquiry);
+      toast.success("Message sent successfully!");
+      setEnquiry({
+        name: '',
+        email: '',
+        phone: '',
+        service: 'Select Service',
+        message: ''
+      });
+    } catch (error) {
+      toast.error("Failed to send message. Try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
@@ -25,6 +82,7 @@ const LandingPage = () => {
         ? 'bg-black text-white' 
         : 'bg-white text-gray-900'
     }`}>
+      <Toaster position="top-right" />
       {/* Navigation */}
       <nav className={`fixed top-0 w-full backdrop-blur-sm z-50 border-b transition-colors duration-300 ${
         darkMode 
@@ -288,21 +346,47 @@ const LandingPage = () => {
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div key={item} className="group relative overflow-hidden rounded-2xl aspect-square">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10"></div>
-                <img 
-                  src={`https://images.unsplash.com/photo-${1541888946425 + item}?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`}
-                  alt={`Project ${item}`}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute bottom-4 left-4 z-20">
-                  <span className="bg-yellow-500 text-black px-3 py-1 rounded-full text-sm font-bold">
-                    Before & After
-                  </span>
+            {isLoadingPortfolio ? (
+                 <div className="col-span-3 flex justify-center py-20">
+                    <Loader2 className="w-10 h-10 animate-spin text-yellow-500" />
+                 </div>
+            ) : completedStores.length > 0 ? (
+                completedStores.map((store) => (
+              <div key={store._id} className="group relative overflow-hidden rounded-2xl aspect-square border border-gray-100 shadow-sm">
+                {/* Image Container - Swaps on Hover */}
+                <div className="absolute inset-0 transition-opacity duration-700 ease-in-out group-hover:opacity-0">
+                    <img 
+                      src={`http://localhost:5000${store.installation?.photos?.after1?.replace(/\\/g, '/')}`} 
+                      alt={`After - ${store.storeName}`}
+                      className="w-full h-full object-cover"
+                    />
+                     <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
+                        AFTER
+                      </div>
+                </div>
+                
+                 <div className="absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out group-hover:opacity-100">
+                    <img 
+                      src={`http://localhost:5000${store.recce?.photos?.front?.replace(/\\/g, '/')}`} 
+                      alt={`Before - ${store.storeName}`}
+                      className="w-full h-full object-cover"
+                    />
+                      <div className="absolute top-4 right-4 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
+                        BEFORE
+                      </div>
+                </div>
+
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 translate-y-2 group-hover:translate-y-0 transition-transform">
+                  <h3 className="text-white font-bold text-lg">{store.storeName}</h3>
+                  <p className="text-gray-300 text-sm">{store.location.city}, {store.location.state}</p>
                 </div>
               </div>
-            ))}
+            ))
+            ) : (
+                <div className="col-span-3 text-center py-10 opacity-60">
+                    No completed projects to display yet.
+                </div>
+            )}
           </div>
         </div>
       </section>
@@ -437,11 +521,14 @@ const LandingPage = () => {
                 : 'bg-white border-gray-200 shadow-lg'
             }`}>
               <h3 className="text-2xl font-bold text-yellow-500 mb-6">Send Message</h3>
-              <form className="space-y-4">
+              <form onSubmit={handleEnquirySubmit} className="space-y-4">
                 <div>
                   <input 
                     type="text" 
+                    required
                     placeholder="Your Name" 
+                    value={enquiry.name}
+                    onChange={(e) => setEnquiry({...enquiry, name: e.target.value})}
                     className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
@@ -453,6 +540,8 @@ const LandingPage = () => {
                   <input 
                     type="email" 
                     placeholder="Your Email" 
+                    value={enquiry.email}
+                    onChange={(e) => setEnquiry({...enquiry, email: e.target.value})}
                     className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
@@ -463,7 +552,10 @@ const LandingPage = () => {
                 <div>
                   <input 
                     type="tel" 
+                    required
                     placeholder="Your Phone" 
+                    value={enquiry.phone}
+                    onChange={(e) => setEnquiry({...enquiry, phone: e.target.value})}
                     className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
@@ -472,7 +564,10 @@ const LandingPage = () => {
                   />
                 </div>
                 <div>
-                  <select className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                  <select 
+                    value={enquiry.service}
+                    onChange={(e) => setEnquiry({...enquiry, service: e.target.value})}
+                    className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                     darkMode 
                       ? 'bg-gray-800 border-gray-600 text-white' 
                       : 'bg-white border-gray-300 text-gray-900'
@@ -488,6 +583,8 @@ const LandingPage = () => {
                   <textarea 
                     rows={4} 
                     placeholder="Tell us about your project..." 
+                    value={enquiry.message}
+                    onChange={(e) => setEnquiry({...enquiry, message: e.target.value})}
                     className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
@@ -497,9 +594,11 @@ const LandingPage = () => {
                 </div>
                 <button 
                   type="submit" 
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all hover:shadow-lg"
+                  disabled={isSubmitting}
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex justify-center items-center gap-2"
                 >
-                  Send Message
+                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isSubmitting ? "Sending..." : "Send Message"}
                 </button>
               </form>
             </div>
@@ -543,19 +642,19 @@ const LandingPage = () => {
               </div>
               
               {/* Quick Action Buttons */}
-              <div className="mt-8 space-y-3">
+              <div className="mt-8 flex flex-row gap-4">
                 <a 
-                  href="tel:+919876543210" 
-                  className="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex items-center justify-center gap-3"
+                  href="#" 
+                  onClick={(e) => e.preventDefault()}
+                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex items-center justify-center gap-2"
                 >
                   <Phone className="w-5 h-5" />
                   Call Now
                 </a>
                 <a 
-                  href="https://wa.me/919876543210" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex items-center justify-center gap-3"
+                  href="#" 
+                  onClick={(e) => e.preventDefault()}
+                  className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex items-center justify-center gap-2"
                 >
                   <MessageCircle className="w-5 h-5" />
                   WhatsApp

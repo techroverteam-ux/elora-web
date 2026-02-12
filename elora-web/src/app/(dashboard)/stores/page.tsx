@@ -19,6 +19,13 @@ import {
   Plus,
   Save,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Calendar,
+  Ruler,
+  User,
+  Edit2
 } from "lucide-react";
 import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
@@ -28,9 +35,22 @@ import { useRouter } from "next/navigation";
 export default function StoresPage() {
   const { darkMode } = useTheme();
   const router = useRouter();
+  
+  // Data State
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalStores, setTotalStores] = useState(0);
+
+  // Filter State
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCity, setFilterCity] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Upload State
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -39,23 +59,13 @@ export default function StoresPage() {
   const [uploadStats, setUploadStats] = useState<any>(null);
 
   // Assignment State
-  const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(
-    new Set(),
-  );
+  const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [assignStage, setAssignStage] = useState<"RECCE" | "INSTALLATION">(
-    "RECCE",
-  );
+  const [assignStage, setAssignStage] = useState<"RECCE" | "INSTALLATION">("RECCE");
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
-  const [singleAssignTarget, setSingleAssignTarget] = useState<Store | null>(
-    null,
-  );
-
-  // Dropdown Menu State
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [singleAssignTarget, setSingleAssignTarget] = useState<Store | null>(null);
 
   // Add Single Store State
   const [isAddStoreOpen, setIsAddStoreOpen] = useState(false);
@@ -63,55 +73,41 @@ export default function StoresPage() {
 
   // Initial Form State
   const initialFormState = {
-    zone: "",
-    state: "",
-    district: "",
-    city: "",
-    vendorCode: "",
-    dealerCode: "",
-    dealerName: "",
-    dealerAddress: "",
-    poNumber: "",
-    invoiceRemarks: "",
-    poMonth: "",
-    invoiceNo: "",
-    boardType: "",
-    width: "",
-    height: "",
-    qty: "1",
-    boardRate: "",
-    angleCharges: "",
-    scaffoldingCharges: "",
-    transportation: "",
-    flanges: "",
-    lollipop: "",
-    oneWayVision: "",
-    sunboard: "",
-    totalCost: "",
+    zone: "", state: "", district: "", city: "",
+    vendorCode: "", dealerCode: "", dealerName: "", dealerAddress: "",
+    poNumber: "", invoiceRemarks: "", poMonth: "", invoiceNo: "",
+    boardType: "", width: "", height: "", qty: "1",
+    boardRate: "", angleCharges: "", scaffoldingCharges: "", transportation: "",
+    flanges: "", lollipop: "", oneWayVision: "", sunboard: "", totalCost: ""
   };
 
   const [newStoreData, setNewStoreData] = useState(initialFormState);
 
-  // Close menu when clicking outside
+  // Debounce Search
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpenMenuId(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    fetchStores();
-  }, []);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1); // Reset to page 1 on new search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const fetchStores = async () => {
     try {
       setIsLoading(true);
-      const { data } = await api.get("/stores");
+      const params = new URLSearchParams();
+      params.append("page", page.toString());
+      params.append("limit", limit.toString());
+      if (filterStatus !== "ALL") params.append("status", filterStatus);
+      if (debouncedSearch) params.append("search", debouncedSearch);
+      if (filterCity) params.append("city", filterCity);
+
+      const { data } = await api.get(`/stores?${params.toString()}`);
       setStores(data.stores);
+      if (data.pagination) {
+        setTotalPages(data.pagination.pages);
+        setTotalStores(data.pagination.total);
+      }
     } catch (error) {
       toast.error("Failed to load stores");
     } finally {
@@ -119,9 +115,13 @@ export default function StoresPage() {
     }
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
+  useEffect(() => {
+    fetchStores();
+  }, [page, limit, filterStatus, debouncedSearch, filterCity]);
+
+  // --- Handlers ---
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setNewStoreData((prev) => ({ ...prev, [name]: value }));
   };
@@ -131,7 +131,6 @@ export default function StoresPage() {
     if (!newStoreData.dealerCode || !newStoreData.dealerName) {
       return toast.error("Dealer Code and Name are required");
     }
-
     setIsSavingStore(true);
     try {
       const payload = {
@@ -139,17 +138,13 @@ export default function StoresPage() {
         storeName: newStoreData.dealerName,
         vendorCode: newStoreData.vendorCode,
         location: {
-          zone: newStoreData.zone,
-          state: newStoreData.state,
-          district: newStoreData.district,
-          city: newStoreData.city,
+          zone: newStoreData.zone, state: newStoreData.state,
+          district: newStoreData.district, city: newStoreData.city,
           address: newStoreData.dealerAddress,
         },
         commercials: {
-          poNumber: newStoreData.poNumber,
-          poMonth: newStoreData.poMonth,
-          invoiceNumber: newStoreData.invoiceNo,
-          invoiceRemarks: newStoreData.invoiceRemarks,
+          poNumber: newStoreData.poNumber, poMonth: newStoreData.poMonth,
+          invoiceNumber: newStoreData.invoiceNo, invoiceRemarks: newStoreData.invoiceRemarks,
           totalCost: Number(newStoreData.totalCost) || 0,
         },
         costDetails: {
@@ -170,7 +165,6 @@ export default function StoresPage() {
           boardSize: `${newStoreData.width}x${newStoreData.height}`,
         },
       };
-
       await api.post("/stores", payload);
       toast.success("Store Added Successfully");
       setIsAddStoreOpen(false);
@@ -183,39 +177,16 @@ export default function StoresPage() {
     }
   };
 
-  // Helper Functions
   const downloadTemplate = () => {
     const headers = [
-      "Sr. No.",
-      "Zone",
-      "State",
-      "District",
-      "Vendor Code & Name",
-      "Dealer Code",
-      "City",
-      "Dealer's Name",
-      "Dealer's Address",
-      "PO Number",
-      "Invoice Remarks",
-      "PO Month",
-      "Dealer Board Type",
-      "Width (Ft.)",
-      "Height (Ft.)",
-      "Qty",
-      "Board Size (Sq.Ft.)",
-      "Board Rate/Sq.Ft.",
-      "Total Board Cost (w/o taxes)",
-      "Angle Charges (if any)",
-      "Scaffolding Charges (if any)",
-      "Transportation (if any)",
-      "Flanges per pc (if any)",
-      "Lollipop per pc (if any)",
-      "One Way Vision (if any)",
-      "3 mm Sunboard (if any)",
-      "Total Cost w/0 Tax",
-      "Remark",
-      "Images Attached in PPT (yes/no)",
-      "INVOICE NO:",
+      "Sr. No.", "Zone", "State", "District", "Vendor Code & Name", "Dealer Code",
+      "City", "Dealer's Name", "Dealer's Address", "PO Number", "Invoice Remarks",
+      "PO Month", "Dealer Board Type", "Width (Ft.)", "Height (Ft.)", "Qty",
+      "Board Size (Sq.Ft.)", "Board Rate/Sq.Ft.", "Total Board Cost (w/o taxes)",
+      "Angle Charges (if any)", "Scaffolding Charges (if any)", "Transportation (if any)",
+      "Flanges per pc (if any)", "Lollipop per pc (if any)", "One Way Vision (if any)",
+      "3 mm Sunboard (if any)", "Total Cost w/0 Tax", "Remark",
+      "Images Attached in PPT (yes/no)", "INVOICE NO:",
     ];
     const csvContent = [headers.join(",")].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -228,53 +199,22 @@ export default function StoresPage() {
     link.remove();
   };
 
-  const downloadPPT = async (
-    storeId: string,
-    dealerCode: string,
-    type: "recce" | "installation",
-  ) => {
+  const downloadPPT = async (storeId: string, dealerCode: string, type: "recce" | "installation") => {
     try {
       toast.loading(`Generating ${type} PPT...`);
-      setOpenMenuId(null);
-      const response = await api.get(`/stores/${storeId}/ppt/${type}`, {
-        responseType: "blob",
-      });
+      const response = await api.get(`/stores/${storeId}/ppt/${type}`, { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute(
-        "download",
-        `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pptx`,
-      );
+      link.setAttribute("download", `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pptx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       toast.dismiss();
       toast.success("PPT Downloaded!");
     } catch (error) {
-      console.error(error);
       toast.dismiss();
       toast.error("Failed to download. Ensure data exists.");
-    }
-  };
-
-  const handleReview = async (
-    storeId: string,
-    status: "APPROVED" | "REJECTED",
-  ) => {
-    if (!confirm(`Are you sure you want to ${status} this recce?`)) return;
-    let remarks = "";
-    if (status === "REJECTED") {
-      remarks = prompt("Enter reason for rejection:") || "";
-      if (!remarks) return;
-    }
-    try {
-      await api.post(`/stores/${storeId}/recce/review`, { status, remarks });
-      toast.success(`Recce ${status}`);
-      setOpenMenuId(null);
-      fetchStores();
-    } catch (error: any) {
-      toast.error("Action failed");
     }
   };
 
@@ -286,24 +226,19 @@ export default function StoresPage() {
   };
 
   const toggleAllSelection = () => {
-    if (selectedStoreIds.size === filteredStores.length) {
+    if (selectedStoreIds.size === stores.length) {
       setSelectedStoreIds(new Set());
     } else {
-      const allIds = filteredStores.map((s) => s._id);
+      const allIds = stores.map((s) => s._id);
       setSelectedStoreIds(new Set(allIds));
     }
   };
 
-  const openAssignModal = async (
-    stage: "RECCE" | "INSTALLATION",
-    specificStore?: Store,
-  ) => {
-    setOpenMenuId(null);
+  const openAssignModal = async (stage: "RECCE" | "INSTALLATION", specificStore?: Store) => {
     if (specificStore) {
       setSingleAssignTarget(specificStore);
     } else {
-      if (selectedStoreIds.size === 0)
-        return toast.error("Select stores first");
+      if (selectedStoreIds.size === 0) return toast.error("Select stores first");
       setSingleAssignTarget(null);
     }
     setAssignStage(stage);
@@ -323,9 +258,7 @@ export default function StoresPage() {
     if (!selectedUserId) return toast.error("Please select a user");
     setIsAssigning(true);
     try {
-      const idsToAssign = singleAssignTarget
-        ? [singleAssignTarget._id]
-        : Array.from(selectedStoreIds);
+      const idsToAssign = singleAssignTarget ? [singleAssignTarget._id] : Array.from(selectedStoreIds);
       await api.post("/stores/assign", {
         storeIds: idsToAssign,
         userId: selectedUserId,
@@ -352,10 +285,9 @@ export default function StoresPage() {
     } catch (error) {
       toast.error("Failed to delete store");
     }
-    setOpenMenuId(null);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
       setSelectedFiles((prev) => [...prev, ...newFiles]);
@@ -377,9 +309,7 @@ export default function StoresPage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setUploadStats(data);
-      toast.success(
-        `Success: ${data.successCount}, Errors: ${data.errorCount}`,
-      );
+      toast.success(`Success: ${data.successCount}, Errors: ${data.errorCount}`);
       if (data.successCount > 0) {
         fetchStores();
         setSelectedFiles([]);
@@ -393,957 +323,316 @@ export default function StoresPage() {
 
   const getStatusColor = (status: StoreStatus) => {
     switch (status) {
-      case StoreStatus.UPLOADED:
-        return "bg-gray-100 text-gray-800";
-      case StoreStatus.RECCE_ASSIGNED:
-        return "bg-blue-100 text-blue-800";
-      case StoreStatus.RECCE_SUBMITTED:
-        return "bg-yellow-100 text-yellow-800";
-      case StoreStatus.RECCE_APPROVED:
-        return "bg-purple-100 text-purple-800";
-      case StoreStatus.COMPLETED:
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-600";
+      case StoreStatus.UPLOADED: return "bg-gray-100 text-gray-800";
+      case StoreStatus.RECCE_ASSIGNED: return "bg-blue-100 text-blue-800";
+      case StoreStatus.RECCE_SUBMITTED: return "bg-yellow-100 text-yellow-800";
+      case StoreStatus.RECCE_APPROVED: return "bg-purple-100 text-purple-800";
+      case StoreStatus.INSTALLATION_ASSIGNED: return "bg-indigo-100 text-indigo-800";
+      case StoreStatus.INSTALLATION_SUBMITTED: return "bg-teal-100 text-teal-800";
+      case StoreStatus.COMPLETED: return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-600";
     }
   };
 
-  const filteredStores = stores.filter((store) =>
-    filterStatus === "ALL" ? true : store.currentStatus === filterStatus,
-  );
-
-  // --- STYLING HELPERS ---
-  const inputClass = `w-full border p-2 rounded text-sm transition-all outline-none 
-    ${
-      darkMode
-        ? "bg-gray-800 border-gray-700 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-500"
-        : "bg-white border-gray-300 text-gray-900 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400"
-    }`;
-
+  const inputClass = `w-full border p-2 rounded text-sm transition-all outline-none ${darkMode ? "bg-gray-800 border-gray-700 text-white focus:border-yellow-500" : "bg-white border-gray-300 text-gray-900 focus:border-yellow-500"}`;
   const labelClass = `block text-xs font-bold mb-1 uppercase tracking-wide ${darkMode ? "text-gray-400" : "text-gray-600"}`;
-
   const sectionHeaderClass = `text-sm font-bold uppercase tracking-wider mb-4 border-b pb-2 ${darkMode ? "text-yellow-500 border-gray-700" : "text-yellow-600 border-gray-200"}`;
 
   return (
     <div className="space-y-4 pb-20">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1
-            className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
-          >
-            Stores
-          </h1>
-          <p
-            className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-          >
-            Manage store operations
-          </p>
+          <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Store Operations</h1>
+          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage and track all store activities</p>
         </div>
         <div className="flex gap-2">
-          {selectedStoreIds.size > 0 && (
-            <button
-              onClick={() => openAssignModal("RECCE")}
-              className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm shadow-md shadow-yellow-500/20"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Assign ({selectedStoreIds.size})
-            </button>
-          )}
-
-          <button
-            onClick={() => setIsAddStoreOpen(true)}
-            className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm shadow-md shadow-yellow-500/20"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add New Store
+           {/* Global Actions */}
+           <button onClick={() => { setUploadStats(null); setSelectedFiles([]); setIsUploadOpen(true); }} className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-medium text-sm">
+            <Upload className="h-4 w-4 mr-2" /> Bulk Upload
           </button>
-
-          <button
-            onClick={() => {
-              setUploadStats(null);
-              setSelectedFiles([]);
-              setIsUploadOpen(true);
-            }}
-            className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-medium text-sm"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Bulk Upload
+           <button onClick={downloadTemplate} className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">
+            <Download className="h-4 w-4 mr-2" /> Template
           </button>
-          <button
-            onClick={downloadTemplate}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Template
+          <button onClick={() => setIsAddStoreOpen(true)} className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm shadow-md shadow-yellow-500/20">
+            <Plus className="h-4 w-4 mr-2" /> Add Store
           </button>
         </div>
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div
-          className={`p-3 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}
-        >
-          <p
-            className={`text-xs font-medium uppercase ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-          >
-            Total
-          </p>
-          <p
-            className={`text-xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
-          >
-            {stores.length}
-          </p>
-        </div>
-        <div
-          className={`p-3 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}
-        >
-          <p
-            className={`text-xs font-medium uppercase ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-          >
-            Unassigned
-          </p>
-          <p className="text-xl font-bold text-orange-500">
-            {
-              stores.filter((s) => s.currentStatus === StoreStatus.UPLOADED)
-                .length
-            }
-          </p>
-        </div>
-        <div
-          className={`p-3 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}
-        >
-          <p
-            className={`text-xs font-medium uppercase ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-          >
-            Assigned
-          </p>
-          <p className="text-xl font-bold text-blue-500">
-            {
-              stores.filter(
-                (s) => s.currentStatus === StoreStatus.RECCE_ASSIGNED,
-              ).length
-            }
-          </p>
-        </div>
-      </div>
+      {/* Filters & Bulk Actions */}
+      <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+             <div className="flex gap-3 flex-1 w-full md:w-auto">
+                 {/* Search */}
+                <div className="relative flex-1 min-w-[200px]">
+                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+                    <input type="text" placeholder="Search stores, dealers..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                        className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-yellow-500`} />
+                </div>
+                 {/* Status Filter */}
+                <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+                    className={`px-3 py-2 rounded-lg border text-sm min-w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-yellow-500`}>
+                    <option value="ALL">All Status</option>
+                    {Object.values(StoreStatus).map(s => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
+                </select>
+                {/* City Filter */}
+                <input type="text" placeholder="Filter by City" value={filterCity} onChange={(e) => { setFilterCity(e.target.value); setPage(1); }}
+                    className={`px-3 py-2 rounded-lg border text-sm w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-yellow-500`} />
+            </div>
 
-      <div
-        className={`rounded-xl border overflow-hidden ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}
-      >
-        <div
-          className={`p-4 border-b flex gap-4 justify-between ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-gray-50/50"}`}
-        >
-          <div className="relative flex-1 max-w-md">
-            <Search
-              className={`absolute left-3 top-2.5 h-4 w-4 ${darkMode ? "text-gray-400" : "text-gray-400"}`}
-            />
-            <input
-              type="text"
-              placeholder="Search stores..."
-              className={`pl-10 pr-4 py-2 w-full border rounded-lg text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"} focus:outline-none focus:border-yellow-500`}
-            />
-          </div>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className={`border rounded-lg px-3 py-2 text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"} focus:outline-none focus:border-yellow-500`}
-          >
-            <option value="ALL">All Status</option>
-            {Object.values(StoreStatus).map((status) => (
-              <option key={status} value={status}>
-                {status.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {isLoading ? (
-          <div className="flex justify-center items-center h-32">
-            <Loader2 className="animate-spin h-6 w-6 text-yellow-500" />
-          </div>
-        ) : filteredStores.length === 0 ? (
-          <div
-            className={`p-8 text-center ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-          >
-            <MapPin
-              className={`h-8 w-8 mx-auto mb-2 ${darkMode ? "text-gray-600" : "text-gray-300"}`}
-            />
-            <p className="text-sm">No stores found</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className={darkMode ? "bg-gray-800/50" : "bg-gray-100"}>
-                <tr>
-                  <th className="px-4 py-3 text-left w-10">
-                    <button onClick={toggleAllSelection}>
-                      {selectedStoreIds.size === filteredStores.length &&
-                      filteredStores.length > 0 ? (
-                        <CheckSquare className="h-4 w-4 text-yellow-500" />
-                      ) : (
-                        <Square
-                          className={`h-4 w-4 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
-                        />
-                      )}
+            {/* Bulk Assign Button */}
+            {selectedStoreIds.size > 0 && (
+                 <div className="flex gap-2 animate-in fade-in slide-in-from-right-4">
+                    <button onClick={() => openAssignModal("RECCE")} className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">
+                        <UserPlus className="h-4 w-4 mr-2" /> Assign Recce ({selectedStoreIds.size})
                     </button>
-                  </th>
-                  <th
-                    className={`px-4 py-3 text-left text-xs font-medium uppercase ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                  >
-                    Store
-                  </th>
-                  <th
-                    className={`px-4 py-3 text-left text-xs font-medium uppercase ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                  >
-                    Location
-                  </th>
-                  <th
-                    className={`px-4 py-3 text-left text-xs font-medium uppercase ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                  >
-                    Status
-                  </th>
-                  <th
-                    className={`px-4 py-3 text-left text-xs font-medium uppercase ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                  >
-                    Assigned
-                  </th>
-                  <th
-                    className={`px-4 py-3 text-right text-xs font-medium uppercase ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                  >
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody
-                className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}
-              >
-                {filteredStores.map((store) => {
+                    {/* Only show Install assign if meaningful? Keep generic for now */}
+                 </div>
+            )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className={`rounded-xl border overflow-hidden shadow-sm ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
+        {isLoading ? (
+            <div className="h-64 flex justify-center items-center"><Loader2 className="w-8 h-8 animate-spin text-yellow-500" /></div>
+        ) : stores.length === 0 ? (
+             <div className="p-8 text-center text-gray-500"><MapPin className="h-8 w-8 mx-auto mb-2 opacity-50"/> <p>No stores found matching filters</p></div>
+        ) : (
+        <>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className={darkMode ? "bg-gray-800" : "bg-gray-100"}>
+              <tr>
+                <th className="px-4 py-4 text-left w-12">
+                  <button onClick={toggleAllSelection}>
+                    {selectedStoreIds.size === stores.length && stores.length > 0 ? <CheckSquare className="h-5 w-5 text-yellow-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />}
+                  </button>
+                </th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Project ID</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Dealer Code</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Store Name</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Vendor Code</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Zone/State</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>City/District</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Contact</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>PO Details</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Board Specs</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Costs</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Status</th>
+                <th className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Assignment</th>
+                <th className={`px-4 py-4 text-right text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Action</th>
+              </tr>
+            </thead>
+            <tbody className={`divide-y ${darkMode ? "divide-gray-700 bg-gray-900" : "divide-gray-200 bg-white"}`}>
+              {stores.map(store => {
                   const isSelected = selectedStoreIds.has(store._id);
-                  const isMenuOpen = openMenuId === store._id;
-
-                  const textPrimary = darkMode ? "text-white" : "text-gray-900";
-                  const textSecondary = darkMode
-                    ? "text-gray-400"
-                    : "text-gray-500";
-                  const textMuted = darkMode
-                    ? "text-gray-500"
-                    : "text-gray-400";
-
                   return (
-                    <tr
-                      key={store._id}
-                      className={`transition-colors border-b hover:bg-gray-50 ${isSelected ? (darkMode ? "bg-blue-900/20" : "bg-blue-50") : darkMode ? "hover:bg-gray-800" : ""}`}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => toggleStoreSelection(store._id)}
-                          className={`${textSecondary} hover:${textPrimary}`}
-                        >
-                          {isSelected ? (
-                            <CheckSquare className="h-6 w-6 text-blue-600" />
-                          ) : (
-                            <Square className="h-6 w-6" />
-                          )}
-                        </button>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className={`text-sm font-bold ${textPrimary}`}>
-                          {store.storeName}
-                        </div>
-                        <div
-                          className={`text-xs font-medium ${textSecondary} mt-1`}
-                        >
-                          Dealer:{" "}
-                          <span
-                            className={
-                              darkMode ? "text-gray-300" : "text-gray-700"
-                            }
-                          >
-                            {store.dealerCode}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className={`text-sm font-medium ${textPrimary}`}>
-                          {store.location.city}
-                        </div>
-                        <div className={`text-xs ${textSecondary}`}>
-                          {store.location.area}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => {
-                            if (store.currentStatus === StoreStatus.UPLOADED)
-                              openAssignModal("RECCE", store);
-                            if (
-                              store.currentStatus === StoreStatus.RECCE_APPROVED
-                            )
-                              openAssignModal("INSTALLATION", store);
-                          }}
-                          className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${getStatusColor(store.currentStatus)} ${
-                            store.currentStatus === StoreStatus.UPLOADED ||
-                            store.currentStatus === StoreStatus.RECCE_APPROVED
-                              ? "hover:ring-2 ring-offset-1 ring-blue-400 cursor-pointer"
-                              : ""
-                          }`}
-                        >
-                          {store.currentStatus.replace(/_/g, " ")}
-                        </button>
-                      </td>
-
-                      <td
-                        className={`px-6 py-4 whitespace-nowrap text-sm ${textPrimary}`}
-                      >
-                        {store.workflow.recceAssignedTo ? (
-                          <div
-                            className={`flex items-center gap-2 px-2 py-1 rounded border w-fit ${darkMode ? "bg-gray-800 border-gray-600" : "bg-gray-50 border-gray-200"}`}
-                          >
-                            <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                              {typeof store.workflow.recceAssignedTo ===
-                              "object"
-                                ? (store.workflow.recceAssignedTo as any).name
-                                    .substring(0, 2)
-                                    .toUpperCase()
-                                : "U"}
+                    <tr key={store._id} className={`transition-colors ${isSelected ? (darkMode ? "bg-blue-900/30" : "bg-blue-50") : darkMode ? "hover:bg-gray-800" : "hover:bg-gray-50"}`}>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <button onClick={() => toggleStoreSelection(store._id)}>
+                                {isSelected ? <CheckSquare className="h-5 w-5 text-blue-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} />}
+                            </button>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.projectID || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm font-mono font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{store.dealerCode}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                            <div className={`text-sm font-medium max-w-[180px] truncate ${darkMode ? "text-gray-100" : "text-gray-900"}`} title={store.storeName}>{store.storeName}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.vendorCode || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.zone || "-"}</div>
+                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.location.state || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.city || "-"}</div>
+                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.location.district || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.contact?.personName || "-"}</div>
+                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.contact?.mobile || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.commercials?.poNumber || "-"}</div>
+                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.commercials?.poMonth || "-"}</div>
+                            <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Inv: {store.commercials?.invoiceNumber || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.specs?.type || "-"}</div>
+                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.specs?.width}x{store.specs?.height} ft</div>
+                            <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Qty: {store.specs?.qty || 1}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}>₹{store.commercials?.totalCost?.toLocaleString() || "0"}</div>
+                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Rate: ₹{store.costDetails?.boardRate || 0}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                             <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-full ${getStatusColor(store.currentStatus)}`}>
+                                 {store.currentStatus.replace(/_/g, " ")}
+                             </span>
+                        </td>
+                        <td className="px-4 py-4">
+                            <div className="space-y-1.5">
+                                {store.workflow.recceAssignedTo ? (
+                                    <div className="flex items-center gap-1.5 text-xs" title="Recce Assigned">
+                                         <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">R</div>
+                                         <span className={`truncate max-w-[100px] ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{(store.workflow.recceAssignedTo as any).name}</span>
+                                    </div>
+                                ) : <div className={`text-xs italic ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Unassigned</div>}
+                                
+                                {store.workflow.installationAssignedTo && (
+                                     <div className="flex items-center gap-1.5 text-xs" title="Install Assigned">
+                                         <div className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-[10px] font-bold">I</div>
+                                         <span className={`truncate max-w-[100px] ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{(store.workflow.installationAssignedTo as any).name}</span>
+                                    </div>
+                                )}
                             </div>
-                            <span
-                              className={`font-medium ${textPrimary}`}
-                              title={
-                                (store.workflow.recceAssignedTo as any).name
-                              }
-                            >
-                              {(store.workflow.recceAssignedTo as any).name}
-                            </span>
-                          </div>
-                        ) : (
-                          <span
-                            className={`${textMuted} italic text-xs border border-dashed border-gray-600 px-2 py-1 rounded`}
-                          >
-                            Unassigned
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(isMenuOpen ? null : store._id);
-                          }}
-                          className={`${textPrimary} hover:bg-gray-100 p-2 rounded-full transition-colors border border-transparent hover:border-gray-300 ${darkMode ? "hover:bg-gray-700" : ""}`}
-                        >
-                          <MoreVertical className="h-5 w-5" />
-                        </button>
-
-                        {isMenuOpen && (
-                          <div
-                            ref={menuRef}
-                            className={`absolute right-8 top-8 w-56 rounded-lg shadow-xl border z-50 animate-in fade-in zoom-in-95 origin-top-right text-left ${darkMode ? "bg-gray-800 border-gray-600" : "bg-white border-gray-200"}`}
-                          >
-                            <div className="py-1">
-                              {/* 1. VIEW DETAILS - Always Visible */}
-                              <button
-                                onClick={() =>
-                                  router.push(`/recce/${store._id}`)
-                                }
-                                className={`flex items-center w-full px-4 py-2 text-sm ${darkMode ? "text-gray-200 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-50"}`}
-                              >
-                                <Eye className="h-4 w-4 mr-2 text-gray-400" />{" "}
-                                View Details
-                              </button>
-
-                              {/* 2. ASSIGN RECCE - Only if Uploaded (or Rejected) */}
-                              {store.currentStatus === StoreStatus.UPLOADED && (
-                                <button
-                                  onClick={() =>
-                                    openAssignModal("RECCE", store)
-                                  }
-                                  className={`flex items-center w-full px-4 py-2 text-sm font-medium ${darkMode ? "text-purple-400 hover:bg-gray-700" : "text-purple-600 hover:bg-purple-50"}`}
-                                >
-                                  <UserPlus className="h-4 w-4 mr-2" /> Assign
-                                  Recce
-                                </button>
-                              )}
-
-                              {/* 3. DOWNLOAD RECCE PPT - After Recce Submitted */}
-                              {[
-                                StoreStatus.RECCE_SUBMITTED,
-                                StoreStatus.RECCE_APPROVED,
-                                StoreStatus.INSTALLATION_ASSIGNED,
-                                StoreStatus.INSTALLATION_SUBMITTED,
-                                StoreStatus.INSTALLATION_REJECTED,
-                                StoreStatus.COMPLETED,
-                              ].includes(store.currentStatus) && (
-                                <button
-                                  onClick={() =>
-                                    downloadPPT(
-                                      store._id,
-                                      store.dealerCode,
-                                      "recce",
-                                    )
-                                  }
-                                  className={`flex items-center w-full px-4 py-2 text-sm font-bold ${darkMode ? "text-orange-400 hover:bg-gray-700" : "text-orange-600 hover:bg-orange-50"}`}
-                                >
-                                  <Download className="h-4 w-4 mr-2" /> Download
-                                  Recce PPT
-                                </button>
-                              )}
-
-                              {/* 4. APPROVE/REJECT RECCE - Only when Submitted */}
-                              {store.currentStatus ===
-                                StoreStatus.RECCE_SUBMITTED && (
-                                <>
-                                  <button
-                                    onClick={() =>
-                                      handleReview(store._id, "APPROVED")
-                                    }
-                                    className={`flex items-center w-full px-4 py-2 text-sm font-bold ${darkMode ? "text-green-400 hover:bg-gray-700" : "text-green-600 hover:bg-green-50"}`}
-                                  >
-                                    <CheckSquare className="h-4 w-4 mr-2" />{" "}
-                                    Approve Recce
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleReview(store._id, "REJECTED")
-                                    }
-                                    className={`flex items-center w-full px-4 py-2 text-sm font-bold ${darkMode ? "text-red-400 hover:bg-gray-700" : "text-red-600 hover:bg-red-50"}`}
-                                  >
-                                    <X className="h-4 w-4 mr-2" /> Reject Recce
-                                  </button>
-                                </>
-                              )}
-
-                              {/* 5. ASSIGN INSTALLATION - Only after Recce Approved */}
-                              {store.currentStatus ===
-                                StoreStatus.RECCE_APPROVED && (
-                                <button
-                                  onClick={() =>
-                                    openAssignModal("INSTALLATION", store)
-                                  }
-                                  className={`flex items-center w-full px-4 py-2 text-sm font-medium ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-600 hover:bg-blue-50"}`}
-                                >
-                                  <UserPlus className="h-4 w-4 mr-2" /> Assign
-                                  Installation
-                                </button>
-                              )}
-
-                              {/* 6. DOWNLOAD INSTALL PPT - After Installation Submitted */}
-                              {[
-                                StoreStatus.INSTALLATION_SUBMITTED,
-                                StoreStatus.COMPLETED,
-                              ].includes(store.currentStatus) && (
-                                <button
-                                  onClick={() =>
-                                    downloadPPT(
-                                      store._id,
-                                      store.dealerCode,
-                                      "installation",
-                                    )
-                                  }
-                                  className={`flex items-center w-full px-4 py-2 text-sm font-bold ${darkMode ? "text-green-400 hover:bg-gray-700" : "text-green-600 hover:bg-green-50"}`}
-                                >
-                                  <Download className="h-4 w-4 mr-2" /> Download
-                                  Install PPT
-                                </button>
-                              )}
-
-                              <div
-                                className={`border-t my-1 ${darkMode ? "border-gray-700" : "border-gray-100"}`}
-                              ></div>
-
-                              {/* 7. DELETE - Always Visible */}
-                              <button
-                                onClick={() => handleDelete(store._id)}
-                                className={`flex items-center w-full px-4 py-2 text-sm ${darkMode ? "text-red-400 hover:bg-gray-700" : "text-red-600 hover:bg-red-50"}`}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Delete
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </td>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-right">
+                             <div className="flex justify-end items-center gap-1.5">
+                                <button onClick={()=>router.push(`/recce/${store._id}`)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-600" title="View Details"><Eye className="w-4 h-4"/></button>
+                                <button onClick={()=>handleDelete(store._id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600" title="Delete"><Trash2 className="w-4 h-4"/></button>
+                                {store.currentStatus === StoreStatus.UPLOADED && (
+                                     <button onClick={()=>openAssignModal("RECCE", store)} className="p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600" title="Assign Recce"><UserPlus className="w-4 h-4"/></button>
+                                )}
+                                {store.currentStatus === StoreStatus.RECCE_APPROVED && (
+                                     <button onClick={()=>openAssignModal("INSTALLATION", store)} className="p-1.5 rounded hover:bg-green-50 dark:hover:bg-green-900/30 text-green-600" title="Assign Installation"><UserPlus className="w-4 h-4"/></button>
+                                )}
+                                {[StoreStatus.RECCE_SUBMITTED, StoreStatus.RECCE_APPROVED, StoreStatus.INSTALLATION_ASSIGNED, StoreStatus.INSTALLATION_SUBMITTED, StoreStatus.COMPLETED].includes(store.currentStatus) && (
+                                     <button onClick={()=>downloadPPT(store._id, store.dealerCode, "recce")} className="p-1.5 rounded hover:bg-orange-50 dark:hover:bg-orange-900/30 text-orange-600" title="Recce PPT"><FileSpreadsheet className="w-4 h-4"/></button>
+                                )}
+                             </div>
+                        </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
+              })}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Pagination Controls */}
+        <div className={`px-4 py-3 flex items-center justify-between border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>
+            <div className="flex items-center gap-2">
+                 <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Showing {(page-1)*limit + 1} to {Math.min(page*limit, totalStores)} of {totalStores} entries</span>
+            </div>
+            <div className="flex items-center gap-2">
+                 <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                    className={`text-xs rounded border px-2 py-1 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"}`}>
+                    <option value={10}>10 / page</option>
+                    <option value={20}>20 / page</option>
+                    <option value={50}>50 / page</option>
+                 </select>
+                 <div className="flex gap-1">
+                    <button onClick={()=>setPage(p => Math.max(1, p-1))} disabled={page===1} className={`p-1 rounded ${darkMode ? "hover:bg-gray-700 disabled:text-gray-600" : "hover:bg-gray-200 disabled:text-gray-300"}`}><ChevronLeft className="w-4 h-4"/></button>
+                    <span className={`px-2 text-sm flex items-center ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{page}</span>
+                    <button onClick={()=>setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages} className={`p-1 rounded ${darkMode ? "hover:bg-gray-700 disabled:text-gray-600" : "hover:bg-gray-200 disabled:text-gray-300"}`}><ChevronRight className="w-4 h-4"/></button>
+                 </div>
+            </div>
+        </div>
+        </>
         )}
       </div>
 
-      {/* --- MODAL 1: ASSIGN USER --- */}
-      <Modal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        title={`Assign ${assignStage === "RECCE" ? "Recce" : "Installation"} Staff`}
-      >
-        <div className="space-y-4">
-          <div className="bg-blue-50 p-3 rounded-md border border-blue-100 text-sm text-blue-800">
-            {singleAssignTarget ? (
-              <span>
-                Assigning to <strong>{singleAssignTarget.storeName}</strong>
-              </span>
-            ) : (
-              <span>
-                You are assigning <strong>{selectedStoreIds.size}</strong>{" "}
-                stores.
-              </span>
-            )}
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Select Field Staff
-            </label>
-            {availableUsers.length === 0 ? (
-              <p className="text-sm text-gray-500 italic border p-3 rounded-md bg-gray-50 text-center">
-                No users found with role "{assignStage}". <br /> Please create a
-                user with this role first.
-              </p>
-            ) : (
-              <select
-                className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 font-medium focus:ring-2 focus:ring-blue-500 outline-none shadow-sm appearance-none"
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                style={{ color: "black" }}
-              >
-                <option value="" className="text-gray-500 bg-white">
-                  -- Choose User --
-                </option>
-                {availableUsers.map((user) => (
-                  <option
-                    key={user._id}
-                    value={user._id}
-                    className="text-gray-900 bg-white py-2"
-                  >
-                    {user.name} ({user.email})
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div className="flex justify-end pt-4 gap-2">
-            <button
-              onClick={() => setIsAssignModalOpen(false)}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAssign}
-              disabled={isAssigning || !selectedUserId}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center"
-            >
-              {isAssigning && <Loader2 className="animate-spin h-4 w-4 mr-2" />}{" "}
-              Confirm Assignment
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* --- MODAL 2: UPLOAD (Keep Existing) --- */}
-      <Modal
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
-        title="Bulk Store Upload"
-      >
-        {!uploadStats ? (
-          <form onSubmit={handleUpload} className="space-y-4">
-            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <FileSpreadsheet className="w-8 h-8 mb-3 text-gray-400" />
-                <p className="mb-2 text-sm text-gray-500">
-                  <span className="font-semibold">Click to add files</span>
-                </p>
-                <p className="text-xs text-gray-500">.xlsx or .xls</p>
-              </div>
-              <input
-                type="file"
-                multiple
-                accept=".xlsx, .xls"
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-            </label>
-            {selectedFiles.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-500 uppercase">
-                  Selected Files ({selectedFiles.length})
-                </p>
-                <div className="max-h-32 overflow-y-auto border rounded-md divide-y">
-                  {selectedFiles.map((file, idx) => (
-                    <div
-                      key={idx}
-                      className="flex justify-between items-center p-2 text-sm bg-gray-50"
-                    >
-                      <span className="truncate max-w-[80%] text-gray-700">
-                        {file.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(idx)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+       {/* MODALS (Keep existing logic mostly as is, just wrapped cleanly) */}
+       {/* UPLOAD MODAL */}
+       <Modal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} title="Bulk Upload Stores">
+         <div className="space-y-4">
+           {uploadStats ? (
+             <div className="text-center space-y-3">
+               <div className={`text-4xl font-bold ${uploadStats.errorCount === 0 ? "text-green-500" : "text-orange-500"}`}>{uploadStats.successCount} / {uploadStats.totalProcessed}</div>
+               <p className="text-sm text-gray-500">Records Processed</p>
+               {uploadStats.errors?.length > 0 && (
+                 <div className="mt-4 text-left bg-red-50 p-3 rounded-lg max-h-48 overflow-y-auto text-xs text-red-600">
+                    <ul className="list-disc pl-4 space-y-1">{uploadStats.errors.map((e:any, i:number) => <li key={i}>{e.error} {e.row && `(Row ${e.row})`}</li>)}</ul>
+                 </div>
+               )}
+               <button onClick={() => { setIsUploadOpen(false); setUploadStats(null); }} className="w-full bg-gray-900 text-white py-2 rounded-lg mt-2">Close</button>
+             </div>
+           ) : (
+             <form onSubmit={handleUpload} className="space-y-4">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors relative">
+                    <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                    <Upload className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                    <p className="text-sm font-medium text-gray-700">Drop files here or click to upload</p>
+                    <p className="text-xs text-gray-500">Supports .xlsx, .xls</p>
+                </div>
+                {selectedFiles.length > 0 && (
+                    <div className="space-y-2">
+                        {selectedFiles.map((file, i) => (
+                            <div key={i} className="flex items-center justify-between p-2 bg-gray-100 rounded text-sm"><span className="truncate">{file.name}</span><button type="button" onClick={()=>removeFile(i)} className="text-red-500"><X className="w-4 h-4"/></button></div>
+                        ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="flex justify-end pt-4">
-              <button
-                type="submit"
-                disabled={selectedFiles.length === 0 || isUploading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center"
-              >
-                {isUploading && (
-                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                )}{" "}
-                {isUploading
-                  ? "Uploading..."
-                  : `Upload ${selectedFiles.length} File(s)`}
-              </button>
-            </div>
-          </form>
-        ) : (
+                )}
+                <button type="submit" disabled={isUploading || selectedFiles.length === 0} className="w-full bg-yellow-500 text-white font-bold py-2 rounded-lg hover:bg-yellow-600 disabled:opacity-50 flex justify-center items-center">
+                    {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Upload Files"}
+                </button>
+             </form>
+           )}
+         </div>
+       </Modal>
+
+        {/* ASSIGN MODAL */}
+       <Modal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} title={`Assign ${assignStage === "RECCE" ? "Recce" : "Installation"}`}>
           <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-1 bg-green-50 p-4 rounded-lg border border-green-200">
-                <p className="text-sm text-green-700">Success</p>
-                <p className="text-xl font-bold text-green-800">
-                  {uploadStats.successCount}
-                </p>
+              <p className="text-sm text-gray-500">Assigning <strong>{singleAssignTarget ? singleAssignTarget.storeName : `${selectedStoreIds.size} stores`}</strong> to:</p>
+              <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
+                  {availableUsers.map(user => (
+                      <div key={user._id} onClick={() => setSelectedUserId(user._id)}
+                          className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${selectedUserId === user._id ? "border-yellow-500 bg-yellow-50" : "border-gray-200 hover:bg-gray-50"}`}>
+                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600 mr-3">{user.name.charAt(0)}</div>
+                          <div><div className="font-medium text-sm">{user.name}</div><div className="text-xs text-gray-500">{user.email}</div></div>
+                          {selectedUserId === user._id && <div className="ml-auto w-3 h-3 rounded-full bg-yellow-500" />}
+                      </div>
+                  ))}
+                  {availableUsers.length === 0 && <p className="text-center text-gray-400 text-sm py-4">No eligible users found for this role.</p>}
               </div>
-              <div className="flex-1 bg-red-50 p-4 rounded-lg border border-red-200">
-                <p className="text-sm text-red-700">Errors</p>
-                <p className="text-xl font-bold text-red-800">
-                  {uploadStats.errorCount}
-                </p>
-              </div>
-            </div>
-            {uploadStats.errors.length > 0 && (
-              <div className="max-h-60 overflow-y-auto border rounded-md p-2 bg-gray-50 text-sm">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="text-left text-xs font-semibold text-gray-500">
-                      <th className="pb-2">Error Detail</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {uploadStats.errors.map((err: any, idx: number) => (
-                      <tr key={idx} className="border-t border-gray-200">
-                        <td className="py-2 text-red-600 text-xs">
-                          {err.error}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <button
-              onClick={() => {
-                setIsUploadOpen(false);
-                setUploadStats(null);
-                setSelectedFiles([]);
-              }}
-              className="w-full py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800"
-            >
-              Close & Refresh
-            </button>
-          </div>
-        )}
-      </Modal>
-
-      {/* --- NEW MODAL 3: ADD SINGLE STORE (GOLDEN THEME UPDATED) --- */}
-      {isAddStoreOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
-          <div
-            className={`rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto transform transition-all 
-            ${darkMode ? "bg-gray-900 border border-gray-700" : "bg-white"}`}
-          >
-            {/* Header */}
-            <div
-              className={`sticky top-0 z-10 border-b px-6 py-4 flex items-center justify-between
-               ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}
-            >
-              <h2
-                className={`text-xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
-              >
-                Add New Store
-              </h2>
-              <button
-                onClick={() => setIsAddStoreOpen(false)}
-                className={`hover:bg-gray-100 rounded-full p-1 transition-colors ${darkMode ? "text-gray-400 hover:bg-gray-800" : "text-gray-500"}`}
-              >
-                <X className="h-6 w-6" />
+              <button onClick={handleAssign} disabled={isAssigning || !selectedUserId} className="w-full bg-yellow-500 text-white font-bold py-2 rounded-lg hover:bg-yellow-600 disabled:opacity-50 flex justify-center items-center">
+                  {isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm Assignment"}
               </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleAddStore} className="p-6 space-y-8">
-              {/* SECTION 1: BASIC INFO */}
-              <div>
-                <h3 className={sectionHeaderClass}>Basic Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelClass}>Dealer Code *</label>
-                    <input
-                      name="dealerCode"
-                      required
-                      value={newStoreData.dealerCode}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                      placeholder="e.g. DLR_001"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Store / Dealer Name *</label>
-                    <input
-                      name="dealerName"
-                      required
-                      value={newStoreData.dealerName}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                      placeholder="e.g. Mahalaxmi Ent."
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Vendor Code</label>
-                    <input
-                      name="vendorCode"
-                      value={newStoreData.vendorCode}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                      placeholder="e.g. VENDOR_001"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 2: LOCATION */}
-              <div>
-                <h3 className={sectionHeaderClass}>Location Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelClass}>Zone</label>
-                    <input
-                      name="zone"
-                      value={newStoreData.zone}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>State</label>
-                    <input
-                      name="state"
-                      value={newStoreData.state}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>District</label>
-                    <input
-                      name="district"
-                      value={newStoreData.district}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>City</label>
-                    <input
-                      name="city"
-                      value={newStoreData.city}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className={labelClass}>Full Address</label>
-                    <input
-                      name="dealerAddress"
-                      value={newStoreData.dealerAddress}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                      placeholder="Shop No, Street, Landmark..."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 3: COMMERCIALS */}
-              <div>
-                <h3 className={sectionHeaderClass}>PO & Invoice Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className={labelClass}>PO Number</label>
-                    <input
-                      name="poNumber"
-                      value={newStoreData.poNumber}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>PO Month</label>
-                    <input
-                      name="poMonth"
-                      value={newStoreData.poMonth}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Invoice Number</label>
-                    <input
-                      name="invoiceNo"
-                      value={newStoreData.invoiceNo}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Invoice Remarks</label>
-                    <input
-                      name="invoiceRemarks"
-                      value={newStoreData.invoiceRemarks}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 4: SPECS & COSTS */}
-              <div>
-                <h3 className={sectionHeaderClass}>Board Specs & Costing</h3>
-                <div
-                  className={`grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}
-                >
-                  <div>
-                    <label className={labelClass}>Board Type</label>
-                    <input
-                      name="boardType"
-                      value={newStoreData.boardType}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Width (ft)</label>
-                    <input
-                      type="number"
-                      name="width"
-                      value={newStoreData.width}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Height (ft)</label>
-                    <input
-                      type="number"
-                      name="height"
-                      value={newStoreData.height}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Qty</label>
-                    <input
-                      type="number"
-                      name="qty"
-                      value={newStoreData.qty}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    />
-                  </div>
-
-                  {/* Costs */}
-                  <div>
-                    <label className={labelClass}>Board Rate</label>
-                    <input
-                      type="number"
-                      name="boardRate"
-                      value={newStoreData.boardRate}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Angle Charges</label>
-                    <input
-                      type="number"
-                      name="angleCharges"
-                      value={newStoreData.angleCharges}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Transportation</label>
-                    <input
-                      type="number"
-                      name="transportation"
-                      value={newStoreData.transportation}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Total Cost</label>
-                    <input
-                      type="number"
-                      name="totalCost"
-                      value={newStoreData.totalCost}
-                      onChange={handleInputChange}
-                      className={`${inputClass} font-bold`}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div
-                className={`flex justify-end gap-3 pt-4 border-t ${darkMode ? "border-gray-700" : "border-gray-100"}`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setIsAddStoreOpen(false)}
-                  className={`px-4 py-2 rounded-lg border transition-colors ${darkMode ? "text-gray-300 border-gray-600 hover:bg-gray-800" : "text-gray-700 border-gray-300 hover:bg-gray-100"}`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingStore}
-                  className="px-6 py-2 bg-yellow-500 text-white font-bold rounded-lg hover:bg-yellow-600 disabled:opacity-50 flex items-center shadow-lg shadow-yellow-500/20 transition-all active:scale-95"
-                >
-                  {isSavingStore ? (
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  Save Store
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+       </Modal>
+
+        {/* ADD STORE MODAL (Simplified layout) */}
+       <Modal isOpen={isAddStoreOpen} onClose={() => setIsAddStoreOpen(false)} title="Add New Store">
+           <form onSubmit={handleAddStore} className="space-y-6 max-h-[70vh] overflow-y-auto p-1">
+               <div className="space-y-4">
+                   <div className={sectionHeaderClass}>BASIC DETAILS</div>
+                   <div className="grid grid-cols-2 gap-4">
+                       <div><label className={labelClass}>Dealer Code *</label><input required name="dealerCode" value={newStoreData.dealerCode} onChange={handleInputChange} className={inputClass} /></div>
+                       <div><label className={labelClass}>Dealer Name *</label><input required name="dealerName" value={newStoreData.dealerName} onChange={handleInputChange} className={inputClass} /></div>
+                       <div><label className={labelClass}>Vendor Code</label><input name="vendorCode" value={newStoreData.vendorCode} onChange={handleInputChange} className={inputClass} /></div>
+                   </div>
+                   
+                   <div className={sectionHeaderClass}>LOCATION</div>
+                   <div className="grid grid-cols-2 gap-4">
+                        <div><label className={labelClass}>City *</label><input required name="city" value={newStoreData.city} onChange={handleInputChange} className={inputClass} /></div>
+                        <div><label className={labelClass}>State</label><input name="state" value={newStoreData.state} onChange={handleInputChange} className={inputClass} /></div>
+                        <div className="col-span-2"><label className={labelClass}>Address</label><input name="dealerAddress" value={newStoreData.dealerAddress} onChange={handleInputChange} className={inputClass} /></div>
+                   </div>
+
+                   <div className={sectionHeaderClass}>SPECIFICATIONS</div>
+                   <div className="grid grid-cols-3 gap-4">
+                        <div><label className={labelClass}>Width</label><input type="number" name="width" value={newStoreData.width} onChange={handleInputChange} className={inputClass} /></div>
+                        <div><label className={labelClass}>Height</label><input type="number" name="height" value={newStoreData.height} onChange={handleInputChange} className={inputClass} /></div>
+                        <div><label className={labelClass}>Type</label><input name="boardType" value={newStoreData.boardType} onChange={handleInputChange} className={inputClass} /></div>
+                   </div>
+               </div>
+                <div className="flex justify-end gap-3 pt-4 border-t sticky bottom-0 bg-white dark:bg-gray-900 pb-2">
+                    <button type="button" onClick={() => setIsAddStoreOpen(false)} className="px-4 py-2 rounded text-gray-600 hover:bg-gray-100">Cancel</button>
+                    <button type="submit" disabled={isSavingStore} className="px-6 py-2 bg-yellow-500 text-white rounded font-bold hover:bg-yellow-600 disabled:opacity-70 flex items-center">
+                        {isSavingStore && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Save Store
+                    </button>
+                </div>
+           </form>
+       </Modal>
+
     </div>
   );
 }

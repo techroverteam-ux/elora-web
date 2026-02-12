@@ -6,6 +6,7 @@ import {
   updateUser,
   deleteUser,
   getUsersByRole,
+  exportUsers
 } from "./user.controller";
 import { protect } from "../../middlewares/auth.middleware";
 import { checkPermission } from "../../middlewares/rbac.middleware";
@@ -15,6 +16,8 @@ const router = express.Router();
 router.use(protect);
 
 // FIX: Changed "user" to "users" to match DB permissions
+router.get("/export", checkPermission("users", "view"), exportUsers);
+
 router
   .route("/")
   .post(checkPermission("users", "create"), createUser)

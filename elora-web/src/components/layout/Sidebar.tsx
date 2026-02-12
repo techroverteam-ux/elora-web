@@ -11,6 +11,7 @@ import {
   Store,
   Map,
   Hammer,
+  MessageSquare,
   X,
   Sun,
   Moon,
@@ -91,6 +92,12 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       href: "/installation",
       icon: Hammer,
       module: "installation",
+    },
+    {
+      name: "Enquiries",
+      href: "/enquiries",
+      icon: MessageSquare,
+      module: "enquiries",
     },
   ];
 

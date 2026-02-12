@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import app from "./app";
 import { seedSuperAdmin } from "./config/seedSuperAdmin";
+import enquiryRoutes from "./modules/enquiry/enquiry.routes";
+import dashboardRoutes from "./modules/dashboard/dashboard.routes";
 
 dotenv.config();
 
@@ -18,6 +20,9 @@ const startServer = async () => {
     console.log("✅ MongoDB connected");
 
     await seedSuperAdmin();
+
+    app.use("/api/enquiries", enquiryRoutes);
+    app.use("/api/dashboard", dashboardRoutes);
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
