@@ -6,8 +6,13 @@
     "start": "concurrently \"npm run api\" \"npm run web\"",
     "api": "cd elora-api && npm run dev",
     "web": "cd elora-web && npm run dev",
-    "install-all": "cd elora-api && npm install && cd ../elora-web && npm install",
-    "build": "cd elora-api && npm install && cd ../elora-web && npm install && npm run build",
+    "mobile": "cd elora-mobile && npm start",
+    "install-all": "cd elora-api && npm install && cd ../elora-web && npm install && cd ../elora-mobile && npm install",
+    "build-api": "cd elora-api && npm install && npm run build",
+    "build-web": "cd elora-web && npm install && npm run build",
+    "build-mobile": "cd elora-mobile && npm install && npx expo build",
+    "build-all": "npm run build-api && npm run build-web && npm run build-mobile",
+    "dev-all": "concurrently \"npm run api\" \"npm run web\" \"npm run mobile\"",
     "vercel-build": "cd elora-web && npm install && npm run build"
   },
   "devDependencies": {

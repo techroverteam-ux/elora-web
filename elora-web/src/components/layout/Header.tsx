@@ -118,7 +118,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
                   {user?.name}
                 </p>
                 <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {user?.role?.name}
+                  {(user as any)?.roles?.[0]?.name || (user as any)?.role?.name}
                 </p>
               </div>
             </button>
