@@ -21,6 +21,8 @@ import {
   ChevronRight,
   ToggleLeft,
   ToggleRight,
+  Upload,
+  Download,
 } from "lucide-react";
 import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
@@ -32,6 +34,12 @@ export default function UsersPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  // Upload State
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadStats, setUploadStats] = useState<any>(null);
   
   // Filters & Pagination
   const [searchTerm, setSearchTerm] = useState("");
@@ -69,25 +77,17 @@ export default function UsersPage() {
 
   const fetchRoles = async () => {
     try {
-      const { data } = await api.get("/roles");
-      setRoles(data);
+      const { data } = await api.get("/roles?limit=100");
+      setRoles(data.roles || []);
     } catch (error) {
       console.error("Failed to fetch roles", error);
     }
   };
 
   const fetchUsers = async () => {
+    const startTime = Date.now();
     try {
       setIsLoading(true);
-      // Backend pagination with filtering is ideal, but currently getAllUsers only supports basic pagination.
-      // We will fetch paginated users. Filtering by name/role/status logic might be better on server, 
-      // but for now we might need to rely on client filtering OR assume the backend endpoint will be updated later for advanced filtering.
-      // However, the requirement says "Server Side Pagination". 
-      // If I use client side filtering with server side pagination, it won't work correctly (filtering only current page).
-      // The current backend Update 'getAllUsers' does NOT assume filter params.
-      // For this task, I will pass pagination params. The provided backend implementation does not support filtering via query params yet.
-      // I will focus on implementing the pagination UI first.
-      
       const { data } = await api.get(`/users?page=${page}&limit=${limit}`);
       setUsers(data.users);
       setTotalPages(data.pagination.pages);
@@ -95,12 +95,18 @@ export default function UsersPage() {
     } catch (err: any) {
       setError("Failed to load users");
     } finally {
-      setIsLoading(false);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 800) {
+        setTimeout(() => setIsLoading(false), 800 - elapsed);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
   const handleExport = async () => {
     try {
+      toast.dismiss();
       const response = await api.get("/users/export", { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
@@ -109,8 +115,61 @@ export default function UsersPage() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      toast.success('Users exported successfully!');
     } catch (error) {
       toast.error("Failed to export users");
+    }
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      toast.dismiss();
+      const response = await api.get('/users/template', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Elora_User_Upload_Template.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Template downloaded successfully!');
+    } catch (error) {
+      console.error('Template download error:', error);
+      toast.error('Failed to download template');
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedFiles.length === 0) return;
+    setIsUploading(true);
+    const formData = new FormData();
+    selectedFiles.forEach((file) => formData.append("files", file));
+    try {
+      const { data } = await api.post("/users/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setUploadStats(data);
+      toast.success(`Success: ${data.successCount}, Errors: ${data.errorCount}`);
+      if (data.successCount > 0) {
+        fetchUsers();
+        setSelectedFiles([]);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Upload failed");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -222,6 +281,24 @@ export default function UsersPage() {
         </div>
         <div className="flex gap-2">
             <button
+                onClick={() => { setUploadStats(null); setSelectedFiles([]); setIsUploadOpen(true); }}
+                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
+                    darkMode ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-yellow-500 hover:bg-yellow-600 text-white"
+                }`}
+            >
+                <Upload className="h-4 w-4 mr-2" />
+                Bulk Upload
+            </button>
+            <button
+                onClick={downloadTemplate}
+                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
+                    darkMode ? "bg-green-600 hover:bg-green-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"
+                }`}
+            >
+                <Download className="h-4 w-4 mr-2" />
+                Template
+            </button>
+            <button
                 onClick={handleExport}
                 className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
                     darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -240,21 +317,37 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Filters & Search - Visual Only for now since backend filtering wasn't requested explicitly but implied? 
-          Requirement said "Server side pagination for user page". 
-          I'll keep clientside filtering on the current page for visual feedback? 
-          No, if I have pagination, I should filter on backend. 
-          Given I didn't implement backend filtering, I will just show the filters but they won't do much unless I implement filtering in backend too.
-          Actually, I will implement filtering on the fetched chunk (the current page). It's not perfect but better than nothing.
-          Wait, I can just not implement complex filters now and focus on pagination.
-      */}
-      
       {/* Table */}
       <div className={`rounded-xl border overflow-hidden ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
         {isLoading ? (
-             <div className="flex justify-center items-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
-            </div>
+             <div className="p-6">
+                <div className={`mb-4 ${darkMode ? "bg-gray-800/50" : "bg-gray-50"} rounded-lg p-4`}>
+                  <div className="grid grid-cols-4 gap-4">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className={`h-4 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {[...Array(limit)].map((_, i) => (
+                    <div key={i} className={`p-4 rounded-lg border ${darkMode ? "bg-gray-800/30 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`h-10 w-10 rounded-full animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                        <div className="flex-1 space-y-2">
+                          <div className={`h-4 w-32 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                          <div className={`h-3 w-48 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                        </div>
+                        <div className={`h-6 w-20 rounded-full animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                        <div className={`h-8 w-24 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                        <div className="flex gap-2">
+                          <div className={`h-9 w-9 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                          <div className={`h-9 w-9 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+             </div>
         ) : (
         <>
             <div className="overflow-x-auto">
@@ -322,14 +415,14 @@ export default function UsersPage() {
             {/* Pagination Controls */}
             <div className={`px-6 py-4 flex items-center justify-between border-t ${darkMode ? "border-purple-700/50" : "border-gray-200"}`}>
                 <div className="flex items-center gap-2">
-                    <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Rows per page:</span>
+                    <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Rows per page:</span>
                     <select 
                         value={limit}
                         onChange={(e) => {
                             setLimit(Number(e.target.value));
                             setPage(1); // Reset to page 1 on limit change
                         }}
-                        className={`text-sm border rounded px-2 py-1 ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                        className={`text-sm font-medium border rounded px-2 py-1 ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`}
                     >
                         <option value={5}>5</option>
                         <option value={10}>10</option>
@@ -339,21 +432,21 @@ export default function UsersPage() {
                 </div>
                 
                 <div className="flex items-center gap-4">
-                    <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
                         Page {page} of {totalPages}
                     </span>
                     <div className="flex gap-1">
                         <button 
                             onClick={() => setPage(p => Math.max(1, p - 1))}
                             disabled={page === 1}
-                            className={`p-1 rounded ${darkMode ? "hover:bg-gray-700 disabled:opacity-30" : "hover:bg-gray-100 disabled:opacity-30"}`}
+                            className={`p-1 rounded ${darkMode ? "text-gray-200 hover:bg-gray-700 disabled:text-gray-600 disabled:cursor-not-allowed" : "text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"}`}
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </button>
                         <button 
                             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                             disabled={page === totalPages}
-                            className={`p-1 rounded ${darkMode ? "hover:bg-gray-700 disabled:opacity-30" : "hover:bg-gray-100 disabled:opacity-30"}`}
+                            className={`p-1 rounded ${darkMode ? "text-gray-200 hover:bg-gray-700 disabled:text-gray-600 disabled:cursor-not-allowed" : "text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"}`}
                         >
                             <ChevronRight className="w-5 h-5" />
                         </button>
@@ -425,6 +518,43 @@ export default function UsersPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* UPLOAD MODAL */}
+      <Modal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} title="Bulk Upload Users">
+        <div className="space-y-4">
+          {uploadStats ? (
+            <div className="text-center space-y-3">
+              <div className={`text-4xl font-bold ${uploadStats.errorCount === 0 ? "text-green-500" : "text-orange-500"}`}>{uploadStats.successCount} / {uploadStats.totalProcessed}</div>
+              <p className="text-sm text-gray-500">Records Processed</p>
+              {uploadStats.errors?.length > 0 && (
+                <div className="mt-4 text-left bg-red-50 p-3 rounded-lg max-h-48 overflow-y-auto text-xs text-red-600">
+                  <ul className="list-disc pl-4 space-y-1">{uploadStats.errors.map((e:any, i:number) => <li key={i}>{e.error} {e.row && `(Row ${e.row})`}</li>)}</ul>
+                </div>
+              )}
+              <button onClick={() => { setIsUploadOpen(false); setUploadStats(null); }} className="w-full bg-gray-900 text-white py-2 rounded-lg mt-2">Close</button>
+            </div>
+          ) : (
+            <form onSubmit={handleUpload} className="space-y-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors relative">
+                <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <Upload className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                <p className="text-sm font-medium text-gray-700">Drop files here or click to upload</p>
+                <p className="text-xs text-gray-500">Supports .xlsx, .xls</p>
+              </div>
+              {selectedFiles.length > 0 && (
+                <div className="space-y-2">
+                  {selectedFiles.map((file, i) => (
+                    <div key={i} className="flex items-center justify-between p-2 bg-gray-100 rounded text-sm"><span className="truncate">{file.name}</span><button type="button" onClick={()=>removeFile(i)} className="text-red-500"><X className="w-4 h-4"/></button></div>
+                  ))}
+                </div>
+              )}
+              <button type="submit" disabled={isUploading || selectedFiles.length === 0} className="w-full bg-yellow-500 text-white font-bold py-2 rounded-lg hover:bg-yellow-600 disabled:opacity-50 flex justify-center items-center">
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Upload Files"}
+              </button>
+            </form>
+          )}
+        </div>
       </Modal>
     </div>
   );

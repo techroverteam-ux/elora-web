@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import fs from "fs";
 import PptxGenJS from "pptxgenjs";
 import path from "path";
+import { Row, Cell } from "exceljs";
 
 // Helper: fuzzy search for column headers
 const findKey = (row: any, keywords: string[]): string | undefined => {
@@ -100,6 +101,7 @@ export const uploadStoresBulk = async (req: Request, res: Response) => {
             location: {
               city: row["City"] || "",
               area: row["District"] || "",
+              district: row["District"] || "", // NEW: Added district for storeId generation
               address: row["Dealer's Address"] || "",
             },
             contact: {
@@ -836,5 +838,530 @@ export const generateInstallationPPT = async (req: Request, res: Response) => {
     console.error("PPT Gen Error:", error);
     if (!res.headersSent)
       res.status(500).json({ message: "Error generating PPT" });
+  }
+};
+
+export const exportRecceTasks = async (req: Request | any, res: Response) => {
+  try {
+    const ExcelJS = require("exceljs");
+    let query: any = {};
+    const userRoles = req.user.roles || [];
+    const isSuperAdmin = userRoles.some((r: any) => r.code === "SUPER_ADMIN");
+    const isAdmin = userRoles.some((r: any) => r.code === "ADMIN");
+    if (!isSuperAdmin && !isAdmin) {
+      query["workflow.recceAssignedTo"] = req.user._id;
+    }
+    const stores = await Store.find(query)
+      .populate("workflow.recceAssignedTo", "name")
+      .sort({ updatedAt: -1 });
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Recce Tasks");
+    worksheet.mergeCells("A1:G3");
+    const titleCell = worksheet.getCell("A1");
+    titleCell.value = "Recce Inspection Report";
+    titleCell.font = { size: 18, bold: true, color: { argb: "FF1F2937" } };
+    titleCell.alignment = { vertical: "middle", horizontal: "center" };
+    const headers = [
+      "Store Name",
+      "Dealer Code",
+      "City",
+      "Address",
+      "Status",
+      "Recce Assigned To",
+      "Recce Date",
+    ];
+    const headerRow = worksheet.getRow(5);
+    headers.forEach((header, index) => {
+      const cell = headerRow.getCell(index + 1);
+      cell.value = header;
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 12 };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFEAB308" },
+      };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+    });
+    headerRow.height = 25;
+    const formatDate = (date: Date) => {
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const d = new Date(date);
+      return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
+    };
+    stores.forEach((store: any, index) => {
+      const row = worksheet.getRow(6 + index);
+      row.values = [
+        store.storeName,
+        store.dealerCode,
+        store.location.city,
+        store.location.address,
+        store.currentStatus,
+        store.workflow.recceAssignedTo?.name || "N/A",
+        store.recce?.submittedDate
+          ? formatDate(store.recce.submittedDate)
+          : "-",
+      ];
+      row.alignment = {
+        vertical: "middle",
+        horizontal: "center",
+        wrapText: true,
+      };
+      row.height = 40;
+      if (index % 2 === 0) {
+        row.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFF9FAFB" },
+        };
+      }
+    });
+    worksheet.columns = [
+      { width: 35 },
+      { width: 18 },
+      { width: 18 },
+      { width: 45 },
+      { width: 25 },
+      { width: 25 },
+      { width: 18 },
+    ];
+    worksheet.eachRow((row: Row, rowNumber: number) => {
+      if (rowNumber >= 5) {
+        row.eachCell((cell: Cell) => {
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFD1D5DB" } },
+            left: { style: "thin", color: { argb: "FFD1D5DB" } },
+            bottom: { style: "thin", color: { argb: "FFD1D5DB" } },
+            right: { style: "thin", color: { argb: "FFD1D5DB" } },
+          };
+        });
+      }
+    });
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=Recce_Tasks.xlsx",
+    );
+    res.send(buffer);
+  } catch (error: any) {
+    console.error("Export Error:", error);
+    res.status(500).json({ message: "Failed to export recce tasks" });
+  }
+};
+
+export const exportInstallationTasks = async (
+  req: Request | any,
+  res: Response,
+) => {
+  try {
+    const ExcelJS = require("exceljs");
+    let query: any = {};
+    const userRoles = req.user.roles || [];
+    const isSuperAdmin = userRoles.some((r: any) => r.code === "SUPER_ADMIN");
+    const isAdmin = userRoles.some((r: any) => r.code === "ADMIN");
+    if (!isSuperAdmin && !isAdmin) {
+      query["workflow.installationAssignedTo"] = req.user._id;
+    }
+    const stores = await Store.find(query)
+      .populate("workflow.installationAssignedTo", "name")
+      .sort({ updatedAt: -1 });
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Installation Tasks");
+    worksheet.mergeCells("A1:G3");
+    const titleCell = worksheet.getCell("A1");
+    titleCell.value = "Installation Tasks Report";
+    titleCell.font = { size: 18, bold: true, color: { argb: "FF1F2937" } };
+    titleCell.alignment = { vertical: "middle", horizontal: "center" };
+    const headers = [
+      "Store Name",
+      "Dealer Code",
+      "City",
+      "Address",
+      "Status",
+      "Install Assigned To",
+      "Install Date",
+    ];
+    const headerRow = worksheet.getRow(5);
+    headers.forEach((header, index) => {
+      const cell = headerRow.getCell(index + 1);
+      cell.value = header;
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 12 };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFEAB308" },
+      };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+    });
+    headerRow.height = 25;
+    const formatDate = (date: Date) => {
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const d = new Date(date);
+      return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
+    };
+    stores.forEach((store: any, index) => {
+      const row = worksheet.getRow(6 + index);
+      row.values = [
+        store.storeName,
+        store.dealerCode,
+        store.location.city,
+        store.location.address,
+        store.currentStatus,
+        store.workflow.installationAssignedTo?.name || "N/A",
+        store.installation?.submittedDate
+          ? formatDate(store.installation.submittedDate)
+          : "-",
+      ];
+      row.alignment = {
+        vertical: "middle",
+        horizontal: "center",
+        wrapText: true,
+      };
+      row.height = 40;
+      if (index % 2 === 0) {
+        row.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFF9FAFB" },
+        };
+      }
+    });
+    worksheet.columns = [
+      { width: 35 },
+      { width: 18 },
+      { width: 18 },
+      { width: 45 },
+      { width: 25 },
+      { width: 25 },
+      { width: 18 },
+    ];
+    worksheet.eachRow((row: Row, rowNumber: number) => {
+      if (rowNumber >= 5) {
+        row.eachCell((cell: Cell) => {
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFD1D5DB" } },
+            left: { style: "thin", color: { argb: "FFD1D5DB" } },
+            bottom: { style: "thin", color: { argb: "FFD1D5DB" } },
+            right: { style: "thin", color: { argb: "FFD1D5DB" } },
+          };
+        });
+      }
+    });
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=Installation_Tasks.xlsx",
+    );
+    res.send(buffer);
+  } catch (error: any) {
+    console.error("Export Error:", error);
+    res.status(500).json({ message: "Failed to export installation tasks" });
+  }
+};
+
+export const downloadStoreTemplate = async (req: Request, res: Response) => {
+  try {
+    const ExcelJS = require("exceljs");
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Stores");
+    const headers = [
+      "Sr. No.",
+      "Dealer Code",
+      "Vendor Code & Name",
+      "Dealer's Name",
+      "City",
+      "District",
+      "Dealer's Address",
+      "Width (Ft.)",
+      "Height (Ft.)",
+      "Dealer Board Type",
+    ];
+    const headerRow = sheet.getRow(1);
+    for (let i = 0; i < headers.length; i++) {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = headers[i];
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFEAB308" },
+      };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    }
+    sheet.columns = [
+      { width: 10 },
+      { width: 15 },
+      { width: 25 },
+      { width: 30 },
+      { width: 15 },
+      { width: 15 },
+      { width: 40 },
+      { width: 12 },
+      { width: 12 },
+      { width: 20 },
+    ];
+    const samples = [
+      [
+        1,
+        "DLR001",
+        "ELORA CREATIVE ART",
+        "Rajesh Kumar",
+        "Mumbai",
+        "Mumbai Suburban",
+        "123 Main Street, Andheri West",
+        10,
+        5,
+        "Flex",
+      ],
+      [
+        2,
+        "DLR002",
+        "ELORA CREATIVE ART",
+        "Amit Sharma",
+        "Delhi",
+        "Central Delhi",
+        "456 Park Avenue, Connaught Place",
+        10,
+        10,
+        "LED",
+      ],
+      [
+        3,
+        "DLR003",
+        "ELORA CREATIVE ART",
+        "Priya Singh",
+        "Bangalore",
+        "Bangalore Urban",
+        "789 MG Road, Indiranagar",
+        15,
+        10,
+        "Digital",
+      ],
+      [
+        4,
+        "DLR004",
+        "ELORA CREATIVE ART",
+        "Suresh Patel",
+        "Pune",
+        "Pune",
+        "321 FC Road, Shivajinagar",
+        20,
+        10,
+        "Flex",
+      ],
+      [
+        5,
+        "DLR005",
+        "ELORA CREATIVE ART",
+        "Neha Gupta",
+        "Hyderabad",
+        "Hyderabad",
+        "654 Banjara Hills, Road No 12",
+        10,
+        5,
+        "LED",
+      ],
+      [
+        6,
+        "DLR006",
+        "ELORA CREATIVE ART",
+        "Vikram Reddy",
+        "Chennai",
+        "Chennai",
+        "987 Anna Salai, T Nagar",
+        10,
+        10,
+        "Digital",
+      ],
+      [
+        7,
+        "DLR007",
+        "ELORA CREATIVE ART",
+        "Anjali Verma",
+        "Kolkata",
+        "Kolkata",
+        "147 Park Street, Central Kolkata",
+        15,
+        10,
+        "Flex",
+      ],
+      [
+        8,
+        "DLR008",
+        "ELORA CREATIVE ART",
+        "Rahul Joshi",
+        "Ahmedabad",
+        "Ahmedabad",
+        "258 CG Road, Navrangpura",
+        20,
+        10,
+        "LED",
+      ],
+      [
+        9,
+        "DLR009",
+        "ELORA CREATIVE ART",
+        "Kavita Desai",
+        "Jaipur",
+        "Jaipur",
+        "369 MI Road, C Scheme",
+        10,
+        5,
+        "Digital",
+      ],
+      [
+        10,
+        "DLR010",
+        "ELORA CREATIVE ART",
+        "Manoj Yadav",
+        "Lucknow",
+        "Lucknow",
+        "741 Hazratganj, Lucknow Central",
+        10,
+        10,
+        "Flex",
+      ],
+    ];
+    samples.forEach((data, idx) => {
+      const row: Row = sheet.getRow(idx + 2);
+      row.values = data;
+
+      row.eachCell((cell: Cell) => {
+        cell.alignment = { vertical: "middle", horizontal: "center" };
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+    });
+    const validationSheet = workbook.addWorksheet("Validations");
+    const valHeaders = ["Board Sizes", "Types"];
+    const valHeaderRow = validationSheet.getRow(1);
+    for (let i = 0; i < valHeaders.length; i++) {
+      const cell = valHeaderRow.getCell(i + 1);
+      cell.value = valHeaders[i];
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFEAB308" },
+      };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    }
+    validationSheet.getColumn(1).values = [
+      "Board Sizes",
+      "10 x 5",
+      "10 x 10",
+      "15 x 10",
+      "20 x 10",
+    ];
+    validationSheet.getColumn(2).values = ["Types", "Flex", "LED", "Digital"];
+    validationSheet.columns = [{ width: 20 }, { width: 20 }];
+    validationSheet.eachRow((row: Row, rowNumber: number) => {
+      if (rowNumber > 1) {
+        row.eachCell((cell: Cell) => {
+          cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
+        });
+      }
+    });
+    const instructionsSheet = workbook.addWorksheet("Instructions");
+    const titleCell = instructionsSheet.getCell("A1");
+    titleCell.value = "Instructions for Store Template";
+    titleCell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 14 };
+    titleCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFEAB308" },
+    };
+    titleCell.alignment = { vertical: "middle", horizontal: "center" };
+    titleCell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    const instructions = [
+      "1. Fill all required fields in the Stores sheet",
+      "2. Dealer Code must be unique for each store",
+      "3. Width and Height should be in feet (numbers only)",
+      "4. Refer to Validations sheet for Board Sizes and Types",
+      "5. Delete sample data before uploading your actual data",
+    ];
+    instructions.forEach((text, i) => {
+      const cell = instructionsSheet.getCell("A" + (i + 3));
+      cell.value = text;
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+    instructionsSheet.getColumn(1).width = 60;
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=Elora_Store_Upload_Template.xlsx",
+    );
+    res.send(buffer);
+  } catch (error: any) {
+    console.error("Template Error:", error);
+    res.status(500).json({ message: "Failed to generate template" });
   }
 };

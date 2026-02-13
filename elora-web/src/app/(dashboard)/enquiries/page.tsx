@@ -26,19 +26,20 @@ export default function EnquiriesPage() {
   }, []);
 
   const fetchEnquiries = async () => {
+    const startTime = Date.now();
     try {
       setLoading(true);
       const { data } = await api.get("/enquiries");
-      // The controller returns an array directly: res.json(enquiries)
-      // Wait, let me check controller again. 
-      // Yes: res.status(200).json(enquiries); which is an array.
-      // But usually axios wraps it in data.
-      // So data is the array.
       setEnquiries(Array.isArray(data) ? data : []);
     } catch (error) {
       toast.error("Failed to load enquiries");
     } finally {
-      setLoading(false);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 800) {
+        setTimeout(() => setLoading(false), 800 - elapsed);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -51,7 +52,38 @@ export default function EnquiriesPage() {
       }
   };
 
-  if (loading) return <div className="flex h-screen justify-center items-center"><Loader2 className="w-8 h-8 animate-spin text-blue-600"/></div>;
+  if (loading) return (
+    <div className="max-w-7xl mx-auto pb-20 space-y-6">
+      <div>
+        <div className={`h-8 w-48 rounded-lg mb-2 animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+        <div className={`h-4 w-64 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+      </div>
+      <div className={`rounded-xl border overflow-hidden ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+        <div className={`p-6 ${darkMode ? "bg-gray-800/80" : "bg-gray-50"}`}>
+          <div className="grid grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className={`h-4 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+            ))}
+          </div>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className={`p-6 ${darkMode ? "bg-gray-800/30" : "bg-white"}`}>
+              <div className="grid grid-cols-4 gap-4">
+                <div className={`h-4 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                <div className="space-y-2">
+                  <div className={`h-4 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  <div className={`h-3 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                </div>
+                <div className={`h-4 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                <div className={`h-6 w-20 rounded-full animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-6">

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, CallbackWithoutResultAndOptionalError } from "mongoose";
 
 export enum StoreStatus {
   UPLOADED = "UPLOADED",
@@ -14,6 +14,7 @@ export enum StoreStatus {
 
 export interface StoreDocument extends Document {
   projectID: string;
+  storeId: string; // NEW: Auto-generated Store ID
   dealerCode: string;
   storeCode?: string;
   storeName?: string;
@@ -65,6 +66,9 @@ export interface StoreDocument extends Document {
     qty?: number; // NEW
   };
 
+  remark?: string; // General remark field
+  imagesAttached?: boolean; // Images attached in PPT (yes/no)
+
   currentStatus: StoreStatus;
 
   workflow: {
@@ -94,6 +98,7 @@ export interface StoreDocument extends Document {
 const StoreSchema = new Schema<StoreDocument>(
   {
     projectID: { type: String },
+    storeId: { type: String, unique: true, sparse: true }, // NEW: Auto-generated Store ID
     dealerCode: { type: String, required: true, unique: true, index: true },
     storeCode: { type: String },
     storeName: { type: String },
@@ -148,6 +153,9 @@ const StoreSchema = new Schema<StoreDocument>(
       qty: { type: Number }, // NEW
     },
 
+    remark: { type: String },
+    imagesAttached: { type: Boolean, default: false },
+
     currentStatus: {
       type: String,
       enum: Object.values(StoreStatus),
@@ -184,5 +192,21 @@ const StoreSchema = new Schema<StoreDocument>(
   },
   { timestamps: true },
 );
+
+// Helper function to generate Store ID
+const generateStoreId = (city: string, district: string, dealerCode: string): string => {
+  const cityPrefix = (city || '').trim().substring(0, 3).toUpperCase();
+  const districtPrefix = (district || '').trim().substring(0, 3).toUpperCase();
+  const cleanDealerCode = (dealerCode || '').trim().toUpperCase();
+  return `${cityPrefix}${districtPrefix}${cleanDealerCode}`;
+};
+
+// Pre-save hook to auto-generate storeId
+StoreSchema.pre('save', function(next: any) {
+  if (!this.storeId && this.location?.city && this.location?.district && this.dealerCode) {
+    this.storeId = generateStoreId(this.location.city, this.location.district, this.dealerCode);
+  }
+  next();
+});
 
 export default mongoose.model<StoreDocument>("Store", StoreSchema);

@@ -14,6 +14,9 @@ import {
   reviewRecce,
   submitInstallation,
   generateInstallationPPT,
+  downloadStoreTemplate,
+  exportRecceTasks,
+  exportInstallationTasks,
 } from "./store.controller";
 import { protect } from "../../middlewares/auth.middleware";
 import { checkPermission } from "../../middlewares/rbac.middleware";
@@ -36,6 +39,10 @@ const upload = multer({ storage: storage });
 // ------------------------------------------------
 
 router.use(protect);
+
+router.get("/template", downloadStoreTemplate);
+router.get("/export/recce", exportRecceTasks);
+router.get("/export/installation", exportInstallationTasks);
 
 router.post(
   "/upload",

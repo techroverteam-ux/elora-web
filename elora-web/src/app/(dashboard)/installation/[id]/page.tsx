@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
+import { Skeleton } from "@/src/components/ui/Skeleton";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -56,6 +57,7 @@ export default function InstallationSubmissionPage() {
     if (!id) return;
 
     const fetchStore = async () => {
+      const startTime = Date.now();
       try {
         const { data } = await api.get(`/stores/${id}`);
         const s = data.store;
@@ -79,7 +81,12 @@ export default function InstallationSubmissionPage() {
       } catch (error) {
         toast.error("Failed to load store details");
       } finally {
-        setLoading(false);
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 800) {
+          setTimeout(() => setLoading(false), 800 - elapsed);
+        } else {
+          setLoading(false);
+        }
       }
     };
     fetchStore();
@@ -130,8 +137,24 @@ export default function InstallationSubmissionPage() {
 
   if (loading)
     return (
-      <div className="p-10 flex justify-center">
-        <Loader2 className="animate-spin text-blue-600" />
+      <div className="bg-gray-50 min-h-screen pb-20">
+        <div className="bg-white sticky top-0 z-10 px-4 py-3 border-b">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-6 w-6 rounded-full" />
+            <div className="flex-1">
+              <Skeleton className="h-6 w-48 mb-2" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto p-4">
+          <Skeleton className="h-20 w-full rounded-xl mb-6" />
+          <div className="grid md:grid-cols-2 gap-6">
+            <Skeleton className="h-64 w-full rounded-xl" />
+            <Skeleton className="h-64 w-full rounded-xl" />
+            <Skeleton className="h-64 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   if (!store) return <div className="p-10 text-center">Store not found</div>;
@@ -153,8 +176,9 @@ export default function InstallationSubmissionPage() {
         </div>
       </div>
 
-      <div className="max-w-md mx-auto p-4 space-y-6">
-        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3">
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 md:col-span-2">
           <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
           <div className="text-sm text-blue-800">
             <p className="font-bold mb-1">Board Details:</p>
@@ -164,7 +188,8 @@ export default function InstallationSubmissionPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="md:col-span-2 space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 opacity-90">
             <h3 className="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
               <ImageIcon className="h-4 w-4 text-gray-500" /> Reference: Before
@@ -188,7 +213,7 @@ export default function InstallationSubmissionPage() {
             </div>
           </div>
 
-          <div>
+          <div className="md:col-span-2">
             <h3 className="font-bold text-gray-900 text-sm mb-3 pl-1">
               Upload Installation Photos
             </h3>
@@ -251,7 +276,8 @@ export default function InstallationSubmissionPage() {
             </div>
           </div>
 
-          <div className="pt-2">
+          {/* SUBMIT BUTTON */}
+          <div className="pt-2 md:col-span-2">
             <button
               type="submit"
               disabled={submitting}
@@ -265,7 +291,9 @@ export default function InstallationSubmissionPage() {
               Complete Installation
             </button>
           </div>
+          </div>
         </form>
+        </div>
       </div>
     </div>
   );

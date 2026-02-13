@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { ArrowRight, CheckCircle, MapPin, Phone, Mail, MessageCircle, Sun, Moon, Loader2 } from 'lucide-react';
 import api from '@/src/lib/api';
 import { Store, StoreStatus } from '@/src/types/store';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const LandingPage = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -49,7 +49,8 @@ const LandingPage = () => {
   const handleEnquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!enquiry.name || !enquiry.phone) {
-      return toast.error("Name and Phone are required");
+      toast.error("Name and Phone are required");
+      return;
     }
     
     setIsSubmitting(true);
@@ -82,7 +83,6 @@ const LandingPage = () => {
         ? 'bg-black text-white' 
         : 'bg-white text-gray-900'
     }`}>
-      <Toaster position="top-right" />
       {/* Navigation */}
       <nav className={`fixed top-0 w-full backdrop-blur-sm z-50 border-b transition-colors duration-300 ${
         darkMode 
@@ -431,37 +431,34 @@ const LandingPage = () => {
           ? 'bg-gradient-to-b from-purple-900/20 to-black' 
           : 'bg-gradient-to-b from-orange-50/20 to-gray-50'
       }`}>
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-8 leading-tight">
-            We Come to Your Store —
-            <span className="block text-yellow-500">Anywhere You Need Us</span>
-          </h2>
-          
-          <p className={`text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium ${
-            darkMode ? 'text-gray-300' : 'text-gray-600'
-          }`}>
-            Whether your shop is in a busy market, mall, roadside stall, or commercial complex — 
-            our team travels to your location for professional installation.
-          </p>
-          
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="flex justify-center">
-              <MapPin className="w-16 h-16 text-yellow-500" />
-            </div>
-            <div className={`rounded-2xl overflow-hidden border ${
-              darkMode ? 'border-purple-700/50' : 'border-gray-200'
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-8 leading-tight">
+              We Come to Your Store —
+              <span className="block text-yellow-500">Anywhere You Need Us</span>
+            </h2>
+            
+            <p className={`text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium ${
+              darkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>
-              <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024.123456789!2d77.1234567!3d28.1234567!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjjCsDA3JzI0LjQiTiA3N8KwMDcnMjQuNCJF!5e0!3m2!1sen!2sin!4v1234567890123!5m2!1sen!2sin"
-                width="100%" 
-                height="300" 
-                style={{border:0}} 
-                allowFullScreen 
-                loading="lazy" 
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Service Areas Map"
-              ></iframe>
-            </div>
+              Whether your shop is in a busy market, mall, roadside stall, or commercial complex — 
+              our team travels to your location for professional installation.
+            </p>
+          </div>
+          
+          <div className={`rounded-2xl overflow-hidden border shadow-lg ${
+            darkMode ? 'border-purple-700/50' : 'border-gray-200'
+          }`}>
+            <iframe 
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024.123456789!2d77.1234567!3d28.1234567!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjjCsDA3JzI0LjQiTiA3N8KwMDcnMjQuNCJF!5e0!3m2!1sen!2sin!4v1234567890123!5m2!1sen!2sin"
+              width="100%" 
+              height="450" 
+              style={{border:0}} 
+              allowFullScreen 
+              loading="lazy" 
+              referrerPolicy="no-referrer-when-downgrade"
+              title="Service Areas Map"
+            ></iframe>
           </div>
         </div>
       </section>

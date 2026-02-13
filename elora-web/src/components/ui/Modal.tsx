@@ -27,7 +27,7 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all">
       {/* Container - added onClick.stopPropagation to prevent closing when clicking inside */}
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-2xl transform transition-all flex flex-col max-h-[90vh]"
+        className="bg-white rounded-lg shadow-xl w-full max-w-4xl transform transition-all flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -42,7 +42,7 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto">{children}</div>
+        <div className="p-6">{children}</div>
       </div>
 
       {/* Click outside overlay to close */}

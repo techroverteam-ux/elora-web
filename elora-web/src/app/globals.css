@@ -45,3 +45,23 @@ body {
 .animate-gradient {
   animation: gradient-move 6s ease infinite;
 }
+
+/* Custom scrollbar styles */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thumb-yellow-500::-webkit-scrollbar-thumb {
+  background-color: #eab308;
+  border-radius: 4px;
+}
+
+.scrollbar-thumb-yellow-500::-webkit-scrollbar-thumb:hover {
+  background-color: #ca8a04;
+}
+
+.scrollbar-track-gray-200::-webkit-scrollbar-track {
+  background-color: #e5e7eb;
+  border-radius: 4px;
+}

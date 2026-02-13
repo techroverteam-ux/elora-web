@@ -1,26 +1,30 @@
 "use client";
 
-import React, { useEffect, useState } from "react"; // 1. Removed 'use'
-import { useRouter, useParams } from "next/navigation"; // 2. Added 'useParams'
+import React, { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
 import {
   ArrowLeft,
   Camera,
-  Upload,
   Ruler,
   FileText,
   CheckCircle2,
   Loader2,
   MapPin,
+  Building2,
+  Package,
+  DollarSign,
+  Calendar,
+  FileSpreadsheet,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Skeleton, CardSkeleton } from "@/src/components/ui/Skeleton";
 
-// 3. Removed { params } prop entirely
 export default function RecceSubmissionPage() {
   const router = useRouter();
-
-  // 4. Get ID using the hook instead of use(params)
+  const { darkMode } = useTheme();
   const params = useParams();
   const id = params?.id as string;
 
@@ -53,27 +57,20 @@ export default function RecceSubmissionPage() {
     if (!id) return;
 
     const fetchStore = async () => {
+      const startTime = Date.now();
       try {
         const { data } = await api.get(`/stores/${id}`);
-        const s = data.store; // shorter reference
+        const s = data.store;
         setStore(s);
 
-        // --- NEW LOGIC START: Check for existing Recce Data ---
         if (s.recce && s.recce.submittedDate) {
-          // 1. Pre-fill Dimensions
           if (s.recce.sizes) {
             setWidth(String(s.recce.sizes.width));
             setHeight(String(s.recce.sizes.height));
           }
-
-          // 2. Pre-fill Notes
           if (s.recce.notes) {
             setNotes(s.recce.notes);
           }
-
-          // 3. Pre-fill Images
-          // We convert the server path ("uploads/file.jpg") to a full URL
-          // ("http://localhost:5000/uploads/file.jpg")
           setPreviews({
             front: s.recce.photos?.front
               ? `${API_BASE_URL}/${s.recce.photos.front}`
@@ -86,7 +83,6 @@ export default function RecceSubmissionPage() {
               : null,
           });
         } else {
-          // --- Fallback: If NO recce yet, use target specs from Excel ---
           if (s.specs?.boardSize) {
             const parts = s.specs.boardSize.toLowerCase().split("x");
             if (parts.length === 2) {
@@ -95,11 +91,15 @@ export default function RecceSubmissionPage() {
             }
           }
         }
-        // --- NEW LOGIC END ---
       } catch (error) {
         toast.error("Failed to load store details");
       } finally {
-        setLoading(false);
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 800) {
+          setTimeout(() => setLoading(false), 800 - elapsed);
+        } else {
+          setLoading(false);
+        }
       }
     };
     fetchStore();
@@ -150,75 +150,176 @@ export default function RecceSubmissionPage() {
 
   if (loading)
     return (
-      <div className="p-10 flex justify-center">
-        <Loader2 className="animate-spin text-blue-600" />
+      <div className={`min-h-screen pb-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+        <div className={`sticky top-0 z-10 px-4 py-3 border-b ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-6 w-6 rounded-full" />
+            <div className="flex-1">
+              <Skeleton className="h-6 w-48 mb-2" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto p-4">
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+        </div>
       </div>
     );
   if (!store) return <div className="p-10 text-center">Store not found</div>;
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-20">
+    <div className={`min-h-screen pb-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       {/* Header */}
-      <div className="bg-white sticky top-0 z-10 px-4 py-3 border-b flex items-center gap-3">
+      <div className={`sticky top-0 z-10 px-4 py-3 border-b flex items-center gap-3 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
         <button
           onClick={() => router.back()}
-          className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+          className={`p-2 -ml-2 rounded-full ${darkMode ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 hover:bg-gray-100"}`}
         >
           <ArrowLeft className="h-6 w-6" />
         </button>
-        <div>
-          <h1 className="font-bold text-gray-900 text-lg leading-tight line-clamp-1">
+        <div className="flex-1">
+          <h1 className={`font-bold text-lg leading-tight line-clamp-1 ${darkMode ? "text-white" : "text-gray-900"}`}>
             {store.storeName}
           </h1>
-          <p className="text-xs text-gray-500">{store.dealerCode}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-xs font-mono ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>{store.storeId || store.dealerCode}</span>
+            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-100 text-blue-800"}`}>{store.currentStatus.replace(/_/g, " ")}</span>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto p-4 space-y-6">
-        {/* Store Info Card */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex gap-3 text-sm text-gray-600 mb-2">
-            <MapPin className="h-5 w-5 text-gray-400 shrink-0" />
-            <p>
-              {store.location.address ||
-                `${store.location.city}, ${store.location.area}`}
-            </p>
+      <div className="max-w-7xl mx-auto p-4">
+        {/* Store Details Grid */}
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+          {/* Location Card */}
+          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="h-5 w-5 text-yellow-500" />
+              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Location</h3>
+            </div>
+            <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              <div><span className="text-gray-500">Zone:</span> {store.location.zone || "-"}</div>
+              <div><span className="text-gray-500">State:</span> {store.location.state || "-"}</div>
+              <div><span className="text-gray-500">District:</span> {store.location.district || "-"}</div>
+              <div><span className="text-gray-500">City:</span> {store.location.city || "-"}</div>
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-gray-500">Address:</span>
+                <p className="mt-1">{store.location.address || "-"}</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-blue-50 text-blue-800 text-xs px-3 py-2 rounded-lg mt-3">
-            <strong>Instruction:</strong>{" "}
-            {store.specs?.type || "Standard Board"}. Capture clear images from
-            all angles.
+
+          {/* Dealer Info Card */}
+          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <Building2 className="h-5 w-5 text-yellow-500" />
+              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Dealer Info</h3>
+            </div>
+            <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              <div><span className="text-gray-500">Code:</span> {store.dealerCode}</div>
+              <div><span className="text-gray-500">Vendor:</span> {store.vendorCode || "-"}</div>
+              <div><span className="text-gray-500">Contact:</span> {store.contact?.personName || "-"}</div>
+              <div><span className="text-gray-500">Mobile:</span> {store.contact?.mobile || "-"}</div>
+            </div>
+          </div>
+
+          {/* Commercial Details Card */}
+          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <FileSpreadsheet className="h-5 w-5 text-yellow-500" />
+              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Commercial</h3>
+            </div>
+            <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              <div><span className="text-gray-500">PO Number:</span> {store.commercials?.poNumber || "-"}</div>
+              <div><span className="text-gray-500">PO Month:</span> {store.commercials?.poMonth || "-"}</div>
+              <div><span className="text-gray-500">Invoice:</span> {store.commercials?.invoiceNumber || "-"}</div>
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-gray-500">Remarks:</span>
+                <p className="mt-1 text-xs">{store.commercials?.invoiceRemarks || "-"}</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Board Specs & Costs */}
+        <div className="grid md:grid-cols-2 gap-4 mb-6">
+          {/* Board Specifications */}
+          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <Package className="h-5 w-5 text-yellow-500" />
+              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Board Specifications</h3>
+            </div>
+            <div className={`grid grid-cols-2 gap-3 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              <div><span className="text-gray-500">Type:</span> {store.specs?.type || "-"}</div>
+              <div><span className="text-gray-500">Qty:</span> {store.specs?.qty || 1}</div>
+              <div><span className="text-gray-500">Width:</span> {store.specs?.width} ft</div>
+              <div><span className="text-gray-500">Height:</span> {store.specs?.height} ft</div>
+              <div className="col-span-2"><span className="text-gray-500">Board Size:</span> {store.specs?.boardSize || "-"} sq.ft</div>
+            </div>
+          </div>
+
+          {/* Cost Breakdown */}
+          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <DollarSign className="h-5 w-5 text-yellow-500" />
+              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Cost Details</h3>
+            </div>
+            <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              <div className="flex justify-between"><span className="text-gray-500">Board Rate:</span> <span>₹{store.costDetails?.boardRate || 0}/sq.ft</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Board Cost:</span> <span>₹{store.costDetails?.totalBoardCost?.toLocaleString() || 0}</span></div>
+              {store.costDetails?.angleCharges ? <div className="flex justify-between"><span className="text-gray-500">Angle:</span> <span>₹{store.costDetails.angleCharges}</span></div> : null}
+              {store.costDetails?.scaffoldingCharges ? <div className="flex justify-between"><span className="text-gray-500">Scaffolding:</span> <span>₹{store.costDetails.scaffoldingCharges}</span></div> : null}
+              {store.costDetails?.transportation ? <div className="flex justify-between"><span className="text-gray-500">Transport:</span> <span>₹{store.costDetails.transportation}</span></div> : null}
+              <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700 font-bold text-green-600">
+                <span>Total Cost:</span> <span>₹{store.commercials?.totalCost?.toLocaleString() || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Recce Form */}
+        <div className="grid md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="md:col-span-2 space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
           {/* SECTION 1: MEASUREMENTS */}
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-              <Ruler className="h-5 w-5 text-blue-600" /> Measurements (ft)
+          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <h3 className={`font-bold flex items-center gap-2 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
+              <Ruler className="h-5 w-5 text-yellow-500" /> Measurements (ft)
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
+                <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                   Width
                 </label>
                 <input
                   type="number"
                   step="0.1"
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-lg font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                   value={width}
                   onChange={(e) => setWidth(e.target.value)}
                   placeholder="0.0"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
+                <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                   Height
                 </label>
                 <input
                   type="number"
                   step="0.1"
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-lg font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                   value={height}
                   onChange={(e) => setHeight(e.target.value)}
                   placeholder="0.0"
@@ -228,13 +329,12 @@ export default function RecceSubmissionPage() {
           </div>
 
           {/* SECTION 2: PHOTOS */}
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-              <Camera className="h-5 w-5 text-purple-600" /> Site Photos
+          <div className={`p-4 rounded-xl border md:row-span-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <h3 className={`font-bold flex items-center gap-2 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
+              <Camera className="h-5 w-5 text-yellow-500" /> Site Photos
             </h3>
 
             <div className="space-y-4">
-              {/* Helper Component for Upload Box */}
               {["front", "side", "closeUp"].map((type) => (
                 <div key={type} className="flex items-center gap-4">
                   <label className="flex-1 relative block cursor-pointer group">
@@ -245,9 +345,13 @@ export default function RecceSubmissionPage() {
                       onChange={(e) => handleFileChange(e, type as any)}
                     />
                     <div
-                      className={`h-24 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-colors overflow-hidden
-                                    ${previews[type as keyof typeof previews] ? "border-green-500 bg-green-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}
-                                `}
+                      className={`h-24 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-colors overflow-hidden ${
+                        previews[type as keyof typeof previews] 
+                          ? "border-green-500 bg-green-50 dark:bg-green-900/20" 
+                          : darkMode 
+                            ? "border-gray-600 bg-gray-700 hover:bg-gray-600" 
+                            : "border-gray-300 bg-gray-50 hover:bg-gray-100"
+                      }`}
                     >
                       {previews[type as keyof typeof previews] ? (
                         <img
@@ -257,8 +361,8 @@ export default function RecceSubmissionPage() {
                         />
                       ) : (
                         <>
-                          <Camera className="h-6 w-6 text-gray-400 mb-1" />
-                          <span className="text-xs font-medium text-gray-500 capitalize">
+                          <Camera className={`h-6 w-6 mb-1 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
+                          <span className={`text-xs font-medium capitalize ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                             {type} View
                           </span>
                         </>
@@ -271,25 +375,25 @@ export default function RecceSubmissionPage() {
           </div>
 
           {/* SECTION 3: NOTES */}
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-2">
-              <FileText className="h-5 w-5 text-orange-600" /> Remarks
+          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <h3 className={`font-bold flex items-center gap-2 mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
+              <FileText className="h-5 w-5 text-yellow-500" /> Remarks
             </h3>
             <textarea
-              // ADDED: text-gray-900 (for dark text) and placeholder-gray-500 (for readable placeholder)
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+              className={`w-full p-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500 min-h-[80px] ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500"}`}
               placeholder="Any obstruction? Electrical issues?"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
 
+          </div>
           {/* SUBMIT BUTTON */}
-          <div className="pt-2">
+          <div className="pt-2 md:col-span-2">
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
+              className="w-full bg-yellow-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-600 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
             >
               {submitting ? (
                 <Loader2 className="animate-spin" />
@@ -300,6 +404,7 @@ export default function RecceSubmissionPage() {
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );

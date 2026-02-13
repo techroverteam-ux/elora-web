@@ -21,6 +21,7 @@ const startServer = async () => {
 
     await seedSuperAdmin();
 
+    app.use("/api/v1/enquiries", enquiryRoutes);
     app.use("/api/enquiries", enquiryRoutes);
     app.use("/api/dashboard", dashboardRoutes);
 

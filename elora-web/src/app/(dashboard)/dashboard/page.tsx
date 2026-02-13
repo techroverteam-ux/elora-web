@@ -29,20 +29,72 @@ export default function DashboardPage() {
   }, []);
 
   const fetchStats = async () => {
+    const startTime = Date.now();
     try {
       const { data } = await api.get("/dashboard/stats");
       setStats(data);
     } catch (error) {
       console.error("Failed to fetch dashboard stats", error);
     } finally {
-      setLoading(false);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 800) {
+        setTimeout(() => setLoading(false), 800 - elapsed);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
+      <div className="space-y-6 pb-20">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className={`h-8 w-48 rounded-lg mb-2 animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+            <div className={`h-4 w-32 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+          </div>
+          <div className={`h-6 w-24 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className={`p-4 rounded-xl border animate-pulse ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className={`h-3 w-20 rounded mb-3 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  <div className={`h-8 w-16 rounded mb-2 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  <div className={`h-3 w-24 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                </div>
+                <div className={`h-10 w-10 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className={`col-span-1 lg:col-span-2 rounded-xl border p-5 animate-pulse ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+            <div className={`h-6 w-40 rounded mb-4 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className={`h-12 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+              ))}
+            </div>
+          </div>
+          <div className={`rounded-xl border p-5 animate-pulse ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+            <div className={`h-6 w-32 rounded mb-4 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
+                  <div className="flex gap-3">
+                    <div className={`h-10 w-10 rounded-full ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                    <div className="flex-1">
+                      <div className={`h-4 w-32 rounded mb-2 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                      <div className={`h-3 w-24 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

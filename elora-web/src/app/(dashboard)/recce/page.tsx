@@ -29,7 +29,7 @@ export default function RecceListPage() {
   
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"table" | "card">("table"); // Default to table for desktop
+  const [viewMode, setViewMode] = useState<"table" | "card">(typeof window !== 'undefined' && window.innerWidth < 768 ? "card" : "table");
   
   // Pagination & Filters
   const [page, setPage] = useState(1);
@@ -61,32 +61,16 @@ export default function RecceListPage() {
   }, []);
 
   const fetchStores = async () => {
+    const startTime = Date.now();
     try {
       setLoading(true);
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", limit.toString());
       if (debouncedSearch) params.append("search", debouncedSearch);
-      
-      // For Recce Page, we might want to filter by RECCE specific statuses if we are Admin?
-      // But if we are Field Staff, the backend already restricts to assigned.
-      // However, the backend returns ALL stores for Admins.
-      // The requirement "Recce Inspection" title implies this page is for Recce tasks.
-      // So we should probably filter for Recce related statuses if we are Admin, or just show all my assigned if Staff.
-      // Let's rely on the user to filter status, or pre-filter?
-      // For now, I'll allow all statuses but maybe default to "RECCE_ASSIGNED" if I could.
-      // But simpler is to fetch all and let user filter.
       if (filterStatus !== "ALL") params.append("status", filterStatus);
 
       const { data } = await api.get(`/stores?${params.toString()}`);
-      
-      // Client-side filtering for "Recce" relevance if needed? 
-      // No, let's just show what the backend returns (which is pagination).
-      // We might be showing Installation tasks here if we don't filter.
-      // Ideally backend should have a "type=recce" filter.
-      // But I didn't implement that.
-      // I'll just show all stores returned.
-      
       setStores(data.stores);
       if (data.pagination) {
           setTotalPages(data.pagination.pages);
@@ -95,7 +79,12 @@ export default function RecceListPage() {
     } catch (error) {
       toast.error("Failed to load stores");
     } finally {
-      setLoading(false);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 1200) {
+        setTimeout(() => setLoading(false), 1200 - elapsed);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -103,25 +92,25 @@ export default function RecceListPage() {
     fetchStores();
   }, [page, limit, debouncedSearch, filterStatus]);
 
-  const handleExport = () => {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
     try {
-        const data = stores.map(s => ({
-            "Store Name": s.storeName,
-            "Dealer Code": s.dealerCode,
-            "City": s.location.city,
-            "Address": s.location.address,
-            "Status": s.currentStatus,
-            "Recce Assigned To": typeof s.workflow.recceAssignedTo === 'object' ? (s.workflow.recceAssignedTo as any)?.name : "N/A",
-            "Recce Date": s.recce?.submittedDate ? new Date(s.recce.submittedDate).toLocaleDateString() : "-"
-        }));
-        
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Recce Tasks");
-        XLSX.writeFile(wb, "Recce_Tasks.xlsx");
-        toast.success("Exported Successfully");
+      const response = await api.get('/stores/export/recce', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Recce_Tasks.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Exported Successfully');
     } catch (err) {
-        toast.error("Export Failed");
+      toast.error('Export Failed');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -136,8 +125,88 @@ export default function RecceListPage() {
 
   if (loading && stores.length === 0)
     return (
-      <div className="flex h-screen justify-center items-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="max-w-7xl mx-auto pb-20 space-y-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className={`h-8 w-48 rounded-lg mb-2 animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+            <div className={`h-4 w-56 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+          </div>
+          <div className={`h-10 w-32 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+        </div>
+        <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+          <div className="flex gap-4">
+            <div className={`flex-1 h-10 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+            <div className={`w-48 h-10 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+          </div>
+        </div>
+        {viewMode === "card" ? (
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className={`rounded-xl border overflow-hidden animate-pulse ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+                <div className={`h-1.5 w-full ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                <div className="p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <div className="flex-1">
+                      <div className={`h-5 w-48 rounded mb-2 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                      <div className={`h-3 w-32 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                    </div>
+                    <div className={`h-6 w-20 rounded-full ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  </div>
+                  <div className="flex gap-2">
+                    <div className={`h-4 w-4 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                    <div className={`h-4 flex-1 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  </div>
+                  <div className={`h-10 w-full rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={`rounded-xl border overflow-hidden ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className={darkMode ? "bg-gray-800/80" : "bg-gray-50"}>
+                  <tr>
+                    {[...Array(4)].map((_, i) => (
+                      <th key={i} className="px-6 py-3"><div className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-300"}`} /></th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}>
+                  {[...Array(5)].map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className={`h-4 w-32 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                          <div className={`h-3 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className={`h-4 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                          <div className={`h-3 w-32 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4"><div className={`h-6 w-20 rounded-full animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                      <td className="px-6 py-4"><div className={`h-8 w-20 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className={`px-4 py-3 flex items-center justify-between border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>
+              <div className={`h-4 w-48 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+              <div className="flex items-center gap-2">
+                <div className={`h-8 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                <div className="flex gap-1">
+                  <div className={`h-8 w-8 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  <div className={`h-8 w-8 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  <div className={`h-8 w-8 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
 

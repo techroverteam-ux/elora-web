@@ -30,7 +30,7 @@ export default function InstallationListPage() {
   
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [viewMode, setViewMode] = useState<"table" | "card">(typeof window !== 'undefined' && window.innerWidth < 768 ? "card" : "table");
   
   // Pagination & Filters
   const [page, setPage] = useState(1);
@@ -60,6 +60,7 @@ export default function InstallationListPage() {
   }, []);
 
   const fetchStores = async () => {
+    const startTime = Date.now();
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -67,17 +68,6 @@ export default function InstallationListPage() {
       params.append("limit", limit.toString());
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filterStatus !== "ALL") params.append("status", filterStatus);
-
-      // We probably want to ask backend to only give us Installation relevant tasks if we are Admin?
-      // Or just filter on client side if we get all mixed?
-      // Since backend pagination returns mixed types unless filtered, 
-      // we might see Recce tasks here if not filtered.
-      // Ideally we'd default filterStatus to something, but "ALL" implies all installation statuses.
-      // For now, I'll rely on the user to use the status filter or just see all.
-      // But typically "Installation Page" should show installation tasks.
-      // Backend `getAllStores` for staff performs auto-filtering for assigned tasks.
-      // For Admins, it returns everything.
-      // I'll leave it as is for now, consistent with Recce page.
 
       const { data } = await api.get(`/stores?${params.toString()}`);
       setStores(data.stores);
@@ -88,7 +78,12 @@ export default function InstallationListPage() {
     } catch (error) {
       toast.error("Failed to load tasks");
     } finally {
-      setLoading(false);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 1200) {
+        setTimeout(() => setLoading(false), 1200 - elapsed);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -96,25 +91,25 @@ export default function InstallationListPage() {
     fetchStores();
   }, [page, limit, debouncedSearch, filterStatus]);
 
-  const handleExport = () => {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
     try {
-        const data = stores.map(s => ({
-            "Store Name": s.storeName,
-            "Dealer Code": s.dealerCode,
-            "City": s.location.city,
-            "Address": s.location.address,
-            "Status": s.currentStatus,
-            "Install Assigned To": typeof s.workflow.installationAssignedTo === 'object' ? (s.workflow.installationAssignedTo as any)?.name : "N/A",
-            "Install Date": s.installation?.submittedDate ? new Date(s.installation.submittedDate).toLocaleDateString() : "-"
-        }));
-        
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Installation Tasks");
-        XLSX.writeFile(wb, "Installation_Tasks.xlsx");
-        toast.success("Exported Successfully");
+      const response = await api.get('/stores/export/installation', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Installation_Tasks.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Exported Successfully');
     } catch (err) {
-        toast.error("Export Failed");
+      toast.error('Export Failed');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -129,8 +124,88 @@ export default function InstallationListPage() {
 
   if (loading && stores.length === 0)
     return (
-      <div className="flex h-screen justify-center items-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="max-w-7xl mx-auto pb-20 space-y-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className={`h-8 w-56 rounded-lg mb-2 animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+            <div className={`h-4 w-48 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+          </div>
+          <div className={`h-10 w-32 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+        </div>
+        <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+          <div className="flex gap-4">
+            <div className={`flex-1 h-10 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+            <div className={`w-48 h-10 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+          </div>
+        </div>
+        {viewMode === "card" ? (
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className={`rounded-xl border overflow-hidden animate-pulse ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+                <div className={`h-1.5 w-full ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                <div className="p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <div className="flex-1">
+                      <div className={`h-5 w-48 rounded mb-2 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                      <div className={`h-3 w-32 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                    </div>
+                    <div className={`h-6 w-20 rounded-full ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  </div>
+                  <div className="flex gap-2">
+                    <div className={`h-4 w-4 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                    <div className={`h-4 flex-1 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  </div>
+                  <div className={`h-10 w-full rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={`rounded-xl border overflow-hidden ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className={darkMode ? "bg-gray-800/80" : "bg-gray-50"}>
+                  <tr>
+                    {[...Array(4)].map((_, i) => (
+                      <th key={i} className="px-6 py-3"><div className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-300"}`} /></th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}>
+                  {[...Array(5)].map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className={`h-4 w-32 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                          <div className={`h-3 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className={`h-4 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                          <div className={`h-3 w-32 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4"><div className={`h-6 w-20 rounded-full animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                      <td className="px-6 py-4"><div className={`h-8 w-20 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className={`px-4 py-3 flex items-center justify-between border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>
+              <div className={`h-4 w-48 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+              <div className="flex items-center gap-2">
+                <div className={`h-8 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                <div className="flex gap-1">
+                  <div className={`h-8 w-8 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  <div className={`h-8 w-8 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                  <div className={`h-8 w-8 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
 

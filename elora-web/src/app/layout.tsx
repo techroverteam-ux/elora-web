@@ -22,7 +22,16 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
-            <Toaster position="bottom-center" />
+            <Toaster 
+              position="bottom-center"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: '#333',
+                  color: '#fff',
+                },
+              }}
+            />
             {children}
           </AuthProvider>
         </ThemeProvider>

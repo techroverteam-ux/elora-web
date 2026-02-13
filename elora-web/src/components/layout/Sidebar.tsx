@@ -13,8 +13,7 @@ import {
   Hammer,
   MessageSquare,
   X,
-  Sun,
-  Moon,
+  LogOut,
 } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -26,8 +25,8 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { user, logout } = useAuth();
+  const { darkMode } = useTheme();
 
   // --- HELPER: CHECK PERMISSIONS DYNAMICALLY ---
   const canView = (moduleName: string) => {
@@ -123,8 +122,8 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           isOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0 md:fixed md:inset-y-0 ${
           darkMode
-            ? "bg-gradient-to-b from-black via-purple-900/20 to-black border-r border-purple-700/30"
-            : "bg-gradient-to-b from-white via-yellow-50/30 to-white border-r border-gray-200"
+            ? "bg-black border-r border-purple-700/30"
+            : "bg-white border-r border-gray-200"
         }`}
       >
         <div className="flex-1 flex flex-col min-h-0">
@@ -136,8 +135,8 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                 : "bg-yellow-50/50 border-gray-200"
             }`}
           >
-            <div className="flex items-center space-x-4">
-              <div className="relative h-12 w-24">
+            <div className="flex items-center gap-2">
+              <div className="relative h-16 w-40">
                 <Image
                   src="/logo.svg"
                   alt="Logo"
@@ -147,32 +146,16 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleDarkMode}
-                className={`p-2 rounded-lg transition-colors ${
-                  darkMode
-                    ? "hover:bg-gray-800 text-yellow-500"
-                    : "hover:bg-gray-100 text-gray-600"
-                }`}
-              >
-                {darkMode ? (
-                  <Sun className="w-5 h-5" />
-                ) : (
-                  <Moon className="w-5 h-5" />
-                )}
-              </button>
-              <button
-                className={`md:hidden p-2 rounded-lg transition-colors ${
-                  darkMode
-                    ? "text-gray-300 hover:text-white hover:bg-gray-800"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                }`}
-                onClick={() => setIsOpen(false)}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            <button
+              className={`md:hidden p-2 rounded-lg transition-colors ${
+                darkMode
+                  ? "text-gray-300 hover:text-white hover:bg-gray-800"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+              onClick={() => setIsOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
 
           {/* Navigation Links */}
@@ -217,7 +200,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
             </nav>
           </div>
 
-          {/* User Footer */}
+          {/* Logout Button */}
           <div
             className={`flex-shrink-0 p-4 border-t ${
               darkMode
@@ -225,49 +208,17 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                 : "bg-yellow-50/50 border-gray-200"
             }`}
           >
-            <div
-              className={`flex items-center p-3 rounded-xl ${
-                darkMode ? "bg-gray-800/50" : "bg-white/80"
+            <button
+              onClick={logout}
+              className={`w-full flex items-center justify-center gap-3 p-3 rounded-xl font-semibold transition-all transform hover:scale-[1.02] ${
+                darkMode
+                  ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30"
+                  : "bg-yellow-500 text-white hover:bg-yellow-600 shadow-lg"
               }`}
             >
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                  darkMode ? "bg-yellow-500" : "bg-yellow-600"
-                }`}
-              >
-                {user?.name?.charAt(0)?.toUpperCase()}
-              </div>
-              <div className="ml-3">
-                <p
-                  className={`text-sm font-semibold ${
-                    darkMode ? "text-white" : "text-gray-900"
-                  }`}
-                >
-                  {user?.name}
-                </p>
-                <p
-                  className={`text-xs ${
-                    darkMode ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  {user?.roles && user.roles.length > 0 ? (
-                    <>
-                      {user.roles[0].name}
-                      {user.roles.length > 1 && (
-                        <span
-                          className="ml-1 opacity-80"
-                          title={user.roles.map((r: any) => r.name).join(", ")}
-                        >
-                          +{user.roles.length - 1}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    "No Role"
-                  )}
-                </p>
-              </div>
-            </div>
+              <LogOut className="h-5 w-5" />
+              Logout
+            </button>
           </div>
         </div>
       </div>

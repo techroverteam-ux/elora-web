@@ -13,6 +13,7 @@ export enum StoreStatus {
 export interface Store {
   _id: string;
   projectID: string;
+  storeId: string; // NEW: Auto-generated Store ID
   dealerCode: string;
   storeCode?: string;
   storeName: string;
@@ -61,6 +62,9 @@ export interface Store {
     height?: number;
     qty?: number;
   };
+
+  remark?: string;
+  imagesAttached?: boolean;
 
   currentStatus: StoreStatus;
 
