@@ -144,7 +144,31 @@ export default function RolesPage() {
   };
 
   const handleDelete = async (roleId: string) => {
-    if (!window.confirm("Delete this role?")) return;
+    const confirmed = await new Promise<boolean>((resolve) => {
+      toast((t) => (
+        <div className={`flex flex-col gap-3 p-2 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
+          <p className="font-semibold">Delete this role?</p>
+          <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>This action cannot be undone.</p>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(false); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${darkMode ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(true); }}
+              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity, style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.delete(`/roles/${roleId}`);
       setRoles(roles.filter((r) => r._id !== roleId));

@@ -101,8 +101,45 @@ const LandingPage = () => {
 
   const handleEnquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!enquiry.name || !enquiry.phone) {
-      toast.error("Name and Phone are required");
+    
+    // Validation
+    if (!enquiry.name.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+    
+    if (enquiry.name.trim().length < 2) {
+      toast.error("Name must be at least 2 characters");
+      return;
+    }
+    
+    if (enquiry.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(enquiry.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    
+    if (!enquiry.phone.trim()) {
+      toast.error("Please enter your phone number");
+      return;
+    }
+    
+    if (!/^[0-9]{10}$/.test(enquiry.phone.replace(/[\s-]/g, ''))) {
+      toast.error("Please enter a valid 10-digit phone number");
+      return;
+    }
+    
+    if (enquiry.service === 'Select Service') {
+      toast.error("Please select a service");
+      return;
+    }
+    
+    if (!enquiry.message.trim()) {
+      toast.error("Please enter your message");
+      return;
+    }
+    
+    if (enquiry.message.trim().length < 10) {
+      toast.error("Message must be at least 10 characters");
       return;
     }
     
@@ -652,9 +689,11 @@ const LandingPage = () => {
                   <input 
                     type="text" 
                     required
-                    placeholder="Your Name" 
+                    placeholder="Your Name *" 
                     value={enquiry.name}
                     onChange={(e) => setEnquiry({...enquiry, name: e.target.value})}
+                    minLength={2}
+                    maxLength={50}
                     className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
@@ -679,9 +718,11 @@ const LandingPage = () => {
                   <input 
                     type="tel" 
                     required
-                    placeholder="Your Phone" 
+                    placeholder="Your Phone (10 digits) *" 
                     value={enquiry.phone}
-                    onChange={(e) => setEnquiry({...enquiry, phone: e.target.value})}
+                    onChange={(e) => setEnquiry({...enquiry, phone: e.target.value.replace(/[^0-9]/g, '')})}
+                    maxLength={10}
+                    pattern="[0-9]{10}"
                     className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
@@ -691,6 +732,7 @@ const LandingPage = () => {
                 </div>
                 <div>
                   <select 
+                    required
                     value={enquiry.service}
                     onChange={(e) => setEnquiry({...enquiry, service: e.target.value})}
                     className={`w-full px-4 py-3 rounded-lg border transition-colors ${
@@ -698,7 +740,7 @@ const LandingPage = () => {
                       ? 'bg-gray-800 border-gray-600 text-white' 
                       : 'bg-white border-gray-300 text-gray-900'
                   }`}>
-                    <option>Select Service</option>
+                    <option value="Select Service" disabled>Select Service *</option>
                     <option>Banner Printing</option>
                     <option>Brand Design</option>
                     <option>Installation Service</option>
@@ -707,10 +749,13 @@ const LandingPage = () => {
                 </div>
                 <div>
                   <textarea 
+                    required
                     rows={4} 
-                    placeholder="Tell us about your project..." 
+                    placeholder="Tell us about your project... (min 10 characters) *" 
                     value={enquiry.message}
                     onChange={(e) => setEnquiry({...enquiry, message: e.target.value})}
+                    minLength={10}
+                    maxLength={500}
                     className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 

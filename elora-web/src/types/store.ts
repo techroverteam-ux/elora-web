@@ -70,7 +70,9 @@ export interface Store {
 
   workflow: {
     recceAssignedTo?: { _id: string; name: string; email: string };
+    recceAssignedBy?: { _id: string; name: string; email: string };
     installationAssignedTo?: { _id: string; name: string; email: string };
+    installationAssignedBy?: { _id: string; name: string; email: string };
     priority: "HIGH" | "MEDIUM" | "LOW";
   };
 

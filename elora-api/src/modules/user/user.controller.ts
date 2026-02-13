@@ -76,14 +76,24 @@ export const getAllUsers = async (
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const search = String(req.query.search || "").trim();
 
-    const users = await User.find({})
+    // Build search filter
+    const filter: any = {};
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const users = await User.find(filter)
       .select("-password")
-      .populate("roles", "name code") // Changed 'role' to 'roles'
+      .populate("roles", "name code")
       .skip(skip)
       .limit(limit);
 
-    const total = await User.countDocuments();
+    const total = await User.countDocuments(filter);
 
     res.status(200).json({
       users,

@@ -1,18 +1,21 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Bell,
-  Search,
   LogOut,
   User,
   Settings,
   Menu,
   Sun,
   Moon,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
+import api from "@/src/lib/api";
 
 interface HeaderProps {
   onMobileMenuToggle?: () => void;
@@ -21,31 +24,49 @@ interface HeaderProps {
 export default function Header({ onMobileMenuToggle }: HeaderProps) {
   const { user, logout } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
+  const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const notifications = [
-    {
-      id: 1,
-      message: "New user registration pending approval",
-      time: "5 min ago",
-      unread: true,
-    },
-    {
-      id: 2,
-      message: "Installation completed at Store #123",
-      time: "1 hour ago",
-      unread: true,
-    },
-    {
-      id: 3,
-      message: "System backup completed successfully",
-      time: "2 hours ago",
-      unread: false,
-    },
-  ];
+  useEffect(() => {
+    if (showNotifications && notifications.length === 0) {
+      fetchNotifications();
+    }
+  }, [showNotifications]);
+
+  const fetchNotifications = async () => {
+    try {
+      setLoadingNotifications(true);
+      const { data } = await api.get("/notifications");
+      setNotifications(data.notifications || []);
+    } catch (error) {
+      console.error("Failed to fetch notifications", error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const handleNotificationClick = (link: string) => {
+    setShowNotifications(false);
+    router.push(link);
+  };
+
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date().getTime();
+    const time = new Date(timestamp).getTime();
+    const diff = now - time;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (days > 0) return `${days}d ago`;
+    if (hours > 0) return `${hours}h ago`;
+    if (minutes > 0) return `${minutes}m ago`;
+    return "Just now";
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -75,41 +96,35 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           : "bg-white/95 backdrop-blur border-gray-200"
       }`}
     >
-      <div className="flex items-center justify-between h-full px-6">
-        {/* Mobile menu button */}
-        <button
-          onClick={onMobileMenuToggle}
-          className={`md:hidden p-2 rounded-lg transition-colors ${
-            darkMode
-              ? "hover:bg-gray-800 text-gray-300"
-              : "hover:bg-gray-100 text-gray-600"
-          }`}
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-
-        {/* Search */}
-        <div className="flex-1 max-w-md ml-2 sm:ml-4">
-          <div className="relative">
-            <Search
-              className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                darkMode ? "text-gray-400" : "text-gray-500"
-              }`}
-            />
-            <input
-              type="text"
-              placeholder="Search..."
-              className={`w-full pl-10 pr-4 py-2 rounded-lg border transition-colors ${
-                darkMode
-                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-yellow-500"
-                  : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-yellow-500"
-              } focus:outline-none focus:ring-2 focus:ring-yellow-500/20`}
+      <div className="flex items-center justify-between h-full px-4 sm:px-6">
+        {/* Mobile: Logo + Menu button grouped */}
+        <div className="flex items-center gap-4 md:hidden">
+          <div className="relative h-10 w-24">
+            <Image
+              src="/logo.svg"
+              alt="Logo"
+              fill
+              className="object-contain"
+              priority
             />
           </div>
+          <button
+            onClick={onMobileMenuToggle}
+            className={`p-2 rounded-lg transition-colors ${
+              darkMode
+                ? "hover:bg-gray-800 text-gray-300"
+                : "hover:bg-gray-100 text-gray-600"
+            }`}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
         </div>
 
+        {/* Desktop: Empty spacer */}
+        <div className="hidden md:block"></div>
+
         {/* Right side */}
-        <div className="flex items-center gap-2 sm:gap-4 ml-2 sm:ml-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {/* Theme Toggle */}
           <button
             onClick={toggleDarkMode}
@@ -137,7 +152,11 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
               }`}
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs"></span>
+              {notifications.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                  {notifications.length > 9 ? "9+" : notifications.length}
+                </span>
+              )}
             </button>
 
             {showNotifications && (
@@ -161,43 +180,43 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
                     Notifications
                   </h3>
                 </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`px-4 py-3 border-b transition-colors ${
-                        darkMode
-                          ? "border-gray-700 hover:bg-gray-700"
-                          : "border-gray-100 hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`w-2 h-2 rounded-full mt-2 ${
-                            notification.unread
-                              ? "bg-yellow-500"
-                              : "bg-gray-300"
-                          }`}
-                        ></div>
-                        <div className="flex-1">
-                          <p
-                            className={`text-sm ${
-                              darkMode ? "text-gray-200" : "text-gray-900"
-                            }`}
-                          >
-                            {notification.message}
-                          </p>
-                          <p
-                            className={`text-xs mt-1 ${
-                              darkMode ? "text-gray-400" : "text-gray-500"
-                            }`}
-                          >
-                            {notification.time}
-                          </p>
+                <div className="max-h-96 overflow-y-auto">
+                  {loadingNotifications ? (
+                    <div className="p-8 flex justify-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-yellow-500" />
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className={`p-8 text-center text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                      No notifications
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        onClick={() => handleNotificationClick(notification.link)}
+                        className={`px-4 py-3 border-b transition-colors cursor-pointer ${
+                          darkMode
+                            ? "border-gray-700 hover:bg-gray-700"
+                            : "border-gray-100 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-2 h-2 rounded-full mt-2 bg-yellow-500"></div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-900"}`}>
+                              {notification.title}
+                            </p>
+                            <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                              {notification.message}
+                            </p>
+                            <p className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                              {getTimeAgo(notification.timestamp)}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -239,7 +258,9 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
                 <div className="py-2">
                   <button
                     className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
-                      darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"
+                      darkMode 
+                        ? "text-gray-200 hover:bg-gray-700" 
+                        : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     <User className="w-4 h-4" />
@@ -247,7 +268,9 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
                   </button>
                   <button
                     className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
-                      darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"
+                      darkMode 
+                        ? "text-gray-200 hover:bg-gray-700" 
+                        : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     <Settings className="w-4 h-4" />

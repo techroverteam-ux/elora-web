@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, HydratedDocument } from "mongoose";
 
 export enum StoreStatus {
+  MANUALLY_ADDED = "MANUALLY_ADDED",
   UPLOADED = "UPLOADED",
   RECCE_ASSIGNED = "RECCE_ASSIGNED",
   RECCE_SUBMITTED = "RECCE_SUBMITTED",
@@ -73,14 +74,16 @@ export interface StoreDocument extends Document {
 
   workflow: {
     recceAssignedTo?: mongoose.Types.ObjectId;
+    recceAssignedBy?: mongoose.Types.ObjectId;
     installationAssignedTo?: mongoose.Types.ObjectId;
+    installationAssignedBy?: mongoose.Types.ObjectId;
     priority: "HIGH" | "MEDIUM" | "LOW";
   };
 
   recce?: {
     assignedDate?: Date;
     submittedDate?: Date;
-    sizes?: { width: number; height: number };
+    sizes?: { width: number; height: number; unit?: string };
     photos?: { front: string; side: string; closeUp: string };
     notes?: string;
   };
@@ -165,7 +168,9 @@ const StoreSchema = new Schema<StoreDocument>(
 
     workflow: {
       recceAssignedTo: { type: Schema.Types.ObjectId, ref: "User" },
+      recceAssignedBy: { type: Schema.Types.ObjectId, ref: "User" },
       installationAssignedTo: { type: Schema.Types.ObjectId, ref: "User" },
+      installationAssignedBy: { type: Schema.Types.ObjectId, ref: "User" },
       priority: {
         type: String,
         enum: ["HIGH", "MEDIUM", "LOW"],
@@ -176,7 +181,7 @@ const StoreSchema = new Schema<StoreDocument>(
     recce: {
       assignedDate: Date,
       submittedDate: Date,
-      sizes: { width: Number, height: Number },
+      sizes: { width: Number, height: Number, unit: { type: String, default: "ft" } },
       photos: { front: String, side: String, closeUp: String },
       notes: String,
     },
