@@ -173,25 +173,7 @@ export const uploadStoresBulk = async (req: Request, res: Response) => {
 
 export const createStore = async (req: Request, res: Response) => {
   try {
-    // 1. Destructure to match the new Schema structure
-    // This expects the frontend to send data grouped in these objects
     const {
-      dealerCode,
-      storeName,
-      vendorCode,
-      location, // { zone, state, district, city, address, pincode... }
-      commercials, // { poNumber, poMonth, invoiceNumber, invoiceRemarks, totalCost }
-      costDetails, // { boardRate, angleCharges, scaffoldingCharges, transportation... }
-      specs, // { type, width, height, qty, boardSize }
-    } = req.body;
-
-    // 2. Basic Validation
-    if (!dealerCode) {
-      return res.status(400).json({ message: "Dealer Code is required" });
-    }
-
-    // 3. Create the Store
-    const store = await Store.create({
       dealerCode,
       storeName,
       vendorCode,
@@ -199,15 +181,30 @@ export const createStore = async (req: Request, res: Response) => {
       commercials,
       costDetails,
       specs,
-      currentStatus: StoreStatus.UPLOADED, // Explicitly set initial status
+    } = req.body;
+
+    if (!dealerCode) {
+      return res.status(400).json({ message: "Dealer Code is required" });
+    }
+
+    const store = new Store({
+      dealerCode,
+      storeName,
+      vendorCode,
+      location,
+      commercials,
+      costDetails,
+      specs,
+      currentStatus: StoreStatus.UPLOADED,
     });
+
+    await store.save();
 
     res.status(201).json({
       message: "Store created successfully",
       store,
     });
   } catch (error: any) {
-    // Handle Duplicate Dealer Code Error (MongoDB code 11000)
     if (error.code === 11000) {
       return res
         .status(400)

@@ -91,7 +91,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 flex flex-col justify-center items-center text-white p-12 h-full">
           <Image
-            src="/logo.svg"
+            src="/logo-dark.svg"
             alt="Logo"
             width={300}
             height={150}
@@ -124,7 +124,7 @@ export default function LoginPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <Image
-              src="/logo.svg"
+              src="/logo-dark.svg"
               alt="Logo"
               width={180}
               height={90}

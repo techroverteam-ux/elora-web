@@ -13,6 +13,58 @@ const LandingPage = () => {
   const [completedStores, setCompletedStores] = useState<Store[]>([]);
   const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(true);
   
+  // Static portfolio data
+  const staticPortfolio = [
+    {
+      id: '1',
+      storeName: 'Fashion Hub',
+      location: 'Connaught Place, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800',
+      description: 'Complete storefront transformation with LED signage'
+    },
+    {
+      id: '2',
+      storeName: 'Spice Market',
+      location: 'Chandni Chowk, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=800',
+      description: 'Traditional market stall branding with weather-resistant materials'
+    },
+    {
+      id: '3',
+      storeName: 'Tech Zone',
+      location: 'Nehru Place, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1556742111-a301076d9d18?w=800',
+      description: 'Modern electronics store with illuminated branding'
+    },
+    {
+      id: '4',
+      storeName: 'Sweet Corner',
+      location: 'Karol Bagh, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=800',
+      description: 'Vibrant sweet shop branding with custom graphics'
+    },
+    {
+      id: '5',
+      storeName: 'Fitness First',
+      location: 'Saket, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=800',
+      description: 'Gym exterior branding with motivational messaging'
+    },
+    {
+      id: '6',
+      storeName: 'Cafe Delight',
+      location: 'Hauz Khas, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=800',
+      description: 'Cozy cafe storefront with artistic signage'
+    }
+  ];
+  
   // Enquiry Form State
   const [enquiry, setEnquiry] = useState({
     name: '',
@@ -32,13 +84,14 @@ const LandingPage = () => {
   const fetchPortfolio = async () => {
     try {
       const { data } = await api.get('/stores');
-      // Filter for COMPLETED stores that have both Before/After photos
       const portfolio = data.stores.filter((s: Store) => 
         s.currentStatus === StoreStatus.COMPLETED &&
         s.recce?.photos?.front && 
         s.installation?.photos?.after1
-      ).slice(0, 6); // Take top 6
-      setCompletedStores(portfolio);
+      ).slice(0, 6);
+      if (portfolio.length > 0) {
+        setCompletedStores(portfolio);
+      }
     } catch (error) {
       console.error("Failed to fetch portfolio", error);
     } finally {
@@ -105,6 +158,7 @@ const LandingPage = () => {
               <a href="#process" className="hover:text-yellow-500 transition-colors">Process</a>
               <a href="#gallery" className="hover:text-yellow-500 transition-colors">Gallery</a>
               <a href="#contact" className="hover:text-yellow-500 transition-colors">Contact</a>
+              <a href="/login" className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-full font-semibold transition-all">Login</a>
               <button
                 onClick={toggleDarkMode}
                 className={`p-2 rounded-full transition-colors ${
@@ -176,6 +230,13 @@ const LandingPage = () => {
               </a>
               <div className="flex items-center justify-between pt-2">
                 <a 
+                  href="/login" 
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2.5 rounded-full font-semibold transition-all"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Login
+                </a>
+                <a 
                   href="#contact" 
                   className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2.5 rounded-full font-semibold transition-all"
                   onClick={() => setMobileMenuOpen(false)}
@@ -236,20 +297,20 @@ const LandingPage = () => {
       </section>
 
       {/* What We Do Section */}
-      <section id="services" className={`py-20 transition-colors duration-300 ${
+      <section id="services" className={`py-12 transition-colors duration-300 ${
         darkMode 
           ? 'bg-gradient-to-b from-black to-purple-900/20' 
           : 'bg-gradient-to-b from-gray-50 to-orange-50/20'
       }`}>
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-8 leading-tight">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-tight">
               From Design to Installation —
               <span className="block text-yellow-500">We Handle Everything</span>
             </h2>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
                 title: "Custom Brand Banner Printing",
@@ -282,15 +343,15 @@ const LandingPage = () => {
       </section>
 
       {/* Process Section */}
-      <section id="process" className={`py-20 transition-colors duration-300 ${
+      <section id="process" className={`py-12 transition-colors duration-300 ${
         darkMode ? 'bg-black' : 'bg-white'
       }`}>
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-8 leading-tight">
-              How We Bring Your
-              <span className="block text-yellow-500">Brand to Life</span>
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-tight bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
+              How We Bring Your Brand to Life
             </h2>
+            <p className={`text-lg ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Our proven 4-step process transforms your vision into reality</p>
           </div>
           
           <div className="grid md:grid-cols-4 gap-8">
@@ -329,23 +390,22 @@ const LandingPage = () => {
       </section>
 
       {/* Gallery Section */}
-      <section id="gallery" className={`py-20 transition-colors duration-300 ${
+      <section id="gallery" className={`py-12 transition-colors duration-300 ${
         darkMode 
           ? 'bg-gradient-to-b from-purple-900/20 to-black' 
           : 'bg-gradient-to-b from-orange-50/20 to-gray-50'
       }`}>
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight">
-              Real Work,
-              <span className="block text-yellow-500">Real Stores</span>
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-tight">
+              Real Work, Real Stores
             </h2>
             <p className={`text-lg sm:text-xl font-medium ${
               darkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>See How We Transform Shops</p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {isLoadingPortfolio ? (
                  <div className="col-span-3 flex justify-center py-20">
                     <Loader2 className="w-10 h-10 animate-spin text-yellow-500" />
@@ -353,7 +413,6 @@ const LandingPage = () => {
             ) : completedStores.length > 0 ? (
                 completedStores.map((store) => (
               <div key={store._id} className="group relative overflow-hidden rounded-2xl aspect-square border border-gray-100 shadow-sm">
-                {/* Image Container - Swaps on Hover */}
                 <div className="absolute inset-0 transition-opacity duration-700 ease-in-out group-hover:opacity-0">
                     <img 
                       src={`http://localhost:5000${store.installation?.photos?.after1?.replace(/\\/g, '/')}`} 
@@ -383,42 +442,72 @@ const LandingPage = () => {
               </div>
             ))
             ) : (
-                <div className="col-span-3 text-center py-10 opacity-60">
-                    No completed projects to display yet.
+                staticPortfolio.map((project) => (
+              <div key={project.id} className="group relative overflow-hidden rounded-2xl aspect-square border border-gray-100 shadow-sm">
+                <div className="absolute inset-0 transition-opacity duration-700 ease-in-out group-hover:opacity-0">
+                    <img 
+                      src={project.afterImage} 
+                      alt={`After - ${project.storeName}`}
+                      className="w-full h-full object-cover"
+                    />
+                     <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
+                        AFTER
+                      </div>
                 </div>
+                
+                 <div className="absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out group-hover:opacity-100">
+                    <img 
+                      src={project.beforeImage} 
+                      alt={`Before - ${project.storeName}`}
+                      className="w-full h-full object-cover"
+                    />
+                      <div className="absolute top-4 right-4 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
+                        BEFORE
+                      </div>
+                </div>
+
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 translate-y-2 group-hover:translate-y-0 transition-transform">
+                  <h3 className="text-white font-bold text-lg">{project.storeName}</h3>
+                  <p className="text-gray-300 text-sm">{project.location}</p>
+                  <p className="text-gray-400 text-xs mt-1">{project.description}</p>
+                </div>
+              </div>
+            ))
             )}
           </div>
         </div>
       </section>
 
       {/* Why Choose Us Section */}
-      <section className={`py-20 transition-colors duration-300 ${
+      <section className={`py-12 transition-colors duration-300 ${
         darkMode ? 'bg-black' : 'bg-white'
       }`}>
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-8 leading-tight">
-              Why Choose
-              <span className="block text-yellow-500">Us</span>
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-tight">
+              Why Choose <span className="text-yellow-500">Us</span>
             </h2>
+            <p className={`text-lg ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Excellence in every aspect of our service</p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              "High-quality durable materials",
-              "Weather-resistant printing",
-              "Fast turnaround time",
-              "On-site installation experts",
-              "Affordable packages for small & large businesses",
-              "Professional design consultation"
+              { title: "High-quality durable materials", icon: "🏆" },
+              { title: "Weather-resistant printing", icon: "☔" },
+              { title: "Fast turnaround time", icon: "⚡" },
+              { title: "On-site installation experts", icon: "👷" },
+              { title: "Affordable packages for small & large businesses", icon: "💰" },
+              { title: "Professional design consultation", icon: "🎨" }
             ].map((benefit, index) => (
-              <div key={index} className={`flex items-center gap-4 p-6 rounded-xl border transition-colors ${
+              <div key={index} className={`flex items-start gap-4 p-6 rounded-xl border transition-all hover:scale-105 hover:shadow-lg ${
                 darkMode 
-                  ? 'bg-purple-900/30 border-purple-700/50' 
-                  : 'bg-gray-50 border-gray-200'
+                  ? 'bg-gradient-to-br from-purple-900/40 to-purple-900/20 border-purple-700/50 hover:border-yellow-500/50' 
+                  : 'bg-gradient-to-br from-orange-50 to-yellow-50 border-gray-200 hover:border-yellow-500'
               }`}>
-                <CheckCircle className="w-8 h-8 text-yellow-500 flex-shrink-0" />
-                <span className="text-base sm:text-lg font-semibold">{benefit}</span>
+                <span className="text-3xl">{benefit.icon}</span>
+                <div>
+                  <span className="text-base sm:text-lg font-semibold">{benefit.title}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -426,24 +515,64 @@ const LandingPage = () => {
       </section>
 
       {/* Location Service Section */}
-      <section className={`py-20 transition-colors duration-300 ${
+      <section className={`py-12 transition-colors duration-300 ${
         darkMode 
           ? 'bg-gradient-to-b from-purple-900/20 to-black' 
           : 'bg-gradient-to-b from-orange-50/20 to-gray-50'
       }`}>
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-8 leading-tight">
-              We Come to Your Store —
-              <span className="block text-yellow-500">Anywhere You Need Us</span>
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-tight">
+              We Come to Your Store — <span className="text-yellow-500">Anywhere You Need Us</span>
             </h2>
             
-            <p className={`text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium ${
+            <p className={`text-lg sm:text-xl max-w-3xl mx-auto mb-8 leading-relaxed font-medium ${
               darkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>
               Whether your shop is in a busy market, mall, roadside stall, or commercial complex — 
               our team travels to your location for professional installation.
             </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className={`p-6 rounded-2xl border shadow-lg ${
+              darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
+            }`}>
+              <h3 className="text-xl font-bold text-yellow-500 mb-4 flex items-center gap-2">
+                <MapPin className="w-6 h-6" /> Service Coverage
+              </h3>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span>Commercial Markets & Shopping Districts</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span>Shopping Malls & Retail Complexes</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span>Roadside Stalls & Street Shops</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span>Business Parks & Corporate Offices</span>
+                </li>
+              </ul>
+            </div>
+            
+            <div className={`p-6 rounded-2xl border shadow-lg ${
+              darkMode ? 'bg-purple-900/30 border-purple-700/50' : 'bg-white border-gray-200'
+            }`}>
+              <h3 className="text-xl font-bold text-yellow-500 mb-4">Why On-Site Installation?</h3>
+              <ul className={`space-y-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <li>• Professional measurement and fitting</li>
+                <li>• Weather-proof installation techniques</li>
+                <li>• No hassle for business owners</li>
+                <li>• Same-day installation available</li>
+                <li>• Quality assurance on-site</li>
+              </ul>
+            </div>
           </div>
           
           <div className={`rounded-2xl overflow-hidden border shadow-lg ${
@@ -452,7 +581,7 @@ const LandingPage = () => {
             <iframe 
               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024.123456789!2d77.1234567!3d28.1234567!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjjCsDA3JzI0LjQiTiA3N8KwMDcnMjQuNCJF!5e0!3m2!1sen!2sin!4v1234567890123!5m2!1sen!2sin"
               width="100%" 
-              height="450" 
+              height="400" 
               style={{border:0}} 
               allowFullScreen 
               loading="lazy" 

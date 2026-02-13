@@ -4,34 +4,70 @@ import User from "../user/user.model";
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
+    const { startDate, endDate, status, zone, state } = req.query;
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 1. KPI COUNTS
-    const totalStores = await Store.countDocuments();
-    const newStoresToday = await Store.countDocuments({
-      createdAt: { $gte: today },
-    });
+    // Build filter
+    const filter: any = {};
+    if (startDate && endDate) {
+      filter.createdAt = { $gte: new Date(startDate as string), $lte: new Date(endDate as string) };
+    }
+    if (status) filter.currentStatus = status;
+    if (zone) filter['location.zone'] = zone;
+    if (state) filter['location.state'] = state;
+
+    // KPI COUNTS
+    const totalStores = await Store.countDocuments(filter);
+    const newStoresToday = await Store.countDocuments({ ...filter, createdAt: { $gte: today } });
     
-    // Recce Logic
     const recceDoneTotal = await Store.countDocuments({
-        currentStatus: { $in: [StoreStatus.RECCE_SUBMITTED, StoreStatus.RECCE_APPROVED, StoreStatus.INSTALLATION_ASSIGNED, StoreStatus.INSTALLATION_SUBMITTED, StoreStatus.COMPLETED] }
+      ...filter,
+      currentStatus: { $in: [StoreStatus.RECCE_SUBMITTED, StoreStatus.RECCE_APPROVED, StoreStatus.INSTALLATION_ASSIGNED, StoreStatus.INSTALLATION_SUBMITTED, StoreStatus.COMPLETED] }
     });
-    const recceDoneToday = await Store.countDocuments({
-      "recce.submittedDate": { $gte: today },
-    });
+    const recceDoneToday = await Store.countDocuments({ ...filter, "recce.submittedDate": { $gte: today } });
 
-    // Installation Logic
     const installationDoneTotal = await Store.countDocuments({
-        currentStatus: { $in: [StoreStatus.INSTALLATION_SUBMITTED, StoreStatus.COMPLETED] }
+      ...filter,
+      currentStatus: { $in: [StoreStatus.INSTALLATION_SUBMITTED, StoreStatus.COMPLETED] }
     });
-    const installationDoneToday = await Store.countDocuments({
-      "installation.submittedDate": { $gte: today },
-    });
+    const installationDoneToday = await Store.countDocuments({ ...filter, "installation.submittedDate": { $gte: today } });
 
-    // 2. ASSIGNED PERSONNEL STATS
-    // Find users with roles RECCE or INSTALLATION and count their assigned stores
-    // This is a bit complex, we might need aggregation
+    // Status breakdown
+    const statusBreakdown = await Store.aggregate([
+      { $match: filter },
+      { $group: { _id: "$currentStatus", count: { $sum: 1 } } }
+    ]);
+
+    // Zone-wise distribution
+    const zoneDistribution = await Store.aggregate([
+      { $match: filter },
+      { $group: { _id: "$location.zone", count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // State-wise distribution
+    const stateDistribution = await Store.aggregate([
+      { $match: filter },
+      { $group: { _id: "$location.state", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Monthly trend (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const monthlyTrend = await Store.aggregate([
+      { $match: { createdAt: { $gte: sixMonthsAgo } } },
+      { $group: {
+        _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+        count: { $sum: 1 }
+      }},
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Personnel stats
     const personnelStats = await User.aggregate([
       {
         $lookup: {
@@ -79,9 +115,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
                 as: "store",
                 cond: {
                    $or: [
-                       // If recce assigned & recce done
                        { $and: [ { $eq: ["$$store.workflow.recceAssignedTo", "$_id"] }, { $in: ["$$store.currentStatus", ["RECCE_SUBMITTED", "RECCE_APPROVED", "COMPLETED"]] } ] },
-                       // If installation assigned & installation done
                        { $and: [ { $eq: ["$$store.workflow.installationAssignedTo", "$_id"] }, { $in: ["$$store.currentStatus", ["INSTALLATION_SUBMITTED", "COMPLETED"]] } ] }
                    ]
                 }
@@ -92,8 +126,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       },
     ]);
 
-    // 3. RECENT STORES (Limit 5)
-    const recentStores = await Store.find()
+    // Recent stores
+    const recentStores = await Store.find(filter)
       .sort({ createdAt: -1 })
       .limit(5)
       .select("storeName dealerCode location.city currentStatus createdAt");
@@ -107,6 +141,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         installationDoneTotal,
         installationDoneToday,
       },
+      statusBreakdown,
+      zoneDistribution,
+      stateDistribution,
+      monthlyTrend,
       personnelStats,
       recentStores,
     });

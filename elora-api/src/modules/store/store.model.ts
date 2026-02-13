@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, CallbackWithoutResultAndOptionalError } from "mongoose";
+import mongoose, { Schema, Document, HydratedDocument } from "mongoose";
 
 export enum StoreStatus {
   UPLOADED = "UPLOADED",
@@ -202,11 +202,10 @@ const generateStoreId = (city: string, district: string, dealerCode: string): st
 };
 
 // Pre-save hook to auto-generate storeId
-StoreSchema.pre('save', function(next: any) {
+StoreSchema.pre('save', function() {
   if (!this.storeId && this.location?.city && this.location?.district && this.dealerCode) {
     this.storeId = generateStoreId(this.location.city, this.location.district, this.dealerCode);
   }
-  next();
 });
 
 export default mongoose.model<StoreDocument>("Store", StoreSchema);
