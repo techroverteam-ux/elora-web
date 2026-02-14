@@ -172,12 +172,12 @@ export default function InstallationListPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Installation_Reports_${new Date().toISOString().split('T')[0]}.zip`;
+      link.download = `Installation_Report_${selectedStoreIds.size}_Stores_${new Date().toISOString().split('T')[0]}.pptx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       toast.dismiss();
-      toast.success(`Downloaded ${selectedStoreIds.size} PPTs`);
+      toast.success(`Downloaded PPT with ${selectedStoreIds.size} stores`);
       setSelectedStoreIds(new Set());
     } catch (err) {
       toast.dismiss();
