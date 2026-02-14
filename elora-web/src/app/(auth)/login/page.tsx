@@ -65,7 +65,14 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await api.post("/auth/login", { email, password });
+      const response = await api.post("/auth/login", { email, password });
+      
+      // Store token if provided in response
+      if (response.data.token) {
+        localStorage.setItem('access_token', response.data.token);
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      }
+      
       await login();
     } catch (err: any) {
       if (err?.response?.data?.message) {

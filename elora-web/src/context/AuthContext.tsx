@@ -24,16 +24,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Function to check if user is logged in
   const checkAuth = async () => {
     try {
-      // Check if session_id cookie exists
+      // Check if session_id cookie exists or token in localStorage
       const sessionId = document.cookie
         .split("; ")
         .find((row) => row.startsWith("session_id="))
         ?.split("=")[1];
+      
+      const token = localStorage.getItem('access_token');
 
-      if (!sessionId) {
+      if (!sessionId && !token) {
         setUser(null);
         setIsLoading(false);
         return;
+      }
+
+      // Set Authorization header if token exists
+      if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       }
 
       // Calls the /me endpoint
@@ -42,6 +49,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       // If error (401), user is not logged in
       setUser(null);
+      localStorage.removeItem('access_token');
+      delete api.defaults.headers.common['Authorization'];
     } finally {
       setIsLoading(false);
     }
@@ -66,6 +75,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear session cookies
       document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       document.cookie = "session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      
+      // Clear localStorage token
+      localStorage.removeItem('access_token');
+      delete api.defaults.headers.common['Authorization'];
       
       setUser(null);
       router.push("/login");
