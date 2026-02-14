@@ -745,7 +745,7 @@ export const generateInstallationPPT = async (req: Request, res: Response) => {
   }
 };
 
-// --- NEW: Bulk PPT Generation ---
+// --- NEW: Bulk PPT Generation (Single PPT with Multiple Slides) ---
 export const generateBulkPPT = async (req: Request, res: Response) => {
   try {
     const { storeIds, type } = req.body; // type: "recce" or "installation"
@@ -764,8 +764,12 @@ export const generateBulkPPT = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "No stores found" });
     }
 
-    const JSZip = require("jszip");
-    const zip = new JSZip();
+    const pres = new PptxGenJS();
+    pres.layout = "LAYOUT_WIDE";
+    pres.title = `${type === "recce" ? "Recce" : "Installation"} Report - ${stores.length} Stores`;
+    pres.author = "Elora System";
+    pres.subject = `${type === "recce" ? "Recce Inspection" : "Installation Completion"} Report`;
+
     const colors = {
       primary: "EAB308",
       secondary: "000000",
@@ -775,20 +779,17 @@ export const generateBulkPPT = async (req: Request, res: Response) => {
       white: "FFFFFF"
     };
 
+    const logoPath = path.join(process.cwd(), "../elora-web/public/elora-logo-excel.png");
+
     for (const store of stores) {
       // Skip if data not available
       if (type === "recce" && !store.recce) continue;
       if (type === "installation" && !store.installation) continue;
 
-      const pres = new PptxGenJS();
-      pres.layout = "LAYOUT_WIDE";
-      pres.title = `${type === "recce" ? "Recce" : "Installation"} Report - ${store.storeName}`;
-
       const slide = pres.addSlide();
       slide.background = { color: colors.white };
 
       // Add Logo
-      const logoPath = path.join(process.cwd(), "../elora-web/public/elora-logo-excel.png");
       if (fs.existsSync(logoPath)) {
         slide.addImage({ path: logoPath, x: 0.5, y: 0.3, w: 2, h: 0.6 });
       }
@@ -859,17 +860,14 @@ export const generateBulkPPT = async (req: Request, res: Response) => {
         addImage(store.installation?.photos?.after1, "AFTER - VIEW 1", 3.8, 4.2, colors.success);
         addImage(store.installation?.photos?.after2, "AFTER - VIEW 2", 6.8, 4.2, colors.success);
       }
-
-      const buffer = await pres.write({ outputType: "nodebuffer" });
-      zip.file(`${type === "recce" ? "Recce" : "Installation"}_${store.dealerCode}.pptx`, buffer);
     }
 
-    const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+    const buffer = await pres.write({ outputType: "nodebuffer" });
     res.writeHead(200, {
-      "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="${type === "recce" ? "Recce" : "Installation"}_Reports_${new Date().toISOString().split('T')[0]}.zip"`,
+      "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "Content-Disposition": `attachment; filename="${type === "recce" ? "Recce" : "Installation"}_Report_${stores.length}_Stores_${new Date().toISOString().split('T')[0]}.pptx"`,
     });
-    res.end(zipBuffer);
+    res.end(buffer);
   } catch (error: any) {
     console.error("Bulk PPT Error:", error);
     if (!res.headersSent) res.status(500).json({ message: "Error generating bulk PPT" });
