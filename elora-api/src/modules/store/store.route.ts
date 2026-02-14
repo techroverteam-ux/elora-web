@@ -14,6 +14,7 @@ import {
   reviewRecce,
   submitInstallation,
   generateInstallationPPT,
+  generateBulkPPT,
   downloadStoreTemplate,
   exportRecceTasks,
   exportInstallationTasks,
@@ -76,6 +77,7 @@ router.post(
 );
 
 router.get("/:id/ppt/recce", protect, generateReccePPT);
+router.post("/ppt/bulk", protect, generateBulkPPT);
 
 router.post(
   "/:id/recce/review",

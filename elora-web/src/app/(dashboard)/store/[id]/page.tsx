@@ -6,23 +6,17 @@ import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
 import {
   ArrowLeft,
-  Camera,
-  Ruler,
-  FileText,
-  CheckCircle2,
-  Loader2,
   MapPin,
   Building2,
   Package,
   IndianRupee,
-  Calendar,
   FileSpreadsheet,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Skeleton, CardSkeleton } from "@/src/components/ui/Skeleton";
 
-export default function RecceSubmissionPage() {
+export default function StoreDetailsPage() {
   const router = useRouter();
   const { darkMode } = useTheme();
   const params = useParams();
@@ -30,29 +24,6 @@ export default function RecceSubmissionPage() {
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Form State
-  const [width, setWidth] = useState("");
-  const [height, setHeight] = useState("");
-  const [unit, setUnit] = useState("ft");
-  const [notes, setNotes] = useState("");
-
-  // File State
-  const [photos, setPhotos] = useState<{
-    front: File | null;
-    side: File | null;
-    closeUp: File | null;
-  }>({ front: null, side: null, closeUp: null });
-
-  // Previews
-  const [previews, setPreviews] = useState<{
-    front: string | null;
-    side: string | null;
-    closeUp: string | null;
-  }>({ front: null, side: null, closeUp: null });
-
-  const API_BASE_URL = "http://localhost:5000";
 
   useEffect(() => {
     if (!id) return;
@@ -61,38 +32,7 @@ export default function RecceSubmissionPage() {
       const startTime = Date.now();
       try {
         const { data } = await api.get(`/stores/${id}`);
-        const s = data.store;
-        setStore(s);
-
-        if (s.recce && s.recce.submittedDate) {
-          if (s.recce.sizes) {
-            setWidth(String(s.recce.sizes.width));
-            setHeight(String(s.recce.sizes.height));
-            setUnit(s.recce.sizes.unit || "ft");
-          }
-          if (s.recce.notes) {
-            setNotes(s.recce.notes);
-          }
-          setPreviews({
-            front: s.recce.photos?.front
-              ? `${API_BASE_URL}/${s.recce.photos.front}`
-              : null,
-            side: s.recce.photos?.side
-              ? `${API_BASE_URL}/${s.recce.photos.side}`
-              : null,
-            closeUp: s.recce.photos?.closeUp
-              ? `${API_BASE_URL}/${s.recce.photos.closeUp}`
-              : null,
-          });
-        } else {
-          if (s.specs?.boardSize) {
-            const parts = s.specs.boardSize.toLowerCase().split("x");
-            if (parts.length === 2) {
-              setWidth(parts[0].trim());
-              setHeight(parts[1].trim());
-            }
-          }
-        }
+        setStore(data.store);
       } catch (error) {
         toast.error("Failed to load store details");
       } finally {
@@ -106,50 +46,6 @@ export default function RecceSubmissionPage() {
     };
     fetchStore();
   }, [id]);
-
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    type: "front" | "side" | "closeUp",
-  ) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setPhotos((prev) => ({ ...prev, [type]: file }));
-
-      const url = URL.createObjectURL(file);
-      setPreviews((prev) => ({ ...prev, [type]: url }));
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!width || !height) return toast.error("Please enter board dimensions");
-    if (!photos.front || !photos.side || !photos.closeUp)
-      return toast.error("Please upload all 3 site photos (Front View, Side View, and Close-Up) with visible measurements for accurate recce documentation");
-
-    setSubmitting(true);
-    const formData = new FormData();
-    formData.append("width", width);
-    formData.append("height", height);
-    formData.append("unit", unit);
-    formData.append("notes", notes);
-
-    formData.append("front", photos.front);
-    formData.append("side", photos.side);
-    formData.append("closeUp", photos.closeUp);
-
-    try {
-      await api.post(`/stores/${id}/recce`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      toast.success("Recce Submitted Successfully!");
-      router.push("/recce");
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Submission failed");
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   if (loading)
     return (
@@ -169,11 +65,7 @@ export default function RecceSubmissionPage() {
             <CardSkeleton />
             <CardSkeleton />
           </div>
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <CardSkeleton />
-            <CardSkeleton />
-          </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-4">
             <CardSkeleton />
             <CardSkeleton />
           </div>
@@ -275,7 +167,7 @@ export default function RecceSubmissionPage() {
         </div>
 
         {/* Board Specs & Costs */}
-        <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="grid md:grid-cols-2 gap-4">
           {/* Board Specifications */}
           <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <div className="flex items-center gap-2 mb-3">
@@ -308,136 +200,6 @@ export default function RecceSubmissionPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Recce Form */}
-        <div className="grid md:grid-cols-2 gap-6">
-        <form onSubmit={handleSubmit} className="md:col-span-2 space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-          {/* SECTION 1: MEASUREMENTS */}
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <h3 className={`font-bold flex items-center gap-2 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
-              <Ruler className="h-5 w-5 text-yellow-500" /> Measurements
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  Width
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
-                  value={width}
-                  onChange={(e) => setWidth(e.target.value)}
-                  placeholder="0.0"
-                />
-              </div>
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  Height
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                  placeholder="0.0"
-                />
-              </div>
-            </div>
-            <div className="mt-4">
-              <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                Unit
-              </label>
-              <select
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className={`w-full p-3 border rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
-              >
-                <option value="ft">Feet (ft)</option>
-                <option value="m">Meters (m)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* SECTION 2: PHOTOS */}
-          <div className={`p-4 rounded-xl border md:row-span-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <h3 className={`font-bold flex items-center gap-2 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
-              <Camera className="h-5 w-5 text-yellow-500" /> Site Photos
-            </h3>
-
-            <div className="space-y-4">
-              {["front", "side", "closeUp"].map((type) => (
-                <div key={type} className="flex items-center gap-4">
-                  <label className="flex-1 relative block cursor-pointer group">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleFileChange(e, type as any)}
-                    />
-                    <div
-                      className={`h-24 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-colors overflow-hidden ${
-                        previews[type as keyof typeof previews] 
-                          ? "border-green-500 bg-green-50 dark:bg-green-900/20" 
-                          : darkMode 
-                            ? "border-gray-600 bg-gray-700 hover:bg-gray-600" 
-                            : "border-gray-300 bg-gray-50 hover:bg-gray-100"
-                      }`}
-                    >
-                      {previews[type as keyof typeof previews] ? (
-                        <img
-                          src={previews[type as keyof typeof previews]!}
-                          alt="Preview"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <>
-                          <Camera className={`h-6 w-6 mb-1 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
-                          <span className={`text-xs font-medium capitalize ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                            {type} View
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* SECTION 3: NOTES */}
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <h3 className={`font-bold flex items-center gap-2 mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-              <FileText className="h-5 w-5 text-yellow-500" /> Remarks
-            </h3>
-            <textarea
-              className={`w-full p-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500 min-h-[80px] ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500"}`}
-              placeholder="Any obstruction? Electrical issues?"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          </div>
-          {/* SUBMIT BUTTON */}
-          <div className="pt-2 md:col-span-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-yellow-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-600 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
-            >
-              {submitting ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <CheckCircle2 />
-              )}
-              Submit Recce Report
-            </button>
-          </div>
-        </form>
         </div>
       </div>
     </div>

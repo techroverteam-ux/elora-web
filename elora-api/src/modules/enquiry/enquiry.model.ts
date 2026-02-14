@@ -5,7 +5,8 @@ export interface EnquiryDocument extends Document {
   email: string;
   phone: string;
   message: string;
-  status: "NEW" | "CONTACTED" | "RESOLVED";
+  status: "NEW" | "READ" | "CONTACTED" | "RESOLVED";
+  remark?: string;
 }
 
 const EnquirySchema = new Schema<EnquiryDocument>(
@@ -16,9 +17,10 @@ const EnquirySchema = new Schema<EnquiryDocument>(
     message: { type: String, required: true },
     status: {
       type: String,
-      enum: ["NEW", "CONTACTED", "RESOLVED"],
+      enum: ["NEW", "READ", "CONTACTED", "RESOLVED"],
       default: "NEW",
     },
+    remark: { type: String },
   },
   { timestamps: true },
 );

@@ -18,19 +18,33 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Wrench
+  Wrench,
+  CheckSquare,
+  Square,
+  FileText
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useAuth } from "@/src/context/AuthContext";
 import * as XLSX from "xlsx";
 
 export default function InstallationListPage() {
   const router = useRouter();
   const { darkMode } = useTheme();
+  const { user } = useAuth();
+  
+  const isAdmin = React.useMemo(() => {
+    if (!user || !user.roles || !Array.isArray(user.roles)) return false;
+    return user.roles.some((role) => 
+      role?.code === "SUPER_ADMIN" || role?.code === "ADMIN"
+    );
+  }, [user]);
   
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"table" | "card">(typeof window !== 'undefined' && window.innerWidth < 768 ? "card" : "table");
+  const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
+  const [isDownloadingPPT, setIsDownloadingPPT] = useState(false);
   
   // Pagination & Filters
   const [page, setPage] = useState(1);
@@ -67,10 +81,24 @@ export default function InstallationListPage() {
       params.append("page", page.toString());
       params.append("limit", limit.toString());
       if (debouncedSearch) params.append("search", debouncedSearch);
-      if (filterStatus !== "ALL") params.append("status", filterStatus);
+      
+      // Filter by installation-related statuses only
+      if (filterStatus !== "ALL") {
+        params.append("status", filterStatus);
+      } else {
+        // Show only stores that have been assigned to installation
+        params.append("status", `${StoreStatus.INSTALLATION_ASSIGNED},${StoreStatus.INSTALLATION_SUBMITTED},${StoreStatus.COMPLETED}`);
+      }
 
       const { data } = await api.get(`/stores?${params.toString()}`);
-      setStores(data.stores);
+      
+      // Additional client-side filter to ensure only installation-assigned stores appear
+      const installationStores = data.stores.filter((store: Store) => 
+        store.currentStatus === StoreStatus.INSTALLATION_ASSIGNED ||
+        store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ||
+        store.currentStatus === StoreStatus.COMPLETED
+      );
+      setStores(installationStores);
       if (data.pagination) {
           setTotalPages(data.pagination.pages);
           setTotalStores(data.pagination.total);
@@ -110,6 +138,52 @@ export default function InstallationListPage() {
       toast.error('Export Failed');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const toggleStoreSelection = (id: string) => {
+    const newSet = new Set(selectedStoreIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedStoreIds(newSet);
+  };
+
+  const toggleAllSelection = () => {
+    const completedStores = stores.filter(s => s.currentStatus === StoreStatus.INSTALLATION_SUBMITTED || s.currentStatus === StoreStatus.COMPLETED);
+    if (selectedStoreIds.size === completedStores.length && completedStores.length > 0) {
+      setSelectedStoreIds(new Set());
+    } else {
+      setSelectedStoreIds(new Set(completedStores.map(s => s._id)));
+    }
+  };
+
+  const handleBulkPPTDownload = async () => {
+    if (selectedStoreIds.size === 0) {
+      toast.error("Please select stores");
+      return;
+    }
+    setIsDownloadingPPT(true);
+    try {
+      toast.loading("Generating PPTs...");
+      const response = await api.post('/stores/ppt/bulk', {
+        storeIds: Array.from(selectedStoreIds),
+        type: "installation"
+      }, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Installation_Reports_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.dismiss();
+      toast.success(`Downloaded ${selectedStoreIds.size} PPTs`);
+      setSelectedStoreIds(new Set());
+    } catch (err) {
+      toast.dismiss();
+      toast.error('Failed to download PPTs');
+    } finally {
+      setIsDownloadingPPT(false);
     }
   };
 
@@ -220,6 +294,11 @@ export default function InstallationListPage() {
            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage your installation assignments</p>
         </div>
         <div className="flex gap-2">
+             {isAdmin && selectedStoreIds.size > 0 && (
+               <button onClick={handleBulkPPTDownload} disabled={isDownloadingPPT} className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600">
+                 <FileText className="w-4 h-4 mr-2"/> Download PPTs ({selectedStoreIds.size})
+               </button>
+             )}
              <button onClick={handleExport} className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium border ${darkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-white border-gray-300 text-gray-700"}`}>
                  <Download className="w-4 h-4 mr-2"/> Export
              </button>
@@ -285,8 +364,19 @@ export default function InstallationListPage() {
                   <table className="min-w-full">
                       <thead className={darkMode ? "bg-gray-800/80" : "bg-gray-50"}>
                           <tr>
+                              {isAdmin && (
+                                <th className="px-6 py-3 text-left w-12">
+                                  <button onClick={toggleAllSelection}>
+                                    {selectedStoreIds.size > 0 && selectedStoreIds.size === stores.filter(s => s.currentStatus === StoreStatus.INSTALLATION_SUBMITTED || s.currentStatus === StoreStatus.COMPLETED).length ? 
+                                      <CheckSquare className="h-5 w-5 text-yellow-500" /> : 
+                                      <Square className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+                                    }
+                                  </button>
+                                </th>
+                              )}
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Store</th>
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Location</th>
+                              <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{isAdmin ? "Assigned To" : "Assigned By"}</th>
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Status</th>
                               <th className={`px-6 py-3 text-right text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Action</th>
                           </tr>
@@ -294,8 +384,19 @@ export default function InstallationListPage() {
                       <tbody className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}>
                           {stores.map(store => {
                                const isDone = store.currentStatus === StoreStatus.COMPLETED || store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED;
+                               const canSelect = store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED || store.currentStatus === StoreStatus.COMPLETED;
+                               const isSelected = selectedStoreIds.has(store._id);
                                return (
-                                   <tr key={store._id} className={`transition-colors border-b ${darkMode ? "hover:bg-gray-800/50" : "hover:bg-gray-50"}`}>
+                                   <tr key={store._id} className={`transition-colors border-b ${isSelected ? (darkMode ? "bg-blue-900/30" : "bg-blue-50") : darkMode ? "hover:bg-gray-800/50" : "hover:bg-gray-50"}`}>
+                                       {isAdmin && (
+                                         <td className="px-6 py-4 whitespace-nowrap">
+                                           {canSelect && (
+                                             <button onClick={() => toggleStoreSelection(store._id)}>
+                                               {isSelected ? <CheckSquare className="h-5 w-5 text-blue-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} />}
+                                             </button>
+                                           )}
+                                         </td>
+                                       )}
                                        <td className="px-6 py-4">
                                            <div className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName}</div>
                                            <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</div>
@@ -303,6 +404,17 @@ export default function InstallationListPage() {
                                        <td className="px-6 py-4">
                                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{store.location.city}</div>
                                             <div className={`text-xs truncate max-w-[200px] ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.location.address}</div>
+                                       </td>
+                                       <td className="px-6 py-4">
+                                           {isAdmin ? (
+                                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+                                               {(store.workflow?.installationAssignedTo as any)?.name || "-"}
+                                             </div>
+                                           ) : (
+                                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+                                               {(store.workflow?.installationAssignedBy as any)?.name || "-"}
+                                             </div>
+                                           )}
                                        </td>
                                        <td className="px-6 py-4">
                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors(store.currentStatus)}`}>
@@ -345,3 +457,5 @@ export default function InstallationListPage() {
     </div>
   );
 }
+
+

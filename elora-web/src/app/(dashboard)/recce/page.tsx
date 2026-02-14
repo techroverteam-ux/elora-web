@@ -17,19 +17,34 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
-  Eye
+  Eye,
+  CheckSquare,
+  Square,
+  FileText
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useAuth } from "@/src/context/AuthContext";
 import * as XLSX from "xlsx";
 
 export default function RecceListPage() {
   const router = useRouter();
   const { darkMode } = useTheme();
+  const { user } = useAuth();
+  
+  // Check if user is admin
+  const isAdmin = React.useMemo(() => {
+    if (!user || !user.roles || !Array.isArray(user.roles)) return false;
+    return user.roles.some((role) => 
+      role?.code === "SUPER_ADMIN" || role?.code === "ADMIN"
+    );
+  }, [user]);
   
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"table" | "card">(typeof window !== 'undefined' && window.innerWidth < 768 ? "card" : "table");
+  const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
+  const [isDownloadingPPT, setIsDownloadingPPT] = useState(false);
   
   // Pagination & Filters
   const [page, setPage] = useState(1);
@@ -68,10 +83,25 @@ export default function RecceListPage() {
       params.append("page", page.toString());
       params.append("limit", limit.toString());
       if (debouncedSearch) params.append("search", debouncedSearch);
-      if (filterStatus !== "ALL") params.append("status", filterStatus);
+      
+      // Filter by recce-related statuses only
+      if (filterStatus !== "ALL") {
+        params.append("status", filterStatus);
+      } else {
+        // Show all recce-related stores (pending and completed)
+        params.append("status", `${StoreStatus.RECCE_ASSIGNED},${StoreStatus.RECCE_SUBMITTED},${StoreStatus.RECCE_APPROVED},${StoreStatus.RECCE_REJECTED}`);
+      }
 
       const { data } = await api.get(`/stores?${params.toString()}`);
-      setStores(data.stores);
+      
+      // Additional client-side filter to ensure only recce-assigned stores appear
+      const recceStores = data.stores.filter((store: Store) => 
+        store.currentStatus === StoreStatus.RECCE_ASSIGNED ||
+        store.currentStatus === StoreStatus.RECCE_SUBMITTED ||
+        store.currentStatus === StoreStatus.RECCE_APPROVED ||
+        store.currentStatus === StoreStatus.RECCE_REJECTED
+      );
+      setStores(recceStores);
       if (data.pagination) {
           setTotalPages(data.pagination.pages);
           setTotalStores(data.pagination.total);
@@ -111,6 +141,52 @@ export default function RecceListPage() {
       toast.error('Export Failed');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const toggleStoreSelection = (id: string) => {
+    const newSet = new Set(selectedStoreIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedStoreIds(newSet);
+  };
+
+  const toggleAllSelection = () => {
+    const submittedStores = stores.filter(s => s.currentStatus === StoreStatus.RECCE_SUBMITTED || s.currentStatus === StoreStatus.RECCE_APPROVED);
+    if (selectedStoreIds.size === submittedStores.length && submittedStores.length > 0) {
+      setSelectedStoreIds(new Set());
+    } else {
+      setSelectedStoreIds(new Set(submittedStores.map(s => s._id)));
+    }
+  };
+
+  const handleBulkPPTDownload = async () => {
+    if (selectedStoreIds.size === 0) {
+      toast.error("Please select stores");
+      return;
+    }
+    setIsDownloadingPPT(true);
+    try {
+      toast.loading("Generating PPTs...");
+      const response = await api.post('/stores/ppt/bulk', {
+        storeIds: Array.from(selectedStoreIds),
+        type: "recce"
+      }, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Recce_Reports_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.dismiss();
+      toast.success(`Downloaded ${selectedStoreIds.size} PPTs`);
+      setSelectedStoreIds(new Set());
+    } catch (err) {
+      toast.dismiss();
+      toast.error('Failed to download PPTs');
+    } finally {
+      setIsDownloadingPPT(false);
     }
   };
 
@@ -213,28 +289,36 @@ export default function RecceListPage() {
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-4">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
            <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Recce Inspection</h1>
            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage your recce assignments</p>
         </div>
-        <div className="flex gap-2">
-             <button onClick={handleExport} className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium border ${darkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-white border-gray-300 text-gray-700"}`}>
-                 <Download className="w-4 h-4 mr-2"/> Export
+        <div className="flex flex-wrap gap-2">
+             {isAdmin && selectedStoreIds.size > 0 && (
+               <button onClick={handleBulkPPTDownload} disabled={isDownloadingPPT} className="flex items-center px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600">
+                 <FileText className="w-4 h-4 sm:mr-2"/>
+                 <span className="hidden sm:inline">Download PPTs ({selectedStoreIds.size})</span>
+                 <span className="sm:hidden">({selectedStoreIds.size})</span>
+               </button>
+             )}
+             <button onClick={handleExport} className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium border ${darkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-white border-gray-300 text-gray-700"}`}>
+                 <Download className="w-4 h-4 sm:mr-2"/>
+                 <span className="hidden sm:inline">Export</span>
              </button>
         </div>
       </div>
 
       {/* FILTERS */}
       <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-         <div className="flex flex-col md:flex-row gap-4">
+         <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
                 <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                 <input type="text" placeholder="Search store name, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                     className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-blue-500`} />
             </div>
             <select value={filterStatus} onChange={(e) => {setFilterStatus(e.target.value); setPage(1);}}
-                className={`px-3 py-2 rounded-lg border text-sm w-full md:w-48 ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-blue-500`}>
+                className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-blue-500`}>
                 <option value="ALL">All Status</option>
                 <option value={StoreStatus.RECCE_ASSIGNED}>Pending</option>
                 <option value={StoreStatus.RECCE_SUBMITTED}>Submitted</option>
@@ -244,48 +328,73 @@ export default function RecceListPage() {
       </div>
 
       {/* CONTENT */}
-      {viewMode === "card" ? (
-          /* MOBILE CARD VIEW */
-          <div className="space-y-4">
-             {stores.map(store => {
-                  const isDone = store.currentStatus !== StoreStatus.RECCE_ASSIGNED;
-                  return (
-                    <div key={store._id} onClick={() => router.push(`/recce/${store._id}`)}
-                        className={`rounded-xl shadow-sm border overflow-hidden active:scale-95 transition-transform cursor-pointer ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
-                        <div className={`h-1.5 w-full ${isDone ? "bg-green-500" : "bg-blue-600"}`}></div>
-                        <div className="p-4">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className={`font-bold line-clamp-1 ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName}</h3>
+      {/* MOBILE CARD VIEW */}
+      <div className="lg:hidden space-y-4">
+         {stores.map(store => {
+              const isDone = store.currentStatus !== StoreStatus.RECCE_ASSIGNED;
+              const canSelect = store.currentStatus === StoreStatus.RECCE_SUBMITTED || store.currentStatus === StoreStatus.RECCE_APPROVED;
+              const isSelected = selectedStoreIds.has(store._id);
+              return (
+                <div key={store._id}
+                    className={`rounded-xl shadow-sm border overflow-hidden transition-all ${isSelected ? (darkMode ? "bg-blue-900/30 border-blue-500" : "bg-blue-50 border-blue-300") : darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+                    <div className={`h-1.5 w-full ${isDone ? "bg-green-500" : "bg-blue-600"}`}></div>
+                    <div className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-start gap-3 flex-1">
+                                {isAdmin && canSelect && (
+                                  <button onClick={() => toggleStoreSelection(store._id)} className="mt-1">
+                                    {isSelected ? <CheckSquare className="h-5 w-5 text-blue-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} />}
+                                  </button>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <h3 className={`font-bold text-base ${darkMode ? "text-white" : "text-gray-900"} truncate`}>{store.storeName}</h3>
                                     <p className={`text-xs font-mono mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</p>
                                 </div>
-                                <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide ${statusColors(store.currentStatus)}`}>
-                                    {store.currentStatus.replace(/_/g, " ").replace("RECCE", "")}
-                                </span>
                             </div>
-                            <div className="mt-3 flex items-start gap-2 text-sm text-gray-500">
-                                <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                                <span className="line-clamp-2">{store.location.address || store.location.city}</span>
-                            </div>
-                             <div className="mt-4 flex gap-2">
-                                <button className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 text-white ${isDone ? "bg-green-600" : "bg-blue-600"}`}>
-                                    {isDone ? <><CheckCircle2 className="h-4 w-4" /> View Details</> : <><Camera className="h-4 w-4" /> Start Recce</>}
-                                </button>
-                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide whitespace-nowrap ${statusColors(store.currentStatus)}`}>
+                                {store.currentStatus.replace(/_/g, " ").replace("RECCE", "")}
+                            </span>
                         </div>
+                        <div className={`flex items-start gap-2 text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                            <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                            <span className="line-clamp-2">{store.location.address || store.location.city}</span>
+                        </div>
+                        {(isAdmin ? store.workflow?.recceAssignedTo : store.workflow?.recceAssignedBy) && (
+                          <div className={`text-xs mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                            {isAdmin ? "Assigned To: " : "Assigned By: "}
+                            <span className={darkMode ? "text-gray-200" : "text-gray-900"}>
+                              {isAdmin ? (store.workflow?.recceAssignedTo as any)?.name : (store.workflow?.recceAssignedBy as any)?.name}
+                            </span>
+                          </div>
+                        )}
+                        <button onClick={() => router.push(`/recce/${store._id}`)} className={`w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 text-white ${isDone ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
+                            {isDone ? <><CheckCircle2 className="h-4 w-4" /> View Details</> : <><Camera className="h-4 w-4" /> Start Recce</>}
+                        </button>
                     </div>
-                  );
-             })}
-          </div>
-      ) : (
-          /* DESKTOP TABLE VIEW */
-          <div className={`rounded-xl border overflow-hidden ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+                </div>
+              );
+         })}
+      </div>
+
+      {/* DESKTOP TABLE VIEW */}
+      <div className={`hidden lg:block rounded-xl border overflow-hidden ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
               <div className="overflow-x-auto">
                   <table className="min-w-full">
                       <thead className={darkMode ? "bg-gray-800/80" : "bg-gray-50"}>
                           <tr>
+                              {isAdmin && (
+                                <th className="px-6 py-3 text-left w-12">
+                                  <button onClick={toggleAllSelection}>
+                                    {selectedStoreIds.size > 0 && selectedStoreIds.size === stores.filter(s => s.currentStatus === StoreStatus.RECCE_SUBMITTED || s.currentStatus === StoreStatus.RECCE_APPROVED).length ? 
+                                      <CheckSquare className="h-5 w-5 text-yellow-500" /> : 
+                                      <Square className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+                                    }
+                                  </button>
+                                </th>
+                              )}
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Store</th>
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Location</th>
+                              <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{isAdmin ? "Assigned To" : "Assigned By"}</th>
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Status</th>
                               <th className={`px-6 py-3 text-right text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Action</th>
                           </tr>
@@ -293,8 +402,19 @@ export default function RecceListPage() {
                       <tbody className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}>
                           {stores.map(store => {
                                const isDone = store.currentStatus !== StoreStatus.RECCE_ASSIGNED;
+                               const canSelect = store.currentStatus === StoreStatus.RECCE_SUBMITTED || store.currentStatus === StoreStatus.RECCE_APPROVED;
+                               const isSelected = selectedStoreIds.has(store._id);
                                return (
-                                   <tr key={store._id} className={`transition-colors border-b ${darkMode ? "hover:bg-gray-800/50" : "hover:bg-gray-50"}`}>
+                                   <tr key={store._id} className={`transition-colors border-b ${isSelected ? (darkMode ? "bg-blue-900/30" : "bg-blue-50") : darkMode ? "hover:bg-gray-800/50" : "hover:bg-gray-50"}`}>
+                                       {isAdmin && (
+                                         <td className="px-6 py-4 whitespace-nowrap">
+                                           {canSelect && (
+                                             <button onClick={() => toggleStoreSelection(store._id)}>
+                                               {isSelected ? <CheckSquare className="h-5 w-5 text-blue-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} />}
+                                             </button>
+                                           )}
+                                         </td>
+                                       )}
                                        <td className="px-6 py-4">
                                            <div className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName}</div>
                                            <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</div>
@@ -302,6 +422,17 @@ export default function RecceListPage() {
                                        <td className="px-6 py-4">
                                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{store.location.city}</div>
                                             <div className={`text-xs truncate max-w-[200px] ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.location.address}</div>
+                                       </td>
+                                       <td className="px-6 py-4">
+                                           {isAdmin ? (
+                                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+                                               {(store.workflow?.recceAssignedTo as any)?.name || "-"}
+                                             </div>
+                                           ) : (
+                                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+                                               {(store.workflow?.recceAssignedBy as any)?.name || "-"}
+                                             </div>
+                                           )}
                                        </td>
                                        <td className="px-6 py-4">
                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors(store.currentStatus)}`}>
@@ -321,9 +452,9 @@ export default function RecceListPage() {
                   </table>
               </div>
                {/* Pagination Controls */}
-                <div className={`px-4 py-3 flex items-center justify-between border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>
+                <div className={`px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>
                     <div className="flex items-center gap-2">
-                        <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Showing {(page-1)*limit + 1} to {Math.min(page*limit, totalStores)} of {totalStores} entries</span>
+                        <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Showing {(page-1)*limit + 1}-{Math.min(page*limit, totalStores)} of {totalStores}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
@@ -340,7 +471,6 @@ export default function RecceListPage() {
                     </div>
                 </div>
           </div>
-      )}
     </div>
   );
 }

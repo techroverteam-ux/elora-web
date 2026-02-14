@@ -5,6 +5,8 @@ import authRoutes from "./modules/auth/auth.routes";
 import roleRoutes from "./modules/role/role.routes";
 import userRoutes from "./modules/user/user.routes";
 import storeRoutes from "./modules/store/store.route";
+import analyticsRoutes from "./modules/analytics/analytics.route";
+import notificationRoutes from "./modules/notification/notification.route";
 import path from "path";
 
 const app = express();
@@ -30,6 +32,8 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/roles", roleRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/stores", storeRoutes);
+app.use("/api/v1/analytics", analyticsRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Error handling middleware

@@ -43,6 +43,7 @@ export default function UsersPage() {
   
   // Filters & Pagination
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -72,8 +73,16 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
     fetchUsers();
-  }, [page, limit, roleFilter, statusFilter, searchTerm]); // Fetch when these change
+  }, [page, limit, roleFilter, statusFilter, searchTerm]);
 
   const fetchRoles = async () => {
     try {
@@ -88,7 +97,12 @@ export default function UsersPage() {
     const startTime = Date.now();
     try {
       setIsLoading(true);
-      const { data } = await api.get(`/users?page=${page}&limit=${limit}`);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        ...(searchTerm && { search: searchTerm }),
+      });
+      const { data } = await api.get(`/users?${params}`);
       setUsers(data.users);
       setTotalPages(data.pagination.pages);
       setTotalUsers(data.pagination.total);
@@ -258,7 +272,31 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (userId: string) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    const confirmed = await new Promise<boolean>((resolve) => {
+      toast((t) => (
+        <div className={`flex flex-col gap-3 p-2 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
+          <p className="font-semibold">Delete this user?</p>
+          <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>This action cannot be undone.</p>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(false); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${darkMode ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(true); }}
+              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity, style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.delete(`/users/${userId}`);
       toast.success("User deleted successfully");
@@ -270,50 +308,57 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-4 pb-20">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
-            Users
-          </h1>
-          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-            Manage system users
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+              Users
+            </h1>
+            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              Manage system users
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+              <button
+                  onClick={() => { setUploadStats(null); setSelectedFiles([]); setIsUploadOpen(true); }}
+                  className="inline-flex items-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-yellow-500 hover:bg-yellow-600 text-white"
+              >
+                  <Upload className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Bulk Upload</span>
+              </button>
+              <button
+                  onClick={handleExport}
+                  className={`inline-flex items-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
+                      darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                  }`}
+              >
+                  <FileText className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Export</span>
+              </button>
+              <button
+              onClick={openCreateModal}
+              className="inline-flex items-center px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm"
+              >
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add User</span>
+              </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-            <button
-                onClick={() => { setUploadStats(null); setSelectedFiles([]); setIsUploadOpen(true); }}
-                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
-                    darkMode ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-yellow-500 hover:bg-yellow-600 text-white"
-                }`}
-            >
-                <Upload className="h-4 w-4 mr-2" />
-                Bulk Upload
-            </button>
-            <button
-                onClick={downloadTemplate}
-                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
-                    darkMode ? "bg-green-600 hover:bg-green-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"
-                }`}
-            >
-                <Download className="h-4 w-4 mr-2" />
-                Template
-            </button>
-            <button
-                onClick={handleExport}
-                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
-                    darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                }`}
-            >
-                <FileText className="h-4 w-4 mr-2" />
-                Export
-            </button>
-            <button
-            onClick={openCreateModal}
-            className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm"
-            >
-            <Plus className="h-4 w-4 mr-2" />
-            Add User
-            </button>
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className={`w-full pl-10 pr-4 py-2.5 rounded-lg border transition-colors ${
+              darkMode
+                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-yellow-500"
+                : "bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-yellow-500"
+            } focus:outline-none focus:ring-2 focus:ring-yellow-500/20`}
+          />
         </div>
       </div>
 
@@ -350,7 +395,8 @@ export default function UsersPage() {
              </div>
         ) : (
         <>
-            <div className="overflow-x-auto">
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full">
                 <thead className={darkMode ? "bg-gray-800/50" : "bg-gray-50"}>
                 <tr>
@@ -411,16 +457,63 @@ export default function UsersPage() {
                 </tbody>
             </table>
             </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3 p-4">
+              {users.map((user) => (
+                <div key={user._id} className={`p-4 rounded-lg border ${darkMode ? "bg-gray-800/30 border-gray-700" : "bg-white border-gray-200"}`}>
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0">
+                      {user.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-semibold text-base ${darkMode ? "text-white" : "text-gray-900"} truncate`}>{user.name}</p>
+                      <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"} truncate`}>{user.email}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {user.roles && user.roles.length > 0 ? user.roles.map((r: any) => (
+                        <span key={r._id} className={`px-2 py-1 text-xs font-medium rounded-full ${darkMode ? "bg-yellow-500/20 text-yellow-400" : "bg-yellow-100 text-yellow-800"}`}>
+                          {r.name}
+                        </span>
+                      )) : <span className="text-gray-400 text-xs">No Role</span>}
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                      <button 
+                        onClick={() => toggleUserStatus(user)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                          user.isActive 
+                            ? "bg-green-100 text-green-700" 
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {user.isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                        {user.isActive ? "Active" : "Inactive"}
+                      </button>
+                      <div className="flex gap-2">
+                        <button onClick={() => openEditModal(user)} className="p-2 rounded-lg bg-blue-50 text-blue-600">
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => handleDelete(user._id)} className="p-2 rounded-lg bg-red-50 text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
             
             {/* Pagination Controls */}
-            <div className={`px-6 py-4 flex items-center justify-between border-t ${darkMode ? "border-purple-700/50" : "border-gray-200"}`}>
+            <div className={`px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t ${darkMode ? "border-purple-700/50" : "border-gray-200"}`}>
                 <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Rows per page:</span>
+                    <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Rows:</span>
                     <select 
                         value={limit}
                         onChange={(e) => {
                             setLimit(Number(e.target.value));
-                            setPage(1); // Reset to page 1 on limit change
+                            setPage(1);
                         }}
                         className={`text-sm font-medium border rounded px-2 py-1 ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`}
                     >
@@ -433,7 +526,7 @@ export default function UsersPage() {
                 
                 <div className="flex items-center gap-4">
                     <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
-                        Page {page} of {totalPages}
+                        {page} / {totalPages}
                     </span>
                     <div className="flex gap-1">
                         <button 
@@ -536,6 +629,16 @@ export default function UsersPage() {
             </div>
           ) : (
             <form onSubmit={handleUpload} className="space-y-4">
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={downloadTemplate}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm transition-colors shadow-md"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Template
+                </button>
+              </div>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors relative">
                 <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                 <Upload className="mx-auto h-10 w-10 text-gray-400 mb-2" />

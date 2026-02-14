@@ -21,15 +21,29 @@ export const login = async (req: Request, res: Response) => {
       role: user.roles,
     });
 
+    // Create unique session cookie with user-specific path
+    const sessionId = `session_${user._id}_${Date.now()}`;
+    
     res.cookie("access_token", token, {
       httpOnly: true,
       sameSite: "lax",
       secure: false,
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: "/",
+    });
+
+    // Store session identifier
+    res.cookie("session_id", sessionId, {
+      httpOnly: false, // Allow JS access for logout
+      sameSite: "lax",
+      secure: false,
+      maxAge: 24 * 60 * 60 * 1000,
+      path: "/",
     });
 
     res.status(200).json({
       message: "Login successful",
+      sessionId,
       user: {
         id: user._id,
         name: user.name,
@@ -55,8 +69,16 @@ export const login = async (req: Request, res: Response) => {
 export const logout = (_req: Request, res: Response) => {
   res.clearCookie("access_token", {
     httpOnly: true,
-    sameSite: "strict",
-    secure: false, // Ensure this matches your login cookie settings
+    sameSite: "lax",
+    secure: false,
+    path: "/",
+  });
+
+  res.clearCookie("session_id", {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: false,
+    path: "/",
   });
 
   res.status(200).json({ message: "Logged out successfully" });

@@ -12,6 +12,7 @@ import {
   Map,
   Hammer,
   MessageSquare,
+  BarChart3,
   X,
   LogOut,
 } from "lucide-react";
@@ -98,6 +99,13 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       icon: MessageSquare,
       module: "enquiries",
     },
+    {
+      name: "Reports",
+      href: "/reports",
+      icon: BarChart3,
+      module: "reports",
+      alwaysShow: true,
+    },
   ];
 
   const handleLinkClick = () => {
@@ -127,9 +135,9 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         }`}
       >
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Sidebar Header with LOGO */}
+          {/* Sidebar Header with LOGO - Hidden on mobile */}
           <div
-            className={`flex items-center justify-between h-20 flex-shrink-0 px-6 border-b ${
+            className={`hidden md:flex items-center justify-between h-20 flex-shrink-0 px-6 border-b ${
               darkMode
                 ? "bg-purple-900/30 border-purple-700/50"
                 : "bg-yellow-50/50 border-gray-200"
@@ -146,6 +154,16 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Mobile: Close button only */}
+          <div
+            className={`md:hidden flex items-center justify-end h-16 flex-shrink-0 px-6 border-b ${
+              darkMode
+                ? "bg-purple-900/30 border-purple-700/50"
+                : "bg-yellow-50/50 border-gray-200"
+            }`}
+          >
             <button
               className={`md:hidden p-2 rounded-lg transition-colors ${
                 darkMode
@@ -159,8 +177,8 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           </div>
 
           {/* Navigation Links */}
-          <div className="flex-1 flex flex-col overflow-y-auto py-6">
-            <nav className="flex-1 px-4 space-y-2">
+          <div className="flex-1 flex flex-col overflow-y-auto py-4">
+            <nav className="flex-1 px-4 space-y-1">
               {navigation.map((item) => {
                 // --- DYNAMIC ACCESS CHECK ---
                 const hasAccess =
@@ -174,7 +192,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                     key={item.name}
                     href={item.href}
                     onClick={handleLinkClick}
-                    className={`group flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all transform hover:scale-[1.02] ${
+                    className={`group flex items-center px-4 py-2.5 text-sm font-semibold rounded-xl transition-all transform hover:scale-[1.02] ${
                       isActive
                         ? darkMode
                           ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"

@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: () => void; // We might not need token arg if using cookies alone, but good for flexibility
+  login: () => void;
   logout: () => void;
   checkAuth: () => Promise<void>;
 }
@@ -24,7 +24,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Function to check if user is logged in
   const checkAuth = async () => {
     try {
-      // Calls the /me endpoint we just created
+      // Check if session_id cookie exists
+      const sessionId = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("session_id="))
+        ?.split("=")[1];
+
+      if (!sessionId) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Calls the /me endpoint
       const { data } = await api.get("/auth/me");
       setUser(data);
     } catch (error) {
@@ -38,13 +50,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Run checkAuth when app loads
   useEffect(() => {
     checkAuth();
-    
-    // Auto-logout on session timeout
-    const interval = setInterval(() => {
-      checkAuth();
-    }, 5 * 60 * 1000); // Check every 5 minutes
-    
-    return () => clearInterval(interval);
   }, []);
 
   // Login function (Called after successful API login)
@@ -57,6 +62,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     try {
       await api.post("/auth/logout"); // Call backend to clear cookie
+      
+      // Clear session cookies
+      document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      
       setUser(null);
       router.push("/login");
     } catch (error) {

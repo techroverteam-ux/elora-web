@@ -195,7 +195,7 @@ export const createStore = async (req: Request, res: Response) => {
       commercials,
       costDetails,
       specs,
-      currentStatus: StoreStatus.UPLOADED,
+      currentStatus: StoreStatus.MANUALLY_ADDED,
     });
 
     await store.save();
@@ -242,7 +242,13 @@ export const getAllStores = async (req: Request | any, res: Response) => {
 
     // 2. Status Filter
     if (status && status !== "ALL") {
-      query.currentStatus = status;
+      // Handle comma-separated statuses
+      if (status.includes(',')) {
+        const statuses = status.split(',').map((s: string) => s.trim());
+        query.currentStatus = { $in: statuses };
+      } else {
+        query.currentStatus = status;
+      }
     }
 
     // 3. City Filter
@@ -269,8 +275,10 @@ export const getAllStores = async (req: Request | any, res: Response) => {
     const total = await Store.countDocuments(query);
     const stores = await Store.find(query)
       .populate("workflow.recceAssignedTo", "name email")
+      .populate("workflow.recceAssignedBy", "name email")
       .populate("workflow.installationAssignedTo", "name email")
-      .sort({ updatedAt: -1 })
+      .populate("workflow.installationAssignedBy", "name email")
+      .sort({ updatedAt: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
@@ -327,7 +335,7 @@ export const deleteStore = async (req: Request, res: Response) => {
   }
 };
 
-export const assignStoresBulk = async (req: Request, res: Response) => {
+export const assignStoresBulk = async (req: Request | any, res: Response) => {
   try {
     const { storeIds, userId, stage } = req.body;
     // stage must be 'RECCE' or 'INSTALLATION'
@@ -339,18 +347,21 @@ export const assignStoresBulk = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "No user selected" });
     }
 
+    const assignedBy = req.user._id; // Track who assigned the task
     let updateData = {};
 
     // LOGIC: Handle Recce vs Installation Assignment
     if (stage === "RECCE") {
       updateData = {
         "workflow.recceAssignedTo": userId,
+        "workflow.recceAssignedBy": assignedBy,
         "recce.assignedDate": new Date(),
         currentStatus: StoreStatus.RECCE_ASSIGNED,
       };
     } else if (stage === "INSTALLATION") {
       updateData = {
         "workflow.installationAssignedTo": userId,
+        "workflow.installationAssignedBy": assignedBy,
         "installation.assignedDate": new Date(),
         currentStatus: StoreStatus.INSTALLATION_ASSIGNED,
       };
@@ -378,7 +389,7 @@ export const assignStoresBulk = async (req: Request, res: Response) => {
 export const submitRecce = async (req: Request | any, res: Response) => {
   try {
     const { id } = req.params;
-    const { width, height, notes } = req.body;
+    const { width, height, notes, unit } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
     // ... (Your existing Store finding and Security Checks remain here) ...
@@ -390,6 +401,7 @@ export const submitRecce = async (req: Request | any, res: Response) => {
       "recce.sizes": {
         width: Number(width),
         height: Number(height),
+        unit: unit || "ft"
       },
       currentStatus: StoreStatus.RECCE_SUBMITTED,
     };
@@ -442,149 +454,102 @@ export const generateReccePPT = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Store or Recce data not found" });
     }
 
-    // 1. Initialize PPT
     const pres = new PptxGenJS();
+    pres.layout = "LAYOUT_WIDE";
     pres.title = `Recce Report - ${store.storeName}`;
+    
+    // Define theme colors (Yellow & Black)
+    const colors = {
+      primary: "EAB308",
+      secondary: "000000",
+      text: "1F2937",
+      lightBg: "FEF3C7",
+      white: "FFFFFF"
+    };
 
-    // --- SLIDE 1: TITLE & SUMMARY ---
-    const slide1 = pres.addSlide();
+    const slide = pres.addSlide();
+    slide.background = { color: colors.white };
+
+    // Add Logo
+    const logoPath = path.join(process.cwd(), "../elora-web/public/elora-logo-excel.png");
+    if (fs.existsSync(logoPath)) {
+      slide.addImage({ path: logoPath, x: 0.5, y: 0.3, w: 2, h: 0.6 });
+    }
 
     // Header
-    slide1.addShape("rect", {
-      x: 0,
-      y: 0,
-      w: "100%",
-      h: 1,
-      fill: { color: "003366" },
-    });
-    slide1.addText("Recce Inspection Report", {
-      x: 0.5,
-      y: 0.25,
-      fontSize: 24,
-      color: "FFFFFF",
-      bold: true,
+    slide.addText("RECCE INSPECTION REPORT", { 
+      x: 0.5, y: 1.1, w: 9, h: 0.5, 
+      fontSize: 28, bold: true, color: colors.primary, align: "center"
     });
 
-    // Data Preparation (STRICT TYPE FIX)
-    // We explicitly define the structure to satisfy TypeScript
-    const rawData = [
-      ["Dealer Code", store.dealerCode || ""],
-      ["Store Name", store.storeName || ""],
-      [
-        "City / Area",
-        `${store.location.city || ""}, ${store.location.area || ""}`,
-      ],
-      ["Address", store.location.address || "N/A"],
-      [
-        "Board Size",
-        `${store.recce.sizes?.width || 0} ft  x  ${store.recce.sizes?.height || 0} ft`,
-      ],
-      [
-        "Recce Date",
-        store.recce.submittedDate
-          ? new Date(store.recce.submittedDate).toLocaleDateString()
-          : "N/A",
-      ],
-      ["Field Staff", store.workflow.recceAssignedTo ? "Assigned" : "N/A"],
-      ["Notes", store.recce.notes || "None"],
+    // Store Details Section
+    slide.addShape("rect", { 
+      x: 0.5, y: 1.8, w: 9, h: 0.05, 
+      fill: { color: colors.primary } 
+    });
+
+    const detailsData = [
+      [{ text: "Dealer Code", options: { bold: true, fill: { color: colors.lightBg } } }, store.dealerCode || "", 
+       { text: "Store Name", options: { bold: true, fill: { color: colors.lightBg } } }, store.storeName || ""],
+      [{ text: "City", options: { bold: true, fill: { color: colors.lightBg } } }, store.location.city || "", 
+       { text: "State", options: { bold: true, fill: { color: colors.lightBg } } }, store.location.state || ""],
+      [{ text: "Address", options: { bold: true, fill: { color: colors.lightBg } } }, { text: store.location.address || "N/A", options: { colspan: 3 } }],
+      [{ text: "Board Size", options: { bold: true, fill: { color: colors.lightBg } } }, `${store.recce.sizes?.width || 0} x ${store.recce.sizes?.height || 0} ft`, 
+       { text: "Recce Date", options: { bold: true, fill: { color: colors.lightBg } } }, store.recce.submittedDate ? new Date(store.recce.submittedDate).toLocaleDateString() : "N/A"],
+      [{ text: "Notes", options: { bold: true, fill: { color: colors.lightBg } } }, { text: store.recce.notes || "None", options: { colspan: 3 } }]
     ];
 
-    // Convert strings to TableCell Objects
-    const tableRows = rawData.map((row) => [
-      { text: row[0], options: { bold: true, fill: { color: "E1E1E1" } } }, // Label Column
-      { text: row[1] }, // Value Column
-    ]);
-
-    // Add Table
-    slide1.addTable(tableRows, {
-      x: 0.5,
-      y: 1.5,
-      w: 9,
-      colW: [2.5, 6.5],
+    slide.addTable(detailsData as any, {
+      x: 0.5, y: 2.0, w: 9, h: 1.5,
+      colW: [1.8, 2.4, 1.8, 3.0],
+      fontSize: 11,
       border: { pt: 1, color: "CCCCCC" },
-      fontSize: 14,
-      rowH: 0.5,
+      valign: "middle",
+      color: colors.text
     });
 
-    // --- SLIDE 2: PHOTOS ---
-    const slide2 = pres.addSlide();
-
-    slide2.addShape("rect", {
-      x: 0,
-      y: 0,
-      w: "100%",
-      h: 0.8,
-      fill: { color: "003366" },
-    });
-    slide2.addText("Site Photographs", {
-      x: 0.5,
-      y: 0.2,
-      fontSize: 20,
-      color: "FFFFFF",
-      bold: true,
+    // Images Section Title
+    slide.addText("SITE INSPECTION PHOTOS", { 
+      x: 0.5, y: 3.7, w: 9, h: 0.4, 
+      fontSize: 16, bold: true, color: colors.secondary, align: "center"
     });
 
-    const addImageToSlide = (
-      relativePath: string | undefined, // The path from DB (e.g., "uploads/123.jpg")
-      label: string,
-      x: number,
-      y: number,
-    ) => {
+    // Images
+    const addImage = (relativePath: string | undefined, label: string, x: number, y: number) => {
       if (relativePath) {
         try {
-          // FIX: Convert "uploads/file.jpg" to absolute path
-          // process.cwd() gets the root folder of your project
           const absolutePath = path.join(process.cwd(), relativePath);
-
-          slide2.addImage({ path: absolutePath, x: x, y: y, w: 3, h: 2.25 });
-
-          slide2.addText(label, {
-            x: x,
-            y: y + 2.3,
-            fontSize: 12,
-            bold: true,
-            align: "center",
-            w: 3,
-          });
+          if (fs.existsSync(absolutePath)) {
+            slide.addImage({ path: absolutePath, x, y, w: 2.8, h: 2.1 });
+            slide.addShape("rect", { x, y: y + 2.15, w: 2.8, h: 0.35, fill: { color: colors.primary } });
+            slide.addText(label, { x, y: y + 2.15, w: 2.8, h: 0.35, fontSize: 12, bold: true, align: "center", color: colors.white });
+          } else {
+            slide.addShape("rect", { x, y, w: 2.8, h: 2.1, line: { color: "CCCCCC", dashType: "dash" }, fill: { color: "F5F5F5" } });
+            slide.addText(`Image Not Found`, { x, y: y + 1, w: 2.8, fontSize: 10, align: "center", color: "999999" });
+          }
         } catch (err) {
-          console.error(`Failed to add image: ${relativePath}`, err);
-          // Fallback text if image fails
-          slide2.addText("Image Error", {
-            x: x,
-            y: y + 1,
-            w: 3,
-            align: "center",
-            color: "FF0000",
-          });
+          slide.addShape("rect", { x, y, w: 2.8, h: 2.1, line: { color: "FF0000" }, fill: { color: "FFE5E5" } });
+          slide.addText("Error Loading Image", { x, y: y + 1, w: 2.8, fontSize: 10, align: "center", color: "FF0000" });
         }
       } else {
-        slide2.addText(`No ${label} Image`, {
-          x: x,
-          y: y + 1,
-          w: 3,
-          align: "center",
-          color: "FF0000",
-        });
+        slide.addShape("rect", { x, y, w: 2.8, h: 2.1, line: { color: "CCCCCC", dashType: "dash" }, fill: { color: "F5F5F5" } });
+        slide.addText(`No ${label}`, { x, y: y + 1, w: 2.8, fontSize: 10, align: "center", color: "999999" });
       }
     };
 
-    addImageToSlide(store.recce.photos?.front, "Front View", 0.5, 1.5);
-    addImageToSlide(store.recce.photos?.side, "Side View", 3.8, 1.5);
-    addImageToSlide(store.recce.photos?.closeUp, "Close Up", 7.1, 1.5);
+    addImage(store.recce.photos?.front, "FRONT VIEW", 0.8, 4.2);
+    addImage(store.recce.photos?.side, "SIDE VIEW", 3.8, 4.2);
+    addImage(store.recce.photos?.closeUp, "CLOSE UP VIEW", 6.8, 4.2);
 
-    // --- OUTPUT ---
     const buffer = await pres.write({ outputType: "nodebuffer" });
-
     res.writeHead(200, {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       "Content-Disposition": `attachment; filename="Recce_${store.dealerCode}.pptx"`,
     });
     res.end(buffer);
   } catch (error: any) {
     console.error("PPT Gen Error:", error);
-    if (!res.headersSent)
-      res.status(500).json({ message: "Error generating PPT" });
+    if (!res.headersSent) res.status(500).json({ message: "Error generating PPT" });
   }
 };
 
@@ -665,176 +630,249 @@ export const submitInstallation = async (req: Request | any, res: Response) => {
   }
 };
 
-// --- UPDATED: Generate Installation PPT (3 Images) ---
+// --- UPDATED: Generate Installation PPT (Before & After Comparison) ---
 export const generateInstallationPPT = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const store = await Store.findById(id);
 
     if (!store || !store.installation) {
-      return res
-        .status(404)
-        .json({ message: "Store or Installation data not found" });
+      return res.status(404).json({ message: "Store or Installation data not found" });
     }
 
-    // 1. Initialize PPT
     const pres = new PptxGenJS();
+    pres.layout = "LAYOUT_WIDE";
     pres.title = `Installation Report - ${store.storeName}`;
+    
+    // Define theme colors (Yellow & Black)
+    const colors = {
+      primary: "EAB308",
+      secondary: "000000",
+      success: "22C55E",
+      text: "1F2937",
+      lightBg: "FEF3C7",
+      white: "FFFFFF",
+      beforeBg: "FEE2E2",
+      afterBg: "D1FAE5"
+    };
 
-    // --- SLIDE 1: SUMMARY ---
-    const slide1 = pres.addSlide();
+    const slide = pres.addSlide();
+    slide.background = { color: colors.white };
+
+    // Add Logo
+    const logoPath = path.join(process.cwd(), "../elora-web/public/elora-logo-excel.png");
+    if (fs.existsSync(logoPath)) {
+      slide.addImage({ path: logoPath, x: 0.5, y: 0.3, w: 2, h: 0.6 });
+    }
 
     // Header
-    slide1.addShape("rect", {
-      x: 0,
-      y: 0,
-      w: "100%",
-      h: 1,
-      fill: { color: "2E7D32" },
-    }); // Green for Success
-    slide1.addText("Installation Completion Report", {
-      x: 0.5,
-      y: 0.25,
-      fontSize: 24,
-      color: "FFFFFF",
-      bold: true,
+    slide.addText("INSTALLATION COMPLETION REPORT", { 
+      x: 0.5, y: 1.1, w: 9, h: 0.5, 
+      fontSize: 28, bold: true, color: colors.success, align: "center"
     });
 
-    // Table Data
-    const rawData = [
-      ["Dealer Code", store.dealerCode || ""],
-      ["Store Name", store.storeName || ""],
-      ["City", store.location.city || ""],
-      [
-        "Completion Date",
-        store.installation.submittedDate
-          ? new Date(store.installation.submittedDate).toLocaleDateString()
-          : "N/A",
-      ],
-      ["Installer", store.workflow.installationAssignedTo ? "Assigned" : "N/A"],
-      [
-        "Board Size",
-        `${store.recce?.sizes?.width || 0} ft  x  ${store.recce?.sizes?.height || 0} ft`,
-      ],
-      ["Status", "COMPLETED"],
+    // Store Details Section
+    slide.addShape("rect", { 
+      x: 0.5, y: 1.8, w: 9, h: 0.05, 
+      fill: { color: colors.primary } 
+    });
+
+    const detailsData = [
+      [{ text: "Dealer Code", options: { bold: true, fill: { color: colors.lightBg } } }, store.dealerCode || "", 
+       { text: "Store Name", options: { bold: true, fill: { color: colors.lightBg } } }, store.storeName || ""],
+      [{ text: "City", options: { bold: true, fill: { color: colors.lightBg } } }, store.location.city || "", 
+       { text: "State", options: { bold: true, fill: { color: colors.lightBg } } }, store.location.state || ""],
+      [{ text: "Address", options: { bold: true, fill: { color: colors.lightBg } } }, { text: store.location.address || "N/A", options: { colspan: 3 } }],
+      [{ text: "Board Size", options: { bold: true, fill: { color: colors.lightBg } } }, `${store.recce?.sizes?.width || 0} x ${store.recce?.sizes?.height || 0} ft`, 
+       { text: "Completion Date", options: { bold: true, fill: { color: colors.lightBg } } }, store.installation.submittedDate ? new Date(store.installation.submittedDate).toLocaleDateString() : "N/A"],
+      [{ text: "Status", options: { bold: true, fill: { color: colors.lightBg } } }, { text: "✓ COMPLETED", options: { colspan: 3, bold: true, color: colors.success } }]
     ];
 
-    const tableRows = rawData.map((row) => [
-      { text: row[0], options: { bold: true, fill: { color: "E8F5E9" } } },
-      { text: row[1] },
-    ]);
-
-    slide1.addTable(tableRows, {
-      x: 0.5,
-      y: 1.5,
-      w: 9,
-      colW: [2.5, 6.5],
-      border: { pt: 1, color: "A5D6A7" },
-      fontSize: 14,
-      rowH: 0.5,
+    slide.addTable(detailsData as any, {
+      x: 0.5, y: 2.0, w: 9, h: 1.5,
+      colW: [1.8, 2.4, 1.8, 3.0],
+      fontSize: 11,
+      border: { pt: 1, color: "CCCCCC" },
+      valign: "middle",
+      color: colors.text
     });
 
-    // --- SLIDE 2: PROOF OF EXECUTION ---
-    const slide2 = pres.addSlide();
-    slide2.addShape("rect", {
-      x: 0,
-      y: 0,
-      w: "100%",
-      h: 0.8,
-      fill: { color: "2E7D32" },
-    });
-    slide2.addText("Execution Proof (Before vs After)", {
-      x: 0.5,
-      y: 0.2,
-      fontSize: 20,
-      color: "FFFFFF",
-      bold: true,
+    // Before & After Section Title
+    slide.addText("BEFORE & AFTER COMPARISON", { 
+      x: 0.5, y: 3.7, w: 9, h: 0.4, 
+      fontSize: 16, bold: true, color: colors.secondary, align: "center"
     });
 
-    // Helper for adding images
-    const addImage = (
-      relativePath: string | undefined,
-      label: string,
-      x: number,
-      color: string,
-    ) => {
-      const y = 1.5;
-      const w = 3.0;
-      const h = 2.25;
-
+    // Images with Before/After Labels
+    const addImage = (relativePath: string | undefined, label: string, x: number, y: number, bgColor: string, labelColor: string) => {
       if (relativePath) {
         try {
           const absolutePath = path.join(process.cwd(), relativePath);
-
-          // 1. Add Image
-          slide2.addImage({ path: absolutePath, x, y, w, h });
-
-          // 2. Add Label (FIX: Added 'h: 0.5' to make text visible)
-          slide2.addText(label, {
-            x: x,
-            y: y + 2.3, // Position just below the image
-            w: w,
-            h: 0.5, // <--- THIS WAS MISSING
-            align: "center",
-            bold: true,
-            fontSize: 16,
-            color: color,
-          });
+          if (fs.existsSync(absolutePath)) {
+            slide.addImage({ path: absolutePath, x, y, w: 2.8, h: 2.1 });
+            slide.addShape("rect", { x, y: y + 2.15, w: 2.8, h: 0.35, fill: { color: bgColor } });
+            slide.addText(label, { x, y: y + 2.15, w: 2.8, h: 0.35, fontSize: 12, bold: true, align: "center", color: labelColor });
+          } else {
+            slide.addShape("rect", { x, y, w: 2.8, h: 2.1, line: { color: "CCCCCC", dashType: "dash" }, fill: { color: "F5F5F5" } });
+            slide.addText(`Image Not Found`, { x, y: y + 1, w: 2.8, fontSize: 10, align: "center", color: "999999" });
+          }
         } catch (err) {
-          slide2.addText("Image Error", {
-            x,
-            y: y + 1,
-            w,
-            h: 0.5, // Added height here too
-            align: "center",
-            color: "FF0000",
-          });
+          slide.addShape("rect", { x, y, w: 2.8, h: 2.1, line: { color: "FF0000" }, fill: { color: "FFE5E5" } });
+          slide.addText("Error Loading Image", { x, y: y + 1, w: 2.8, fontSize: 10, align: "center", color: "FF0000" });
         }
       } else {
-        // Placeholder if missing
-        slide2.addShape("rect", {
-          x,
-          y,
-          w,
-          h,
-          line: { color: "CCCCCC", dashType: "dash" },
-          fill: { color: "F5F5F5" },
-        });
-        slide2.addText(`No ${label}`, {
-          x,
-          y: y + 1,
-          w,
-          h: 0.5, // Added height here too
-          align: "center",
-          color: "999999",
-        });
+        slide.addShape("rect", { x, y, w: 2.8, h: 2.1, line: { color: "CCCCCC", dashType: "dash" }, fill: { color: "F5F5F5" } });
+        slide.addText(`No ${label}`, { x, y: y + 1, w: 2.8, fontSize: 10, align: "center", color: "999999" });
       }
     };
 
-    // 1. LEFT: Recce Front View -> "PRE" (Red Text)
-    // Hex 'D32F2F' is a nice professional Red
-    addImage(store.recce?.photos?.front, "PRE", 0.3, "D32F2F");
+    // BEFORE (Recce Front Photo)
+    addImage(store.recce?.photos?.front, "BEFORE", 0.8, 4.2, "EF4444", colors.white);
+    
+    // AFTER (Installation Photos)
+    addImage(store.installation.photos?.after1, "AFTER - VIEW 1", 3.8, 4.2, colors.success, colors.white);
+    addImage(store.installation.photos?.after2, "AFTER - VIEW 2", 6.8, 4.2, colors.success, colors.white);
 
-    // 2. MIDDLE: Install Photo 1 -> "POST" (Green Text)
-    // Hex '388E3C' is a nice professional Green
-    addImage(store.installation.photos?.after1, "POST", 3.5, "388E3C");
-
-    // 3. RIGHT: Install Photo 2 -> "POST" (Green Text)
-    addImage(store.installation.photos?.after2, "POST", 6.7, "388E3C");
-
-    // --- OUTPUT ---
     const buffer = await pres.write({ outputType: "nodebuffer" });
-
     res.writeHead(200, {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       "Content-Disposition": `attachment; filename="Installation_${store.dealerCode}.pptx"`,
     });
     res.end(buffer);
   } catch (error: any) {
     console.error("PPT Gen Error:", error);
-    if (!res.headersSent)
-      res.status(500).json({ message: "Error generating PPT" });
+    if (!res.headersSent) res.status(500).json({ message: "Error generating PPT" });
+  }
+};
+
+// --- NEW: Bulk PPT Generation ---
+export const generateBulkPPT = async (req: Request, res: Response) => {
+  try {
+    const { storeIds, type } = req.body; // type: "recce" or "installation"
+    
+    if (!storeIds || !Array.isArray(storeIds) || storeIds.length === 0) {
+      return res.status(400).json({ message: "No stores selected" });
+    }
+    
+    if (type !== "recce" && type !== "installation") {
+      return res.status(400).json({ message: "Invalid type" });
+    }
+
+    const stores = await Store.find({ _id: { $in: storeIds } });
+    
+    if (stores.length === 0) {
+      return res.status(404).json({ message: "No stores found" });
+    }
+
+    const JSZip = require("jszip");
+    const zip = new JSZip();
+    const colors = {
+      primary: "EAB308",
+      secondary: "000000",
+      success: "22C55E",
+      text: "1F2937",
+      lightBg: "FEF3C7",
+      white: "FFFFFF"
+    };
+
+    for (const store of stores) {
+      // Skip if data not available
+      if (type === "recce" && !store.recce) continue;
+      if (type === "installation" && !store.installation) continue;
+
+      const pres = new PptxGenJS();
+      pres.layout = "LAYOUT_WIDE";
+      pres.title = `${type === "recce" ? "Recce" : "Installation"} Report - ${store.storeName}`;
+
+      const slide = pres.addSlide();
+      slide.background = { color: colors.white };
+
+      // Add Logo
+      const logoPath = path.join(process.cwd(), "../elora-web/public/elora-logo-excel.png");
+      if (fs.existsSync(logoPath)) {
+        slide.addImage({ path: logoPath, x: 0.5, y: 0.3, w: 2, h: 0.6 });
+      }
+
+      // Header
+      slide.addText(type === "recce" ? "RECCE INSPECTION REPORT" : "INSTALLATION COMPLETION REPORT", { 
+        x: 0.5, y: 1.1, w: 9, h: 0.5, 
+        fontSize: 28, bold: true, color: type === "recce" ? colors.primary : colors.success, align: "center"
+      });
+
+      slide.addShape("rect", { x: 0.5, y: 1.8, w: 9, h: 0.05, fill: { color: colors.primary } });
+
+      // Details Table
+      const detailsData = type === "recce" ? [
+        [{ text: "Dealer Code", options: { bold: true, fill: { color: colors.lightBg } } }, store.dealerCode || "", 
+         { text: "Store Name", options: { bold: true, fill: { color: colors.lightBg } } }, store.storeName || ""],
+        [{ text: "City", options: { bold: true, fill: { color: colors.lightBg } } }, store.location.city || "", 
+         { text: "State", options: { bold: true, fill: { color: colors.lightBg } } }, store.location.state || ""],
+        [{ text: "Address", options: { bold: true, fill: { color: colors.lightBg } } }, { text: store.location.address || "N/A", options: { colspan: 3 } }],
+        [{ text: "Board Size", options: { bold: true, fill: { color: colors.lightBg } } }, `${store.recce?.sizes?.width || 0} x ${store.recce?.sizes?.height || 0} ft`, 
+         { text: "Recce Date", options: { bold: true, fill: { color: colors.lightBg } } }, store.recce?.submittedDate ? new Date(store.recce.submittedDate).toLocaleDateString() : "N/A"],
+        [{ text: "Notes", options: { bold: true, fill: { color: colors.lightBg } } }, { text: store.recce?.notes || "None", options: { colspan: 3 } }]
+      ] : [
+        [{ text: "Dealer Code", options: { bold: true, fill: { color: colors.lightBg } } }, store.dealerCode || "", 
+         { text: "Store Name", options: { bold: true, fill: { color: colors.lightBg } } }, store.storeName || ""],
+        [{ text: "City", options: { bold: true, fill: { color: colors.lightBg } } }, store.location.city || "", 
+         { text: "State", options: { bold: true, fill: { color: colors.lightBg } } }, store.location.state || ""],
+        [{ text: "Address", options: { bold: true, fill: { color: colors.lightBg } } }, { text: store.location.address || "N/A", options: { colspan: 3 } }],
+        [{ text: "Board Size", options: { bold: true, fill: { color: colors.lightBg } } }, `${store.recce?.sizes?.width || 0} x ${store.recce?.sizes?.height || 0} ft`, 
+         { text: "Completion Date", options: { bold: true, fill: { color: colors.lightBg } } }, store.installation?.submittedDate ? new Date(store.installation.submittedDate).toLocaleDateString() : "N/A"],
+        [{ text: "Status", options: { bold: true, fill: { color: colors.lightBg } } }, { text: "✓ COMPLETED", options: { colspan: 3, bold: true, color: colors.success } }]
+      ];
+
+      slide.addTable(detailsData as any, {
+        x: 0.5, y: 2.0, w: 9, h: 1.5,
+        colW: [1.8, 2.4, 1.8, 3.0],
+        fontSize: 11,
+        border: { pt: 1, color: "CCCCCC" },
+        valign: "middle",
+        color: colors.text
+      });
+
+      // Images Section
+      slide.addText(type === "recce" ? "SITE INSPECTION PHOTOS" : "BEFORE & AFTER COMPARISON", { 
+        x: 0.5, y: 3.7, w: 9, h: 0.4, 
+        fontSize: 16, bold: true, color: colors.secondary, align: "center"
+      });
+
+      const addImage = (relativePath: string | undefined, label: string, x: number, y: number, bgColor: string) => {
+        if (relativePath) {
+          try {
+            const absolutePath = path.join(process.cwd(), relativePath);
+            if (fs.existsSync(absolutePath)) {
+              slide.addImage({ path: absolutePath, x, y, w: 2.8, h: 2.1 });
+              slide.addShape("rect", { x, y: y + 2.15, w: 2.8, h: 0.35, fill: { color: bgColor } });
+              slide.addText(label, { x, y: y + 2.15, w: 2.8, h: 0.35, fontSize: 12, bold: true, align: "center", color: colors.white });
+            }
+          } catch (err) {}
+        }
+      };
+
+      if (type === "recce") {
+        addImage(store.recce?.photos?.front, "FRONT VIEW", 0.8, 4.2, colors.primary);
+        addImage(store.recce?.photos?.side, "SIDE VIEW", 3.8, 4.2, colors.primary);
+        addImage(store.recce?.photos?.closeUp, "CLOSE UP VIEW", 6.8, 4.2, colors.primary);
+      } else {
+        addImage(store.recce?.photos?.front, "BEFORE", 0.8, 4.2, "EF4444");
+        addImage(store.installation?.photos?.after1, "AFTER - VIEW 1", 3.8, 4.2, colors.success);
+        addImage(store.installation?.photos?.after2, "AFTER - VIEW 2", 6.8, 4.2, colors.success);
+      }
+
+      const buffer = await pres.write({ outputType: "nodebuffer" });
+      zip.file(`${type === "recce" ? "Recce" : "Installation"}_${store.dealerCode}.pptx`, buffer);
+    }
+
+    const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+    res.writeHead(200, {
+      "Content-Type": "application/zip",
+      "Content-Disposition": `attachment; filename="${type === "recce" ? "Recce" : "Installation"}_Reports_${new Date().toISOString().split('T')[0]}.zip"`,
+    });
+    res.end(zipBuffer);
+  } catch (error: any) {
+    console.error("Bulk PPT Error:", error);
+    if (!res.headersSent) res.status(500).json({ message: "Error generating bulk PPT" });
   }
 };
 
@@ -1362,3 +1400,4 @@ export const downloadStoreTemplate = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to generate template" });
   }
 };
+
