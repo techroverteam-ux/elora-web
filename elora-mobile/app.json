@@ -28,6 +28,8 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.elora.mobile",
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 34,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
