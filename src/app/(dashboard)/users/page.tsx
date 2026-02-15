@@ -557,37 +557,45 @@ export default function UsersPage() {
         title={editingUser ? "Edit User" : "Create New User"}
       >
         <form onSubmit={handleSubmit} className="space-y-5 mt-2">
-          {/* ROW 1: Name & Email */}
+          <style dangerouslySetInnerHTML={{
+            __html: `
+              input:-webkit-autofill,
+              input:-webkit-autofill:hover,
+              input:-webkit-autofill:focus {
+                -webkit-box-shadow: 0 0 0 1000px ${darkMode ? '#374151' : '#ffffff'} inset !important;
+                -webkit-text-fill-color: ${darkMode ? '#ffffff' : '#111827'} !important;
+                transition: background-color 5000s ease-in-out 0s;
+              }
+            `
+          }} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">Full Name</label>
-              <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all placeholder:text-gray-400 text-sm" />
+              <label className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Full Name</label>
+              <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"}`} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">Email Address</label>
-              <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all placeholder:text-gray-400 text-sm" />
+              <label className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Email Address</label>
+              <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"}`} />
             </div>
           </div>
-          {/* ROW 2: Password */}
           <div className="space-y-1.5">
             <div className="flex justify-between items-end">
-              <label className="text-sm font-semibold text-gray-700">Password</label>
-              {!editingUser && <span className="text-xs text-gray-400">Min 8 characters</span>}
+              <label className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Password</label>
+              {!editingUser && <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-400"}`}>Min 8 characters</span>}
             </div>
             <div className="relative">
-              <input type={showPassword ? "text" : "password"} required={!editingUser} value={formData.password} onChange={(e) => { setFormData({ ...formData, password: e.target.value }); checkStrength(e.target.value); }} className="w-full px-4 py-2.5 pr-10 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all placeholder:text-gray-400 text-sm" />
-               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none">
+              <input type={showPassword ? "text" : "password"} required={!editingUser} value={formData.password} onChange={(e) => { setFormData({ ...formData, password: e.target.value }); checkStrength(e.target.value); }} className={`w-full px-4 py-2.5 pr-10 rounded-lg border focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"}`} />
+               <button type="button" onClick={() => setShowPassword(!showPassword)} className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors focus:outline-none ${darkMode ? "text-gray-400 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"}`}>
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                </button>
             </div>
           </div>
-          {/* Create Role Selector... Logic is complex to inline, I'll assume I can just use a simple multi-select for now or similar to before */}
             <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-gray-700">Assign Roles</label>
+                <label className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Assign Roles</label>
                 <div className="flex flex-wrap gap-2 mb-2">
                     {formData.roles.map(rId => {
                         const r = roles.find(role => role._id === rId);
-                        return <span key={rId} className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded flex items-center gap-1">{r?.name} <X className="w-3 h-3 cursor-pointer" onClick={() => setFormData({...formData, roles: formData.roles.filter(id => id !== rId)})} /></span>
+                        return <span key={rId} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${darkMode ? "bg-yellow-500/20 text-yellow-400" : "bg-yellow-100 text-yellow-800"}`}>{r?.name} <X className="w-3 h-3 cursor-pointer" onClick={() => setFormData({...formData, roles: formData.roles.filter(id => id !== rId)})} /></span>
                     })}
                 </div>
                 <select 
@@ -596,15 +604,15 @@ export default function UsersPage() {
                             setFormData({...formData, roles: [...formData.roles, e.target.value]});
                         }
                     }}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all text-sm"
+                    className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                 >
                     <option value="">Select a role...</option>
                     {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
                 </select>
             </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">Cancel</button>
+          <div className={`flex justify-end gap-3 pt-4 border-t mt-6 ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
+            <button type="button" onClick={() => setIsModalOpen(false)} className={`px-5 py-2.5 text-sm font-semibold rounded-xl border transition-colors ${darkMode ? "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"}`}>Cancel</button>
             <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 text-sm font-bold text-white bg-yellow-500 rounded-xl hover:bg-yellow-600 transition-colors shadow-lg shadow-yellow-500/30 disabled:opacity-70 flex items-center gap-2">
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {editingUser ? "Update User" : "Create User"}
@@ -639,11 +647,11 @@ export default function UsersPage() {
                   Download Template
                 </button>
               </div>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors relative">
+              <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors relative ${darkMode ? "border-gray-600 hover:bg-gray-700" : "border-gray-300 hover:bg-gray-50"}`}>
                 <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                <Upload className="mx-auto h-10 w-10 text-gray-400 mb-2" />
-                <p className="text-sm font-medium text-gray-700">Drop files here or click to upload</p>
-                <p className="text-xs text-gray-500">Supports .xlsx, .xls</p>
+                <Upload className={`mx-auto h-10 w-10 mb-2 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
+                <p className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Drop files here or click to upload</p>
+                <p className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Supports .xlsx, .xls</p>
               </div>
               {selectedFiles.length > 0 && (
                 <div className="space-y-2">

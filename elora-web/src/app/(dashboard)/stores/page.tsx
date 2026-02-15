@@ -565,7 +565,7 @@ export default function StoresPage() {
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Zone/State</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>District/City</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Address</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>PO Details</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium whitespace-nowrap ${darkMode ? "text-gray-300" : "text-gray-700"}`}>PO Details</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Invoice</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Board Type</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dimensions</th>
@@ -612,9 +612,9 @@ export default function StoresPage() {
                         <td className="px-4 py-4">
                             <div className={`text-sm max-w-[200px] truncate ${darkMode ? "text-gray-200" : "text-gray-900"}`} title={store.location.address}>{store.location.address || "-"}</div>
                         </td>
-                        <td className="px-4 py-4">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.commercials?.poNumber || "-"}</div>
-                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.commercials?.poMonth || "-"}</div>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm max-w-[150px] truncate ${darkMode ? "text-gray-200" : "text-gray-900"}`} title={store.commercials?.poNumber}>{store.commercials?.poNumber || "-"}</div>
+                            <div className={`text-xs mt-1 max-w-[150px] truncate ${darkMode ? "text-gray-400" : "text-gray-600"}`} title={store.commercials?.poMonth}>{store.commercials?.poMonth || "-"}</div>
                         </td>
                         <td className="px-4 py-4">
                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.commercials?.invoiceNumber || "-"}</div>

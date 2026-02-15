@@ -678,11 +678,22 @@ export default function RolesPage() {
         title={editingRole ? "Edit Role" : "Create Role"}
       >
         <form onSubmit={handleSubmit} className="space-y-6">
+          <style dangerouslySetInnerHTML={{
+            __html: `
+              input:-webkit-autofill,
+              input:-webkit-autofill:hover,
+              input:-webkit-autofill:focus {
+                -webkit-box-shadow: 0 0 0 1000px ${darkMode ? '#374151' : '#ffffff'} inset !important;
+                -webkit-text-fill-color: ${darkMode ? '#ffffff' : '#111827'} !important;
+                transition: background-color 5000s ease-in-out 0s;
+              }
+            `
+          }} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
               placeholder="Role Name"
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 bg-white focus:ring-1 focus:ring-yellow-500 focus:outline-none"
+              className={`w-full rounded-md border px-3 py-2 focus:ring-1 focus:ring-yellow-500 focus:outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
@@ -693,10 +704,10 @@ export default function RolesPage() {
               placeholder="ROLE_CODE"
               required
               disabled={!!editingRole}
-              className={`w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none ${
+              className={`w-full rounded-md border px-3 py-2 focus:outline-none ${
                 editingRole
-                  ? "bg-gray-100 cursor-not-allowed"
-                  : "bg-white focus:ring-1 focus:ring-yellow-500"
+                  ? darkMode ? "bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed" : "bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed"
+                  : darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:ring-1 focus:ring-yellow-500" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500 focus:ring-1 focus:ring-yellow-500"
               }`}
               value={formData.code}
               onChange={(e) =>
@@ -708,34 +719,34 @@ export default function RolesPage() {
             />
           </div>
 
-          <div className="border border-gray-200 rounded-md overflow-hidden">
+          <div className={`border rounded-md overflow-hidden ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-100">
+              <thead className={darkMode ? "bg-gray-800" : "bg-gray-100"}>
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                  <th className={`px-4 py-3 text-left text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
                     Module
                   </th>
                   {["View", "Create", "Edit", "Delete"].map((h) => (
                     <th
                       key={h}
-                      className="px-4 py-3 text-center text-sm font-semibold text-gray-900 border-l border-gray-200"
+                      className={`px-4 py-3 text-center text-sm font-semibold border-l ${darkMode ? "text-gray-300 border-gray-700" : "text-gray-900 border-gray-200"}`}
                     >
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className={`divide-y ${darkMode ? "divide-gray-700 bg-gray-800" : "divide-gray-100 bg-white"}`}>
                 {MODULES.map((module) => (
-                  <tr key={module} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">
+                  <tr key={module} className={darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}>
+                    <td className={`px-4 py-3 text-sm font-medium capitalize ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
                       {module}
                     </td>
                     {(["view", "create", "edit", "delete"] as const).map(
                       (action) => (
                         <td
                           key={action}
-                          className="text-center border-l border-gray-50 py-2"
+                          className={`text-center border-l py-2 ${darkMode ? "border-gray-700" : "border-gray-50"}`}
                         >
                           <input
                             type="checkbox"
@@ -752,11 +763,11 @@ export default function RolesPage() {
             </table>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+          <div className={`flex justify-end gap-3 pt-2 border-t ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 font-medium"
+              className={`px-4 py-2 rounded-md font-medium ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
               Cancel
             </button>

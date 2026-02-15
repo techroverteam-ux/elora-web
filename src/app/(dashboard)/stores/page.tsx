@@ -633,14 +633,14 @@ export default function StoresPage() {
                             <div className={`text-xs mt-1 font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}>₹{store.costDetails?.totalBoardCost?.toLocaleString() || "0"}</div>
                         </td>
                         <td className="px-4 py-4">
-                            <div className={`text-xs space-y-0.5 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                                {store.costDetails?.angleCharges ? <div>Angle: ₹{store.costDetails.angleCharges}</div> : null}
-                                {store.costDetails?.scaffoldingCharges ? <div>Scaffold: ₹{store.costDetails.scaffoldingCharges}</div> : null}
-                                {store.costDetails?.transportation ? <div>Transport: ₹{store.costDetails.transportation}</div> : null}
-                                {store.costDetails?.flanges ? <div>Flanges: ₹{store.costDetails.flanges}</div> : null}
-                                {store.costDetails?.lollipop ? <div>Lollipop: ₹{store.costDetails.lollipop}</div> : null}
-                                {store.costDetails?.oneWayVision ? <div>One Way: ₹{store.costDetails.oneWayVision}</div> : null}
-                                {store.costDetails?.sunboard ? <div>Sunboard: ₹{store.costDetails.sunboard}</div> : null}
+                            <div className={`text-xs space-y-0.5 max-w-[150px] ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                                {store.costDetails?.angleCharges ? <div className="truncate" title={`Angle: ₹${store.costDetails.angleCharges}`}>Angle: ₹{store.costDetails.angleCharges}</div> : null}
+                                {store.costDetails?.scaffoldingCharges ? <div className="truncate" title={`Scaffold: ₹${store.costDetails.scaffoldingCharges}`}>Scaffold: ₹{store.costDetails.scaffoldingCharges}</div> : null}
+                                {store.costDetails?.transportation ? <div className="truncate" title={`Transport: ₹${store.costDetails.transportation}`}>Transport: ₹{store.costDetails.transportation}</div> : null}
+                                {store.costDetails?.flanges ? <div className="truncate" title={`Flanges: ₹${store.costDetails.flanges}`}>Flanges: ₹{store.costDetails.flanges}</div> : null}
+                                {store.costDetails?.lollipop ? <div className="truncate" title={`Lollipop: ₹${store.costDetails.lollipop}`}>Lollipop: ₹{store.costDetails.lollipop}</div> : null}
+                                {store.costDetails?.oneWayVision ? <div className="truncate" title={`One Way: ₹${store.costDetails.oneWayVision}`}>One Way: ₹{store.costDetails.oneWayVision}</div> : null}
+                                {store.costDetails?.sunboard ? <div className="truncate" title={`Sunboard: ₹${store.costDetails.sunboard}`}>Sunboard: ₹{store.costDetails.sunboard}</div> : null}
                                 {!store.costDetails?.angleCharges && !store.costDetails?.scaffoldingCharges && !store.costDetails?.transportation && !store.costDetails?.flanges && !store.costDetails?.lollipop && !store.costDetails?.oneWayVision && !store.costDetails?.sunboard ? <div>-</div> : null}
                             </div>
                         </td>

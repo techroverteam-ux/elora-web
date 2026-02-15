@@ -14,7 +14,15 @@ import {
   Award,
   MapPin,
   Activity,
-  Loader2
+  Loader2,
+  Filter,
+  Calendar,
+  User,
+  FileText,
+  Eye,
+  Download,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -23,6 +31,11 @@ export default function ReportsPage() {
   const { darkMode } = useTheme();
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" });
+  const [internalFilters, setInternalFilters] = useState({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" });
+  const [assignmentsPage, setAssignmentsPage] = useState(1);
+  const assignmentsPerPage = 10;
 
   const isAdmin = React.useMemo(() => {
     if (!user || !user.roles || !Array.isArray(user.roles)) return false;
@@ -35,10 +48,84 @@ export default function ReportsPage() {
     fetchAnalytics();
   }, []);
 
+  const applyFilters = () => {
+    setFilters(internalFilters);
+  };
+
+  const exportAssignments = async () => {
+    if (!analytics.assignments || analytics.assignments.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    
+    try {
+      // Dynamic import of xlsx
+      const XLSX = await import('xlsx');
+      
+      const data = analytics.assignments.map((a: any) => ({
+        'Store Name': a.storeName,
+        'Dealer Code': a.dealerCode,
+        'City': a.city,
+        'State': a.state,
+        'Assigned To': a.assignedTo,
+        'Role': a.role,
+        'Date': a.date ? new Date(a.date).toLocaleDateString() : '-',
+        'Status': a.status?.replace(/_/g, ' ')
+      }));
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+        { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 20 }
+      ];
+      
+      // Style header row
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_col(C) + '1';
+        if (!ws[address]) continue;
+        ws[address].s = {
+          fill: { fgColor: { rgb: "EAB308" } },
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          alignment: { horizontal: "center", vertical: "center" },
+          border: {
+            top: { style: "thin", color: { rgb: "000000" } },
+            bottom: { style: "thin", color: { rgb: "000000" } },
+            left: { style: "thin", color: { rgb: "000000" } },
+            right: { style: "thin", color: { rgb: "000000" } }
+          }
+        };
+      }
+      
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Assignments');
+      
+      const today = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Elora_Assignment_Details_${today}.xlsx`);
+      
+      toast.success("Exported successfully!");
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error("Export failed. Please try again.");
+    }
+  };
+
+  useEffect(() => {
+    if (filters.startDate || filters.endDate || filters.zone || filters.state || filters.city) {
+      fetchAnalytics();
+    }
+  }, [filters]);
+
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/analytics/dashboard");
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      const { data } = await api.get(`/analytics/dashboard?${params.toString()}`);
       setAnalytics(data.analytics);
     } catch (error) {
       toast.error("Failed to load analytics");
@@ -66,14 +153,80 @@ export default function ReportsPage() {
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className={`text-2xl font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-          <BarChart3 className="h-6 w-6 text-yellow-500" /> Analytics Dashboard
-        </h1>
-        <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-          {isAdmin ? "Complete project overview and insights" : "Your performance metrics and tasks"}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className={`text-2xl font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
+            <BarChart3 className="h-6 w-6 text-yellow-500" /> Reports
+          </h1>
+          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+            {isAdmin ? "Complete project overview and insights" : "Your performance metrics and tasks"}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+            darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"
+          }`}
+        >
+          <Filter className="w-4 h-4" />
+          Filters
+        </button>
       </div>
+
+      {/* Filters */}
+      {showFilters && (
+        <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <input
+              type="date"
+              placeholder="Start Date"
+              value={internalFilters.startDate}
+              onChange={(e) => setInternalFilters({ ...internalFilters, startDate: e.target.value })}
+              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-gray-50 border-gray-300 text-gray-900"}`}
+            />
+            <input
+              type="date"
+              placeholder="End Date"
+              value={internalFilters.endDate}
+              onChange={(e) => setInternalFilters({ ...internalFilters, endDate: e.target.value })}
+              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-gray-50 border-gray-300 text-gray-900"}`}
+            />
+            <input
+              type="text"
+              placeholder="Zone"
+              value={internalFilters.zone}
+              onChange={(e) => setInternalFilters({ ...internalFilters, zone: e.target.value })}
+              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500"}`}
+            />
+            <input
+              type="text"
+              placeholder="State"
+              value={internalFilters.state}
+              onChange={(e) => setInternalFilters({ ...internalFilters, state: e.target.value })}
+              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500"}`}
+            />
+            <input
+              type="text"
+              placeholder="City"
+              value={internalFilters.city}
+              onChange={(e) => setInternalFilters({ ...internalFilters, city: e.target.value })}
+              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500"}`}
+            />
+            <button
+              onClick={applyFilters}
+              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
+            >
+              Apply
+            </button>
+            <button
+              onClick={() => { setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" }); setInternalFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" }); }}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      )}
 
       {isAdmin ? (
         /* ADMIN DASHBOARD */
@@ -189,6 +342,108 @@ export default function ReportsPage() {
               </div>
             </div>
           </div>
+
+          {/* Detailed Assignment Tracking */}
+          <div className={`p-6 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
+                <FileText className="h-5 w-5 text-yellow-500" /> Recent Assignments
+              </h3>
+              <button
+                onClick={exportAssignments}
+                className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className={`text-xs uppercase ${darkMode ? "text-gray-400 bg-gray-700/50" : "text-gray-600 bg-gray-50"}`}>
+                  <tr>
+                    <th className="px-4 py-3 text-left">Store</th>
+                    <th className="px-4 py-3 text-left">Location</th>
+                    <th className="px-4 py-3 text-left">Assigned To</th>
+                    <th className="px-4 py-3 text-left">Role</th>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Action</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}>
+                  {analytics.assignments && analytics.assignments.length > 0 ? analytics.assignments.slice((assignmentsPage - 1) * assignmentsPerPage, assignmentsPage * assignmentsPerPage).map((assignment: any, idx: number) => (
+                    <tr key={idx} className={`cursor-pointer ${darkMode ? "hover:bg-gray-700/30" : "hover:bg-gray-50"}`}>
+                      <td className={`px-4 py-3 ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
+                        <div className="font-medium">{assignment.storeName}</div>
+                        <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{assignment.dealerCode}</div>
+                      </td>
+                      <td className={`px-4 py-3 ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
+                        <div>{assignment.city}</div>
+                        <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{assignment.state}</div>
+                      </td>
+                      <td className={`px-4 py-3 ${darkMode ? "text-gray-300" : "text-gray-900"}`}>{assignment.assignedTo}</td>
+                      <td className={`px-4 py-3`}>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${assignment.role === 'RECCE' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                          {assignment.role}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{assignment.date ? new Date(assignment.date).toLocaleDateString() : '-'}</td>
+                      <td className={`px-4 py-3`}>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                          assignment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                          assignment.status === 'SUBMITTED' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {assignment.status?.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => window.location.href = `/reports/${assignment.storeId}`}
+                          className={`p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600`}
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={7} className={`px-4 py-8 text-center ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        No assignments found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {analytics.assignments && analytics.assignments.length > assignmentsPerPage && (
+              <div className={`flex items-center justify-between mt-4 pt-4 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+                <div className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                  Showing {((assignmentsPage - 1) * assignmentsPerPage) + 1} to {Math.min(assignmentsPage * assignmentsPerPage, analytics.assignments.length)} of {analytics.assignments.length}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAssignmentsPage(p => Math.max(1, p - 1))}
+                    disabled={assignmentsPage === 1}
+                    className={`p-2 rounded ${darkMode ? "hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed" : "hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"}`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className={`px-3 py-2 text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    {assignmentsPage} / {Math.ceil(analytics.assignments.length / assignmentsPerPage)}
+                  </span>
+                  <button
+                    onClick={() => setAssignmentsPage(p => Math.min(Math.ceil(analytics.assignments.length / assignmentsPerPage), p + 1))}
+                    disabled={assignmentsPage === Math.ceil(analytics.assignments.length / assignmentsPerPage)}
+                    className={`p-2 rounded ${darkMode ? "hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed" : "hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"}`}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       ) : (
         /* USER DASHBOARD */
@@ -240,6 +495,38 @@ export default function ReportsPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* My Tasks Detail */}
+          <div className={`p-6 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
+              <FileText className="h-5 w-5 text-yellow-500" /> My Tasks
+            </h3>
+            <div className="space-y-3">
+              {analytics.myTasks && analytics.myTasks.length > 0 ? analytics.myTasks.map((task: any, idx: number) => (
+                <div key={idx} className={`p-4 rounded-lg border ${darkMode ? "bg-gray-700/30 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex-1">
+                      <h4 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>{task.storeName}</h4>
+                      <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{task.city}, {task.state}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                        task.status === 'SUBMITTED' ? 'bg-yellow-100 text-yellow-700' :
+                        task.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {task.status}
+                      </span>
+                      <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{new Date(task.assignedDate).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <p className={`text-center py-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No tasks assigned yet</p>
+              )}
             </div>
           </div>
         </>

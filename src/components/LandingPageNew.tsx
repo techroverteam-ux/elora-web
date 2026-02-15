@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { ArrowRight, CheckCircle, MapPin, Phone, Mail, MessageCircle, Sun, Moon, Loader2 } from 'lucide-react';
+import { ArrowRight, CheckCircle, MapPin, Phone, Mail, MessageCircle, Sun, Moon, Loader2, ChevronLeft, ChevronRight, Award, Shield, Zap, Users, IndianRupee, Palette } from 'lucide-react';
 import api from '@/src/lib/api';
 import { Store, StoreStatus } from '@/src/types/store';
 import toast from 'react-hot-toast';
@@ -12,6 +12,8 @@ const LandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [completedStores, setCompletedStores] = useState<Store[]>([]);
   const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const itemsPerSlide = 6;
   
   // Static portfolio data
   const staticPortfolio = [
@@ -62,8 +64,59 @@ const LandingPage = () => {
       beforeImage: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800',
       afterImage: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=800',
       description: 'Cozy cafe storefront with artistic signage'
+    },
+    {
+      id: '7',
+      storeName: 'Book Haven',
+      location: 'Khan Market, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800',
+      description: 'Bookstore exterior with elegant signage'
+    },
+    {
+      id: '8',
+      storeName: 'Jewelry Palace',
+      location: 'Lajpat Nagar, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=800',
+      description: 'Luxury jewelry store branding'
+    },
+    {
+      id: '9',
+      storeName: 'Organic Mart',
+      location: 'Green Park, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=800',
+      description: 'Organic grocery store branding'
+    },
+    {
+      id: '10',
+      storeName: 'Pet Paradise',
+      location: 'Vasant Vihar, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800',
+      description: 'Pet store with colorful branding'
+    },
+    {
+      id: '11',
+      storeName: 'Auto Parts Hub',
+      location: 'Mayur Vihar, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800',
+      description: 'Automotive parts store branding'
+    },
+    {
+      id: '12',
+      storeName: 'Beauty Salon',
+      location: 'Rajouri Garden, Delhi',
+      beforeImage: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800',
+      afterImage: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800',
+      description: 'Modern beauty salon exterior'
     }
   ];
+  
+  const portfolioData = completedStores.length > 0 ? completedStores : staticPortfolio;
+  const totalSlides = Math.ceil(portfolioData.length / itemsPerSlide);
   
   // Enquiry Form State
   const [enquiry, setEnquiry] = useState({
@@ -81,14 +134,23 @@ const LandingPage = () => {
     fetchPortfolio();
   }, []);
 
+  // Auto-advance carousel
+  useEffect(() => {
+    if (totalSlides <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % totalSlides);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [totalSlides]);
+
   const fetchPortfolio = async () => {
     try {
-      const { data } = await api.get('/stores');
+      const { data } = await api.get('/stores?status=COMPLETED&limit=20');
       const portfolio = data.stores.filter((s: Store) => 
         s.currentStatus === StoreStatus.COMPLETED &&
         s.recce?.photos?.front && 
         s.installation?.photos?.after1
-      ).slice(0, 6);
+      ).slice(0, 20);
       if (portfolio.length > 0) {
         setCompletedStores(portfolio);
       }
@@ -427,91 +489,115 @@ const LandingPage = () => {
       </section>
 
       {/* Gallery Section */}
-      <section id="gallery" className={`py-12 transition-colors duration-300 ${
+      <section id="gallery" className={`py-16 transition-colors duration-300 ${
         darkMode 
           ? 'bg-gradient-to-b from-purple-900/20 to-black' 
           : 'bg-gradient-to-b from-orange-50/20 to-gray-50'
       }`}>
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-tight">
+        <div className="max-w-6xl mx-auto px-6 sm:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mb-4 leading-tight">
               Real Work, Real Stores
             </h2>
-            <p className={`text-lg sm:text-xl font-medium ${
+            <p className={`text-lg font-medium ${
               darkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>See How We Transform Shops</p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {isLoadingPortfolio ? (
-                 <div className="col-span-3 flex justify-center py-20">
-                    <Loader2 className="w-10 h-10 animate-spin text-yellow-500" />
-                 </div>
-            ) : completedStores.length > 0 ? (
-                completedStores.map((store) => (
-              <div key={store._id} className="group relative overflow-hidden rounded-2xl aspect-square border border-gray-100 shadow-sm">
-                <div className="absolute inset-0 transition-opacity duration-700 ease-in-out group-hover:opacity-0">
-                    <img 
-                      src={`http://localhost:5000${store.installation?.photos?.after1?.replace(/\\/g, '/')}`} 
-                      alt={`After - ${store.storeName}`}
-                      className="w-full h-full object-cover"
-                    />
-                     <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
-                        AFTER
-                      </div>
-                </div>
-                
-                 <div className="absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out group-hover:opacity-100">
-                    <img 
-                      src={`http://localhost:5000${store.recce?.photos?.front?.replace(/\\/g, '/')}`} 
-                      alt={`Before - ${store.storeName}`}
-                      className="w-full h-full object-cover"
-                    />
-                      <div className="absolute top-4 right-4 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
-                        BEFORE
-                      </div>
-                </div>
+          {isLoadingPortfolio ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="w-10 h-10 animate-spin text-yellow-500" />
+            </div>
+          ) : (
+            <div className="relative px-12">
+              <div className="overflow-hidden">
+                <div 
+                  className="flex transition-transform duration-700 ease-in-out"
+                  style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+                >
+                  {Array.from({ length: totalSlides }).map((_, slideIdx) => (
+                    <div key={slideIdx} className="w-full flex-shrink-0">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        {portfolioData.slice(slideIdx * itemsPerSlide, (slideIdx + 1) * itemsPerSlide).map((item) => {
+                          const isRealStore = 'dealerCode' in item;
+                          return (
+                            <div key={isRealStore ? item._id : item.id} className="group relative overflow-hidden rounded-xl aspect-square border border-gray-200 shadow-md">
+                              <div className="absolute inset-0 transition-opacity duration-700 ease-in-out group-hover:opacity-0">
+                                <img 
+                                  src={isRealStore ? `http://localhost:5000${item.installation?.photos?.after1?.replace(/\\/g, '/')}` : item.afterImage}
+                                  alt={`After - ${item.storeName}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute top-3 right-3 bg-green-500 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-md">
+                                  AFTER
+                                </div>
+                              </div>
+                              
+                              <div className="absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out group-hover:opacity-100">
+                                <img 
+                                  src={isRealStore ? `http://localhost:5000${item.recce?.photos?.front?.replace(/\\/g, '/')}` : item.beforeImage}
+                                  alt={`Before - ${item.storeName}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute top-3 right-3 bg-orange-500 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-md">
+                                  BEFORE
+                                </div>
+                              </div>
 
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 translate-y-2 group-hover:translate-y-0 transition-transform">
-                  <h3 className="text-white font-bold text-lg">{store.storeName}</h3>
-                  <p className="text-gray-300 text-sm">{store.location.city}, {store.location.state}</p>
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 translate-y-2 group-hover:translate-y-0 transition-transform">
+                                <h3 className="text-white font-bold text-base">{item.storeName}</h3>
+                                <p className="text-gray-300 text-sm">
+                                  {isRealStore ? `${item.location.city}, ${item.location.state}` : item.location}
+                                </p>
+                                {!isRealStore && <p className="text-gray-400 text-xs mt-1">{item.description}</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))
-            ) : (
-                staticPortfolio.map((project) => (
-              <div key={project.id} className="group relative overflow-hidden rounded-2xl aspect-square border border-gray-100 shadow-sm">
-                <div className="absolute inset-0 transition-opacity duration-700 ease-in-out group-hover:opacity-0">
-                    <img 
-                      src={project.afterImage} 
-                      alt={`After - ${project.storeName}`}
-                      className="w-full h-full object-cover"
-                    />
-                     <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
-                        AFTER
-                      </div>
-                </div>
-                
-                 <div className="absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out group-hover:opacity-100">
-                    <img 
-                      src={project.beforeImage} 
-                      alt={`Before - ${project.storeName}`}
-                      className="w-full h-full object-cover"
-                    />
-                      <div className="absolute top-4 right-4 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
-                        BEFORE
-                      </div>
-                </div>
-
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 translate-y-2 group-hover:translate-y-0 transition-transform">
-                  <h3 className="text-white font-bold text-lg">{project.storeName}</h3>
-                  <p className="text-gray-300 text-sm">{project.location}</p>
-                  <p className="text-gray-400 text-xs mt-1">{project.description}</p>
-                </div>
-              </div>
-            ))
-            )}
-          </div>
+              
+              {/* Carousel Navigation */}
+              {totalSlides > 1 && (
+                <>
+                  <button
+                    onClick={() => setCurrentSlide(prev => (prev - 1 + totalSlides) % totalSlides)}
+                    className={`absolute left-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full shadow-xl transition-all ${
+                      darkMode ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-white hover:bg-gray-100 text-gray-900'
+                    } z-10`}
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentSlide(prev => (prev + 1) % totalSlides)}
+                    className={`absolute right-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full shadow-xl transition-all ${
+                      darkMode ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-white hover:bg-gray-100 text-gray-900'
+                    } z-10`}
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                  
+                  {/* Dots Indicator */}
+                  <div className="flex justify-center gap-2 mt-8">
+                    {Array.from({ length: totalSlides }).map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setCurrentSlide(idx)}
+                        className={`h-2 rounded-full transition-all ${
+                          currentSlide === idx 
+                            ? 'bg-yellow-500 w-8' 
+                            : darkMode ? 'bg-gray-600 hover:bg-gray-500 w-2' : 'bg-gray-300 hover:bg-gray-400 w-2'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -529,19 +615,21 @@ const LandingPage = () => {
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { title: "High-quality durable materials", icon: "🏆" },
-              { title: "Weather-resistant printing", icon: "☔" },
-              { title: "Fast turnaround time", icon: "⚡" },
-              { title: "On-site installation experts", icon: "👷" },
-              { title: "Affordable packages for small & large businesses", icon: "💰" },
-              { title: "Professional design consultation", icon: "🎨" }
+              { title: "High-quality durable materials", icon: Award },
+              { title: "Weather-resistant printing", icon: Shield },
+              { title: "Fast turnaround time", icon: Zap },
+              { title: "On-site installation experts", icon: Users },
+              { title: "Affordable packages for small & large businesses", icon: IndianRupee },
+              { title: "Professional design consultation", icon: Palette }
             ].map((benefit, index) => (
               <div key={index} className={`flex items-start gap-4 p-6 rounded-xl border transition-all hover:scale-105 hover:shadow-lg ${
                 darkMode 
                   ? 'bg-gradient-to-br from-purple-900/40 to-purple-900/20 border-purple-700/50 hover:border-yellow-500/50' 
                   : 'bg-gradient-to-br from-orange-50 to-yellow-50 border-gray-200 hover:border-yellow-500'
               }`}>
-                <span className="text-3xl">{benefit.icon}</span>
+                <div className="flex-shrink-0">
+                  <benefit.icon className="w-8 h-8 text-yellow-500" />
+                </div>
                 <div>
                   <span className="text-base sm:text-lg font-semibold">{benefit.title}</span>
                 </div>

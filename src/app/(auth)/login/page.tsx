@@ -80,18 +80,32 @@ export default function LoginPage() {
   };
 
   return (
-    // UPDATED: Changed 'min-h-screen' to 'h-screen w-full overflow-hidden' to prevent scrolling
-    <div
-      className={`h-screen w-full overflow-hidden flex transition-colors duration-300 ${
-        darkMode ? "bg-black" : "bg-white"
-      }`}
-    >
+    <div className={`h-screen w-full overflow-hidden flex transition-colors duration-300 ${
+      darkMode ? "bg-gray-900" : "bg-white"
+    }`}>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          input:-webkit-autofill,
+          input:-webkit-autofill:hover,
+          input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 1000px ${darkMode ? '#374151' : '#f9fafb'} inset !important;
+            -webkit-text-fill-color: ${darkMode ? '#ffffff' : '#111827'} !important;
+            transition: background-color 5000s ease-in-out 0s;
+          }
+        `
+      }} />
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-500 relative overflow-hidden h-full">
-        <div className="absolute inset-0 bg-black/10"></div>
+      <div className={`hidden lg:flex lg:w-1/2 relative overflow-hidden h-full transition-all duration-300 ${
+        darkMode 
+          ? "bg-gray-900" 
+          : "bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-500"
+      }`}>
+        <div className={`absolute inset-0 ${
+          darkMode ? "bg-gradient-to-br from-gray-800/50 via-gray-900/50 to-black/50" : "bg-black/10"
+        }`}></div>
         <div className="relative z-10 flex flex-col justify-center items-center text-white p-12 h-full">
           <Image
-            src="/logo-dark.svg"
+            src={darkMode ? "/logo.svg" : "/logo-dark.svg"}
             alt="Logo"
             width={300}
             height={150}
@@ -118,13 +132,14 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side - Login Form */}
-      {/* Added h-full to ensure it takes full height of the container */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50 h-full">
+      <div className={`w-full lg:w-1/2 flex items-center justify-center p-8 h-full transition-colors duration-300 ${
+        darkMode ? "bg-gray-900" : "bg-gray-50"
+      }`}>
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <Image
-              src="/logo-dark.svg"
+              src={darkMode ? "/logo.svg" : "/logo-dark.svg"}
               alt="Logo"
               width={180}
               height={90}
@@ -133,19 +148,35 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="bg-white rounded-3xl shadow-2xl p-8">
+          <div className={`rounded-3xl p-8 transition-all duration-300 ${
+            darkMode 
+              ? "bg-gray-800/50 border border-gray-700/50 shadow-xl" 
+              : "bg-white shadow-2xl"
+          }`}>
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              <h2 className={`text-3xl font-bold mb-2 ${
+                darkMode ? "text-white" : "text-gray-900"
+              }`}>
                 Welcome Back
               </h2>
-              <p className="text-gray-600">Sign in to your admin dashboard</p>
+              <p className={darkMode ? "text-gray-400" : "text-gray-600"}>
+                Sign in to your admin dashboard
+              </p>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-                <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-700">{error}</p>
+              <div className={`mb-6 flex items-start gap-3 rounded-xl border p-4 ${
+                darkMode 
+                  ? "border-red-900/50 bg-red-950/30 text-red-400" 
+                  : "border-red-200 bg-red-50"
+              }`}>
+                <AlertCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
+                  darkMode ? "text-red-400" : "text-red-500"
+                }`} />
+                <p className={`text-sm ${
+                  darkMode ? "text-red-400" : "text-red-700"
+                }`}>{error}</p>
               </div>
             )}
 
@@ -153,7 +184,9 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Email */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className={`block text-sm font-semibold mb-2 ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                }`}>
                   Email Address
                 </label>
                 <div className="relative">
@@ -164,14 +197,20 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 pl-12 pr-4 py-4 text-gray-900 placeholder:text-gray-500 focus:border-yellow-500 focus:bg-white focus:outline-none transition-all"
+                    className={`w-full rounded-xl border-2 pl-12 pr-4 py-4 focus:border-yellow-500 focus:outline-none transition-all ${
+                      darkMode
+                        ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:bg-gray-600"
+                        : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:bg-white"
+                    }`}
                   />
                 </div>
               </div>
 
               {/* Password */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className={`block text-sm font-semibold mb-2 ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                }`}>
                   Password
                 </label>
                 <div className="relative">
@@ -182,13 +221,19 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 pl-12 pr-12 py-4 text-gray-900 placeholder:text-gray-500 focus:border-yellow-500 focus:bg-white focus:outline-none transition-all"
+                    className={`w-full rounded-xl border-2 pl-12 pr-12 py-4 focus:border-yellow-500 focus:outline-none transition-all ${
+                      darkMode
+                        ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:bg-gray-600"
+                        : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:bg-white"
+                    }`}
                   />
                   {/* Toggle Password Visibility */}
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    className={`absolute right-4 top-1/2 -translate-y-1/2 focus:outline-none ${
+                      darkMode ? "text-gray-400 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"
+                    }`}
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -201,19 +246,27 @@ export default function LoginPage() {
 
               {/* Captcha Section */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className={`block text-sm font-semibold mb-2 ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                }`}>
                   Security Check
                 </label>
                 <div className="flex gap-3">
                   {/* Captcha Display */}
-                  <div className="flex-1 bg-gray-100 border-2 border-gray-200 rounded-xl flex items-center justify-between px-4 select-none">
-                    <span className="text-xl font-mono font-bold tracking-widest text-gray-600 line-through decoration-yellow-500/50 decoration-2">
+                  <div className={`flex-1 border-2 rounded-xl flex items-center justify-between px-4 select-none ${
+                    darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-200"
+                  }`}>
+                    <span className={`text-xl font-mono font-bold tracking-widest line-through decoration-yellow-500/50 decoration-2 ${
+                      darkMode ? "text-gray-300" : "text-gray-600"
+                    }`}>
                       {captchaCode}
                     </span>
                     <button
                       type="button"
                       onClick={generateCaptcha}
-                      className="p-1 hover:bg-gray-200 rounded-full transition-colors text-gray-500"
+                      className={`p-1 rounded-full transition-colors ${
+                        darkMode ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-200 text-gray-500"
+                      }`}
                       title="Refresh Captcha"
                     >
                       <RefreshCw className="h-4 w-4" />
@@ -228,7 +281,11 @@ export default function LoginPage() {
                       value={userCaptcha}
                       onChange={handleCaptchaChange}
                       placeholder="ENTER CODE"
-                      className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3.5 text-center font-bold tracking-widest text-gray-900 placeholder:text-gray-400 placeholder:font-normal placeholder:tracking-normal focus:border-yellow-500 focus:bg-white focus:outline-none transition-all"
+                      className={`w-full rounded-xl border-2 px-4 py-3.5 text-center font-bold tracking-widest placeholder:font-normal placeholder:tracking-normal focus:border-yellow-500 focus:outline-none transition-all ${
+                        darkMode
+                          ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:bg-gray-600"
+                          : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:bg-white"
+                      }`}
                       maxLength={6}
                     />
                   </div>
@@ -248,7 +305,9 @@ export default function LoginPage() {
 
             {/* Footer */}
             <div className="mt-8 text-center">
-              <p className="text-sm text-gray-500">
+              <p className={`text-sm ${
+                darkMode ? "text-gray-400" : "text-gray-500"
+              }`}>
                 Secure admin access • Protected by encryption
               </p>
             </div>

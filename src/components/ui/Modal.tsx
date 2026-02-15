@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { X } from "lucide-react";
+import { useTheme } from "@/src/context/ThemeContext";
 
 interface ModalProps {
   isOpen: boolean;
@@ -9,6 +10,8 @@ interface ModalProps {
 }
 
 const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+  const { darkMode } = useTheme();
+  
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -23,19 +26,27 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   if (!isOpen) return null;
 
   return (
-    // FIX: Changed 'bg-gray-900' or similar to 'bg-black/50 backdrop-blur-sm'
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all">
-      {/* Container - added onClick.stopPropagation to prevent closing when clicking inside */}
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-4xl transform transition-all flex flex-col max-h-[90vh]"
+        className={`rounded-lg shadow-xl w-full max-w-4xl transform transition-all flex flex-col max-h-[90vh] ${
+          darkMode ? "bg-gray-800" : "bg-white"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+        <div className={`flex items-center justify-between px-6 py-4 border-b ${
+          darkMode ? "border-gray-700" : "border-gray-100"
+        }`}>
+          <h3 className={`text-lg font-bold ${
+            darkMode ? "text-white" : "text-gray-900"
+          }`}>{title}</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500 transition-colors p-1 hover:bg-gray-100 rounded-full"
+            className={`transition-colors p-1 rounded-full ${
+              darkMode 
+                ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700" 
+                : "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+            }`}
           >
             <X className="h-5 w-5" />
           </button>

@@ -14,7 +14,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchStats();
-  }, [filters]);
+  }, []);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -30,6 +30,30 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const [internalDates, setInternalDates] = useState({ startDate: "", endDate: "" });
+
+  const formatDateToDisplay = (dateStr: string) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
+    setInternalDates({ ...internalDates, [field]: value });
+    if (value) {
+      setFilters({ ...filters, [field]: formatDateToDisplay(value) });
+    } else {
+      setFilters({ ...filters, [field]: "" });
+    }
+  };
+
+  const applyFilters = () => {
+    fetchStats();
   };
 
   if (loading) {
@@ -51,7 +75,7 @@ export default function DashboardPage() {
         <button
           onClick={() => setShowFilters(!showFilters)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
-            darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50" : "bg-white border-gray-200 hover:bg-gray-50"
+            darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"
           }`}
         >
           <Filter className="w-4 h-4" />
@@ -62,38 +86,72 @@ export default function DashboardPage() {
       {/* Filters */}
       {showFilters && (
         <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"}`}
-            />
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"}`}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div className="relative">
+              <input
+                type="date"
+                value={internalDates.startDate}
+                onChange={(e) => handleDateChange('startDate', e.target.value)}
+                className={`px-3 py-2 rounded-lg border w-full ${filters.startDate ? 'opacity-0' : ''} ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                style={{ colorScheme: darkMode ? 'dark' : 'light' }}
+              />
+              {filters.startDate && (
+                <div className={`absolute inset-0 px-3 py-2 rounded-lg border flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                  onClick={() => document.querySelector<HTMLInputElement>('input[type="date"]')?.showPicker?.()}>
+                  <span className="text-sm font-medium">{filters.startDate}</span>
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                type="date"
+                value={internalDates.endDate}
+                onChange={(e) => handleDateChange('endDate', e.target.value)}
+                className={`px-3 py-2 rounded-lg border w-full ${filters.endDate ? 'opacity-0' : ''} ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                style={{ colorScheme: darkMode ? 'dark' : 'light' }}
+              />
+              {filters.endDate && (
+                <div className={`absolute inset-0 px-3 py-2 rounded-lg border flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                  onClick={() => document.querySelectorAll<HTMLInputElement>('input[type="date"]')[1]?.showPicker?.()}>
+                  <span className="text-sm font-medium">{filters.endDate}</span>
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              )}
+            </div>
             <input
               type="text"
               placeholder="Zone"
               value={filters.zone}
               onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"}`}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
             />
             <input
               type="text"
               placeholder="State"
               value={filters.state}
               onChange={(e) => setFilters({ ...filters, state: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"}`}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
             />
             <button
-              onClick={() => setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "" })}
+              onClick={() => {
+                setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "" });
+                setInternalDates({ startDate: "", endDate: "" });
+                fetchStats();
+              }}
               className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold"
             >
               Reset
+            </button>
+            <button
+              onClick={applyFilters}
+              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
+            >
+              Apply
             </button>
           </div>
         </div>
