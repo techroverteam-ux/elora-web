@@ -509,14 +509,14 @@ const LandingPage = () => {
               <Loader2 className="w-10 h-10 animate-spin text-yellow-500" />
             </div>
           ) : (
-            <div className="relative px-12">
+            <div className="relative px-0 sm:px-8 md:px-12">
               <div className="overflow-hidden">
                 <div 
                   className="flex transition-transform duration-700 ease-in-out"
                   style={{ transform: `translateX(-${currentSlide * 100}%)` }}
                 >
                   {Array.from({ length: totalSlides }).map((_, slideIdx) => (
-                    <div key={slideIdx} className="w-full flex-shrink-0">
+                    <div key={slideIdx} className="w-full flex-shrink-0 px-4 sm:px-0">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         {portfolioData.slice(slideIdx * itemsPerSlide, (slideIdx + 1) * itemsPerSlide).map((item) => {
                           const isRealStore = 'dealerCode' in item;
@@ -565,7 +565,7 @@ const LandingPage = () => {
                 <>
                   <button
                     onClick={() => setCurrentSlide(prev => (prev - 1 + totalSlides) % totalSlides)}
-                    className={`absolute left-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full shadow-xl transition-all ${
+                    className={`hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full shadow-xl transition-all items-center justify-center ${
                       darkMode ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-white hover:bg-gray-100 text-gray-900'
                     } z-10`}
                   >
@@ -573,7 +573,7 @@ const LandingPage = () => {
                   </button>
                   <button
                     onClick={() => setCurrentSlide(prev => (prev + 1) % totalSlides)}
-                    className={`absolute right-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full shadow-xl transition-all ${
+                    className={`hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full shadow-xl transition-all items-center justify-center ${
                       darkMode ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-white hover:bg-gray-100 text-gray-900'
                     } z-10`}
                   >
