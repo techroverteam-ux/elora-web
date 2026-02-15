@@ -252,7 +252,7 @@ const LandingPage = () => {
                 className=""
               />
             </div>
-            <div className="hidden md:flex space-x-8 items-center">
+            <div className="hidden md:flex space-x-6 items-center">
               <a href="#services" className="hover:text-yellow-500 transition-colors">Services</a>
               <a href="#process" className="hover:text-yellow-500 transition-colors">Process</a>
               <a href="#gallery" className="hover:text-yellow-500 transition-colors">Gallery</a>
@@ -267,13 +267,21 @@ const LandingPage = () => {
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
             </div>
-            <div className="flex items-center gap-3">
-              <a href="#contact" className="hidden sm:block bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-full font-semibold transition-all hover:shadow-lg text-sm">
-                Get Quote
+            <div className="md:hidden flex items-center gap-2">
+              <button
+                onClick={toggleDarkMode}
+                className={`p-2 rounded-full transition-colors ${
+                  darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                }`}
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+              <a href="/login" className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-full font-semibold transition-all text-sm">
+                Login
               </a>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg"
+                className="p-2 rounded-lg"
               >
                 <div className="w-6 h-6 flex flex-col justify-center items-center">
                   <span className={`block w-5 h-0.5 bg-current transition-all ${
@@ -327,30 +335,13 @@ const LandingPage = () => {
               >
                 Contact
               </a>
-              <div className="flex items-center justify-between pt-2">
-                <a 
-                  href="/login" 
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2.5 rounded-full font-semibold transition-all"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Login
-                </a>
-                <a 
-                  href="#contact" 
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2.5 rounded-full font-semibold transition-all"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Get Quote
-                </a>
-                <button
-                  onClick={toggleDarkMode}
-                  className={`p-2 rounded-full transition-colors ${
-                    darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                  }`}
-                >
-                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-              </div>
+              <a 
+                href="#contact" 
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2.5 rounded-full font-semibold transition-all text-center mt-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Get Quote
+              </a>
             </div>
           </div>
         </div>
