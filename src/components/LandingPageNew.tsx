@@ -216,8 +216,13 @@ const LandingPage = () => {
         service: 'Select Service',
         message: ''
       });
-    } catch (error) {
-      toast.error("Failed to send message. Try again.");
+    } catch (error: any) {
+      console.error('Enquiry submission error:', error);
+      const errorMsg = error?.response?.data?.error?.message 
+        || error?.response?.data?.message 
+        || error?.message 
+        || 'Network error';
+      toast.error(`Failed: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
     }
