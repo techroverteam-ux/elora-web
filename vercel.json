@@ -1,23 +1,11 @@
 {
-  "version": 2,
-  "builds": [
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "rewrites": [
     {
-      "src": "elora-web/package.json",
-      "use": "@vercel/next"
-    },
-    {
-      "src": "elora-api/api/index.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/v1/(.*)",
-      "dest": "elora-api/api/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "elora-web/$1"
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     }
   ]
 }

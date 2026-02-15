@@ -1,21 +1,32 @@
 {
-  "name": "elora-crafting-arts",
-  "version": "1.0.0",
-  "description": "Elora Crafting Arts - Full Stack Application",
+  "name": "elora-web",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "start": "concurrently \"npm run api\" \"npm run web\"",
-    "api": "cd elora-api && npm run dev",
-    "web": "cd elora-web && npm run dev",
-    "mobile": "cd elora-mobile && npm start",
-    "install-all": "cd elora-api && npm install && cd ../elora-web && npm install && cd ../elora-mobile && npm install",
-    "build-api": "cd elora-api && npm install && npm run build",
-    "build-web": "cd elora-web && npm install && npm run build",
-    "build-mobile": "cd elora-mobile && npm install && npx expo build",
-    "build-all": "npm run build-api && npm run build-web && npm run build-mobile",
-    "dev-all": "concurrently \"npm run api\" \"npm run web\" \"npm run mobile\"",
-    "vercel-build": "cd elora-web && npm install && npm run build"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "axios": "^1.13.4",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.563.0",
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-hot-toast": "^2.6.0",
+    "tailwind-merge": "^3.4.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
