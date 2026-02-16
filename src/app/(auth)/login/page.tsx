@@ -66,12 +66,7 @@ export default function LoginPage() {
 
     try {
       const response = await api.post("/auth/login", { email, password });
-      console.log("Login response:", response.data);
-      console.log("All cookies:", document.cookie);
-      
-      // Small delay to ensure cookies are set
-      await new Promise(resolve => setTimeout(resolve, 100));
-      console.log("Cookies after delay:", document.cookie);
+      console.log("Login successful! User:", response.data.user);
       
       // Call login function which will fetch user data and redirect
       await login();

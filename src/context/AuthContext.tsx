@@ -24,21 +24,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Function to check if user is logged in
   const checkAuth = async () => {
     try {
-      // Check if session_id cookie exists
-      const sessionId = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("session_id="))
-        ?.split("=")[1];
-
-      console.log("Session ID:", sessionId);
-
-      if (!sessionId) {
-        console.log("No session ID found");
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-
       // Calls the /me endpoint
       console.log("Calling /auth/me endpoint...");
       const { data } = await api.get("/auth/me");
@@ -46,7 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(data);
     } catch (error: any) {
       // If error (401), user is not logged in
-      console.error("Auth check failed:", error.response?.status, error.response?.data);
+      console.log("Auth check failed - user not authenticated");
       setUser(null);
     } finally {
       setIsLoading(false);
