@@ -61,19 +61,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Login function (Called after successful API login)
   const login = async () => {
     try {
-      // Check if session_id cookie exists
-      const sessionId = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("session_id="))
-        ?.split("=")[1];
-
-      if (!sessionId) {
-        console.error("No session ID found after login");
-        return;
-      }
-
-      // Fetch user data
+      // Directly fetch user data without checking session cookie
+      console.log("Fetching user data after login...");
       const { data } = await api.get("/auth/me");
+      console.log("User data received:", data);
       setUser(data);
       
       // Redirect to dashboard

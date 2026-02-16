@@ -67,14 +67,13 @@ export default function LoginPage() {
     try {
       const response = await api.post("/auth/login", { email, password });
       console.log("Login response:", response.data);
+      console.log("All cookies:", document.cookie);
       
-      // Check if cookies were set
-      const sessionId = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("session_id="))
-        ?.split("=")[1];
-      console.log("Session ID after login:", sessionId);
+      // Small delay to ensure cookies are set
+      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log("Cookies after delay:", document.cookie);
       
+      // Call login function which will fetch user data and redirect
       await login();
     } catch (err: any) {
       if (err?.response?.data?.message) {
