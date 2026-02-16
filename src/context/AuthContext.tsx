@@ -30,17 +30,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .find((row) => row.startsWith("session_id="))
         ?.split("=")[1];
 
+      console.log("Session ID:", sessionId);
+
       if (!sessionId) {
+        console.log("No session ID found");
         setUser(null);
         setIsLoading(false);
         return;
       }
 
       // Calls the /me endpoint
+      console.log("Calling /auth/me endpoint...");
       const { data } = await api.get("/auth/me");
+      console.log("User data received:", data);
       setUser(data);
-    } catch (error) {
+    } catch (error: any) {
       // If error (401), user is not logged in
+      console.error("Auth check failed:", error.response?.status, error.response?.data);
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -54,8 +60,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Login function (Called after successful API login)
   const login = async () => {
-    await checkAuth(); // Wait for user data
-    router.push("/dashboard"); // Then redirect to dashboard
+    try {
+      // Check if session_id cookie exists
+      const sessionId = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("session_id="))
+        ?.split("=")[1];
+
+      if (!sessionId) {
+        console.error("No session ID found after login");
+        return;
+      }
+
+      // Fetch user data
+      const { data } = await api.get("/auth/me");
+      setUser(data);
+      
+      // Redirect to dashboard
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Login verification failed:", error);
+      setUser(null);
+    }
   };
 
   // Logout function

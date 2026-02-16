@@ -65,7 +65,16 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await api.post("/auth/login", { email, password });
+      const response = await api.post("/auth/login", { email, password });
+      console.log("Login response:", response.data);
+      
+      // Check if cookies were set
+      const sessionId = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("session_id="))
+        ?.split("=")[1];
+      console.log("Session ID after login:", sessionId);
+      
       await login();
     } catch (err: any) {
       if (err?.response?.data?.message) {
