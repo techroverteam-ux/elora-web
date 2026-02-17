@@ -674,11 +674,11 @@ export default function StoresPage() {
                         <td className="px-4 py-4">
                             <div className="space-y-1.5">
                                 {store.workflow.recceAssignedTo ? (
-                                    <div className="flex items-center gap-1.5 text-xs group" title="Recce Assigned">
+                                    <div className="flex items-center gap-1.5 text-xs" title="Recce Assigned">
                                          <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">R</div>
                                          <span className={`truncate max-w-[100px] ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{(store.workflow.recceAssignedTo as any).name}</span>
                                          {!isRecceOrInstallUser && (
-                                           <button onClick={() => handleUnassign(store._id, "RECCE")} className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700" title="Unassign Recce">
+                                           <button onClick={() => handleUnassign(store._id, "RECCE")} className="text-red-500 hover:text-red-700" title="Unassign Recce">
                                              <X className="w-3 h-3" />
                                            </button>
                                          )}
@@ -686,11 +686,11 @@ export default function StoresPage() {
                                 ) : <div className={`text-xs italic ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Unassigned</div>}
                                 
                                 {store.workflow.installationAssignedTo && (
-                                     <div className="flex items-center gap-1.5 text-xs group" title="Install Assigned">
+                                     <div className="flex items-center gap-1.5 text-xs" title="Install Assigned">
                                          <div className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-[10px] font-bold">I</div>
                                          <span className={`truncate max-w-[100px] ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{(store.workflow.installationAssignedTo as any).name}</span>
                                          {!isRecceOrInstallUser && (
-                                           <button onClick={() => handleUnassign(store._id, "INSTALLATION")} className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700" title="Unassign Installation">
+                                           <button onClick={() => handleUnassign(store._id, "INSTALLATION")} className="text-red-500 hover:text-red-700" title="Unassign Installation">
                                              <X className="w-3 h-3" />
                                            </button>
                                          )}
