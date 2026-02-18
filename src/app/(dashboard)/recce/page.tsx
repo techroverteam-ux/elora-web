@@ -45,6 +45,7 @@ export default function RecceListPage() {
   const [viewMode, setViewMode] = useState<"table" | "card">(typeof window !== 'undefined' && window.innerWidth < 768 ? "card" : "table");
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
   const [isDownloadingPPT, setIsDownloadingPPT] = useState(false);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   
   // Pagination & Filters
   const [page, setPage] = useState(1);
@@ -190,6 +191,36 @@ export default function RecceListPage() {
     }
   };
 
+  const handleBulkPDFDownload = async () => {
+    if (selectedStoreIds.size === 0) {
+      toast.error("Please select stores");
+      return;
+    }
+    setIsDownloadingPDF(true);
+    try {
+      toast.loading("Generating PDFs...");
+      const response = await api.post('/stores/pdf/bulk', {
+        storeIds: Array.from(selectedStoreIds),
+        type: "recce"
+      }, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Recce_Report_${selectedStoreIds.size}_Stores_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.dismiss();
+      toast.success(`Downloaded PDF with ${selectedStoreIds.size} stores`);
+      setSelectedStoreIds(new Set());
+    } catch (err) {
+      toast.dismiss();
+      toast.error('Failed to download PDFs');
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
+
   const statusColors = (status: string) => {
       switch(status) {
           case StoreStatus.RECCE_ASSIGNED: return "bg-blue-100 text-blue-800";
@@ -296,11 +327,18 @@ export default function RecceListPage() {
         </div>
         <div className="flex flex-wrap gap-2">
              {isAdmin && selectedStoreIds.size > 0 && (
-               <button onClick={handleBulkPPTDownload} disabled={isDownloadingPPT} className="flex items-center px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600">
-                 <FileText className="w-4 h-4 sm:mr-2"/>
-                 <span className="hidden sm:inline">Download PPTs ({selectedStoreIds.size})</span>
-                 <span className="sm:hidden">({selectedStoreIds.size})</span>
-               </button>
+               <>
+                 <button onClick={handleBulkPPTDownload} disabled={isDownloadingPPT} className="flex items-center px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600">
+                   <FileText className="w-4 h-4 sm:mr-2"/>
+                   <span className="hidden sm:inline">PPT ({selectedStoreIds.size})</span>
+                   <span className="sm:hidden">PPT</span>
+                 </button>
+                 <button onClick={handleBulkPDFDownload} disabled={isDownloadingPDF} className="flex items-center px-3 sm:px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600">
+                   <FileText className="w-4 h-4 sm:mr-2"/>
+                   <span className="hidden sm:inline">PDF ({selectedStoreIds.size})</span>
+                   <span className="sm:hidden">PDF</span>
+                 </button>
+               </>
              )}
              <button onClick={handleExport} className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium border ${darkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-white border-gray-300 text-gray-700"}`}>
                  <Download className="w-4 h-4 sm:mr-2"/>

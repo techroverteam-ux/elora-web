@@ -9,6 +9,7 @@ import {
   Loader2,
   MoreVertical,
   FileSpreadsheet,
+  FileText,
   MapPin,
   Trash2,
   UserPlus,
@@ -87,6 +88,9 @@ export default function StoresPage() {
   // Add Single Store State
   const [isAddStoreOpen, setIsAddStoreOpen] = useState(false);
   const [isSavingStore, setIsSavingStore] = useState(false);
+
+  // Download Menu State
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState<{storeId: string, type: string} | null>(null);
 
   // Specifications State
   const [specifications, setSpecifications] = useState([{
@@ -268,6 +272,42 @@ export default function StoresPage() {
     } catch (error) {
       toast.dismiss();
       toast.error("Failed to download. Ensure data exists.");
+    }
+  };
+
+  const downloadPDF = async (storeId: string, dealerCode: string, type: "recce" | "installation") => {
+    try {
+      toast.loading(`Generating ${type} PDF...`);
+      const response = await api.get(`/stores/${storeId}/pdf/${type}`, { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.dismiss();
+      toast.success("PDF Downloaded!");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Failed to download PDF. Ensure data exists.");
+    }
+  };
+
+  const toggleDownloadMenu = (storeId: string, type: string) => {
+    if (downloadMenuOpen?.storeId === storeId && downloadMenuOpen?.type === type) {
+      setDownloadMenuOpen(null);
+    } else {
+      setDownloadMenuOpen({ storeId, type });
+    }
+  };
+
+  const handleDownload = async (storeId: string, dealerCode: string, reportType: "recce" | "installation", format: "pdf" | "ppt") => {
+    setDownloadMenuOpen(null);
+    if (format === "pdf") {
+      await downloadPDF(storeId, dealerCode, reportType);
+    } else {
+      await downloadPPT(storeId, dealerCode, reportType);
     }
   };
 
@@ -713,25 +753,65 @@ export default function StoresPage() {
                                      <>
                                         <button onClick={()=>handleApproveRecce(store._id)} className="p-1.5 rounded hover:bg-green-50/50 dark:hover:bg-green-900/20 text-green-600" title="Approve Recce"><Check className="w-4 h-4"/></button>
                                         <button onClick={()=>handleRejectRecce(store._id)} className="p-1.5 rounded hover:bg-red-50/50 dark:hover:bg-red-900/20 text-red-600" title="Reject Recce"><XCircle className="w-4 h-4"/></button>
-                                        <button onClick={()=>downloadPPT(store._id, store.dealerCode, "recce")} className="p-1.5 rounded hover:bg-orange-50/50 dark:hover:bg-orange-900/20 text-orange-600" title="Recce PPT"><FileSpreadsheet className="w-4 h-4"/></button>
+                                        <div className="relative">
+                                          <button onClick={()=>toggleDownloadMenu(store._id, "recce")} className="p-1.5 rounded hover:bg-orange-50/50 dark:hover:bg-orange-900/20 text-orange-600" title="Download Recce"><Download className="w-4 h-4"/></button>
+                                          {downloadMenuOpen?.storeId === store._id && downloadMenuOpen?.type === "recce" && (
+                                            <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                            </div>
+                                          )}
+                                        </div>
                                      </>
                                 )}
                                 
                                 {store.currentStatus === StoreStatus.RECCE_APPROVED && (
                                      <>
                                         <button onClick={()=>openAssignModal("INSTALLATION", store)} className="p-1.5 rounded hover:bg-green-50/50 dark:hover:bg-green-900/20 text-green-600" title="Assign Installation"><UserPlus className="w-4 h-4"/></button>
-                                        <button onClick={()=>downloadPPT(store._id, store.dealerCode, "recce")} className="p-1.5 rounded hover:bg-orange-50/50 dark:hover:bg-orange-900/20 text-orange-600" title="Recce PPT"><FileSpreadsheet className="w-4 h-4"/></button>
+                                        <div className="relative">
+                                          <button onClick={()=>toggleDownloadMenu(store._id, "recce")} className="p-1.5 rounded hover:bg-orange-50/50 dark:hover:bg-orange-900/20 text-orange-600" title="Download Recce"><Download className="w-4 h-4"/></button>
+                                          {downloadMenuOpen?.storeId === store._id && downloadMenuOpen?.type === "recce" && (
+                                            <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                            </div>
+                                          )}
+                                        </div>
                                      </>
                                 )}
                                 
                                 {[StoreStatus.INSTALLATION_ASSIGNED, StoreStatus.INSTALLATION_SUBMITTED].includes(store.currentStatus) && (
-                                     <button onClick={()=>downloadPPT(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce")} className="p-1.5 rounded hover:bg-orange-50/50 dark:hover:bg-orange-900/20 text-orange-600" title={store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "Installation PPT" : "Recce PPT"}><FileSpreadsheet className="w-4 h-4"/></button>
+                                     <div className="relative">
+                                       <button onClick={()=>toggleDownloadMenu(store._id, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce")} className="p-1.5 rounded hover:bg-orange-50/50 dark:hover:bg-orange-900/20 text-orange-600" title="Download"><Download className="w-4 h-4"/></button>
+                                       {downloadMenuOpen?.storeId === store._id && (
+                                         <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                                           <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                                           <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                         </div>
+                                       )}
+                                     </div>
                                 )}
                                 
                                 {store.currentStatus === StoreStatus.COMPLETED && (
                                      <>
-                                        <button onClick={()=>downloadPPT(store._id, store.dealerCode, "recce")} className="p-1.5 rounded hover:bg-orange-50/50 dark:hover:bg-orange-900/20 text-orange-600" title="Recce PPT"><FileSpreadsheet className="w-4 h-4"/></button>
-                                        <button onClick={()=>downloadPPT(store._id, store.dealerCode, "installation")} className="p-1.5 rounded hover:bg-purple-50/50 dark:hover:bg-purple-900/20 text-purple-600" title="Installation PPT"><FileSpreadsheet className="w-4 h-4"/></button>
+                                        <div className="relative">
+                                          <button onClick={()=>toggleDownloadMenu(store._id, "recce")} className="p-1.5 rounded hover:bg-orange-50/50 dark:hover:bg-orange-900/20 text-orange-600" title="Download Recce"><Download className="w-4 h-4"/></button>
+                                          {downloadMenuOpen?.storeId === store._id && downloadMenuOpen?.type === "recce" && (
+                                            <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="relative">
+                                          <button onClick={()=>toggleDownloadMenu(store._id, "installation")} className="p-1.5 rounded hover:bg-purple-50/50 dark:hover:bg-purple-900/20 text-purple-600" title="Download Installation"><Download className="w-4 h-4"/></button>
+                                          {downloadMenuOpen?.storeId === store._id && downloadMenuOpen?.type === "installation" && (
+                                            <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                            </div>
+                                          )}
+                                        </div>
                                      </>
                                 )}
                              </div>
@@ -819,9 +899,17 @@ export default function StoresPage() {
                       <button onClick={()=>handleRejectRecce(store._id)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 text-red-600 text-xs font-medium">
                         <XCircle className="w-3.5 h-3.5"/> Reject
                       </button>
-                      <button onClick={()=>downloadPPT(store._id, store.dealerCode, "recce")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-orange-50 text-orange-600 text-xs font-medium">
-                        <FileSpreadsheet className="w-3.5 h-3.5"/> PPT
-                      </button>
+                      <div className="relative">
+                        <button onClick={()=>toggleDownloadMenu(store._id, "recce")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-orange-50 text-orange-600 text-xs font-medium">
+                          <Download className="w-3.5 h-3.5"/> Download
+                        </button>
+                        {downloadMenuOpen?.storeId === store._id && downloadMenuOpen?.type === "recce" && (
+                          <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                   {store.currentStatus === StoreStatus.RECCE_APPROVED && (
@@ -829,24 +917,56 @@ export default function StoresPage() {
                       <button onClick={()=>openAssignModal("INSTALLATION", store)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-green-50 text-green-600 text-xs font-medium">
                         <UserPlus className="w-3.5 h-3.5"/> Assign Install
                       </button>
-                      <button onClick={()=>downloadPPT(store._id, store.dealerCode, "recce")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-orange-50 text-orange-600 text-xs font-medium">
-                        <FileSpreadsheet className="w-3.5 h-3.5"/> PPT
-                      </button>
+                      <div className="relative">
+                        <button onClick={()=>toggleDownloadMenu(store._id, "recce")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-orange-50 text-orange-600 text-xs font-medium">
+                          <Download className="w-3.5 h-3.5"/> Download
+                        </button>
+                        {downloadMenuOpen?.storeId === store._id && downloadMenuOpen?.type === "recce" && (
+                          <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                   {[StoreStatus.INSTALLATION_ASSIGNED, StoreStatus.INSTALLATION_SUBMITTED].includes(store.currentStatus) && (
-                    <button onClick={()=>downloadPPT(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-orange-50 text-orange-600 text-xs font-medium">
-                      <FileSpreadsheet className="w-3.5 h-3.5"/> PPT
-                    </button>
+                    <div className="relative">
+                      <button onClick={()=>toggleDownloadMenu(store._id, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-orange-50 text-orange-600 text-xs font-medium">
+                        <Download className="w-3.5 h-3.5"/> Download
+                      </button>
+                      {downloadMenuOpen?.storeId === store._id && (
+                        <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                          <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                          <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                        </div>
+                      )}
+                    </div>
                   )}
                   {store.currentStatus === StoreStatus.COMPLETED && (
                     <>
-                      <button onClick={()=>downloadPPT(store._id, store.dealerCode, "recce")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-orange-50 text-orange-600 text-xs font-medium">
-                        <FileSpreadsheet className="w-3.5 h-3.5"/> Recce
-                      </button>
-                      <button onClick={()=>downloadPPT(store._id, store.dealerCode, "installation")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-50 text-purple-600 text-xs font-medium">
-                        <FileSpreadsheet className="w-3.5 h-3.5"/> Install
-                      </button>
+                      <div className="relative">
+                        <button onClick={()=>toggleDownloadMenu(store._id, "recce")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-orange-50 text-orange-600 text-xs font-medium">
+                          <Download className="w-3.5 h-3.5"/> Recce
+                        </button>
+                        {downloadMenuOpen?.storeId === store._id && downloadMenuOpen?.type === "recce" && (
+                          <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <button onClick={()=>toggleDownloadMenu(store._id, "installation")} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-50 text-purple-600 text-xs font-medium">
+                          <Download className="w-3.5 h-3.5"/> Install
+                        </button>
+                        {downloadMenuOpen?.storeId === store._id && downloadMenuOpen?.type === "installation" && (
+                          <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -914,7 +1034,15 @@ export default function StoresPage() {
                 {selectedFiles.length > 0 && (
                     <div className="space-y-2">
                         {selectedFiles.map((file, i) => (
-                            <div key={i} className="flex items-center justify-between p-2 bg-gray-100 rounded text-sm"><span className="truncate">{file.name}</span><button type="button" onClick={()=>removeFile(i)} className="text-red-500"><X className="w-4 h-4"/></button></div>
+                            <div key={i} className={`flex items-center justify-between gap-3 p-3 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-100 border-gray-200"}`}>
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <FileSpreadsheet className={`w-4 h-4 flex-shrink-0 ${darkMode ? "text-green-400" : "text-green-600"}`} />
+                                    <span className={`text-sm font-medium break-all ${darkMode ? "text-gray-200" : "text-gray-700"}`} title={file.name}>{file.name}</span>
+                                </div>
+                                <button type="button" onClick={()=>removeFile(i)} className="flex-shrink-0 p-1 rounded hover:bg-red-50 text-red-500 hover:text-red-700 transition-colors">
+                                    <X className="w-4 h-4"/>
+                                </button>
+                            </div>
                         ))}
                     </div>
                 )}
@@ -1017,7 +1145,7 @@ export default function StoresPage() {
         {/* ADD STORE MODAL (Simplified layout) */}
        <Modal isOpen={isAddStoreOpen} onClose={() => setIsAddStoreOpen(false)} title="Add New Store">
            <form onSubmit={handleAddStore} className="space-y-6">
-               <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-yellow-500 scrollbar-track-gray-200">
+               <div className="space-y-4">
                    <div className={sectionHeaderClass}>BASIC DETAILS</div>
                    <div className="grid grid-cols-2 gap-4">
                        <div><label className={labelClass}>Dealer Code *</label><input required name="dealerCode" value={newStoreData.dealerCode} onChange={handleInputChange} className={inputClass} /></div>

@@ -53,7 +53,7 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
         </div>
 
         {/* Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-yellow-500 scrollbar-track-gray-200 dark:scrollbar-track-gray-700">{children}</div>
       </div>
 
       {/* Click outside overlay to close */}
