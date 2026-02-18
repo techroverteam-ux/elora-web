@@ -8,12 +8,12 @@ import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
 
-const MODULES = ["users", "roles", "stores", "recce", "installation"];
+const MODULES = ["users", "roles", "stores", "recce", "installation", "enquiries", "reports"];
 
 const generateDefaultPermissions = () => {
   return MODULES.reduce(
     (acc, module) => {
-      acc[module] = { view: false, create: false, edit: false, delete: false };
+      acc[module] = { view: true, create: true, edit: true, delete: true };
       return acc;
     },
     {} as Record<string, PermissionSet>,
@@ -677,7 +677,7 @@ export default function RolesPage() {
         onClose={() => setIsModalOpen(false)}
         title={editingRole ? "Edit Role" : "Create Role"}
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <style dangerouslySetInnerHTML={{
             __html: `
               input:-webkit-autofill,
@@ -689,11 +689,11 @@ export default function RolesPage() {
               }
             `
           }} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               placeholder="Role Name"
               required
-              className={`w-full rounded-md border px-3 py-2 focus:ring-1 focus:ring-yellow-500 focus:outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:ring-yellow-500 focus:outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
@@ -704,7 +704,7 @@ export default function RolesPage() {
               placeholder="ROLE_CODE"
               required
               disabled={!!editingRole}
-              className={`w-full rounded-md border px-3 py-2 focus:outline-none ${
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none ${
                 editingRole
                   ? darkMode ? "bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed" : "bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed"
                   : darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:ring-1 focus:ring-yellow-500" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500 focus:ring-1 focus:ring-yellow-500"
@@ -720,61 +720,63 @@ export default function RolesPage() {
           </div>
 
           <div className={`border rounded-md overflow-hidden ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className={darkMode ? "bg-gray-800" : "bg-gray-100"}>
-                <tr>
-                  <th className={`px-4 py-3 text-left text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
-                    Module
-                  </th>
-                  {["View", "Create", "Edit", "Delete"].map((h) => (
-                    <th
-                      key={h}
-                      className={`px-4 py-3 text-center text-sm font-semibold border-l ${darkMode ? "text-gray-300 border-gray-700" : "text-gray-900 border-gray-200"}`}
-                    >
-                      {h}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className={darkMode ? "bg-gray-800" : "bg-gray-100"}>
+                  <tr>
+                    <th className={`px-3 py-2 text-left text-xs sm:text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
+                      Module
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${darkMode ? "divide-gray-700 bg-gray-800" : "divide-gray-100 bg-white"}`}>
-                {MODULES.map((module) => (
-                  <tr key={module} className={darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}>
-                    <td className={`px-4 py-3 text-sm font-medium capitalize ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
-                      {module}
-                    </td>
-                    {(["view", "create", "edit", "delete"] as const).map(
-                      (action) => (
-                        <td
-                          key={action}
-                          className={`text-center border-l py-2 ${darkMode ? "border-gray-700" : "border-gray-50"}`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded cursor-pointer"
-                            checked={formData.permissions[module][action]}
-                            onChange={() => togglePermission(module, action)}
-                          />
-                        </td>
-                      ),
-                    )}
+                    {["View", "Create", "Edit", "Delete"].map((h) => (
+                      <th
+                        key={h}
+                        className={`px-2 py-2 text-center text-xs sm:text-sm font-semibold border-l ${darkMode ? "text-gray-300 border-gray-700" : "text-gray-900 border-gray-200"}`}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className={`divide-y ${darkMode ? "divide-gray-700 bg-gray-800" : "divide-gray-100 bg-white"}`}>
+                  {MODULES.map((module) => (
+                    <tr key={module} className={darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}>
+                      <td className={`px-3 py-2 text-xs sm:text-sm font-medium capitalize ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
+                        {module}
+                      </td>
+                      {(["view", "create", "edit", "delete"] as const).map(
+                        (action) => (
+                          <td
+                            key={action}
+                            className={`text-center border-l py-2 ${darkMode ? "border-gray-700" : "border-gray-50"}`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded cursor-pointer"
+                              checked={formData.permissions[module][action]}
+                              onChange={() => togglePermission(module, action)}
+                            />
+                          </td>
+                        ),
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className={`flex justify-end gap-3 pt-2 border-t ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
+          <div className={`flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-3 border-t ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className={`px-4 py-2 rounded-md font-medium ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+              className={`px-4 py-2 rounded-md font-medium text-sm ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 font-medium flex items-center"
+              className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 font-medium text-sm flex items-center justify-center"
             >
               {isSubmitting && (
                 <Loader2 className="h-4 w-4 animate-spin inline mr-2" />

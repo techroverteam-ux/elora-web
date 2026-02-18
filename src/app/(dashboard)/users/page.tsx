@@ -189,6 +189,7 @@ export default function UsersPage() {
 
   const toggleUserStatus = async (user: User) => {
     try {
+      toast.dismiss();
       const newStatus = !user.isActive;
       await api.put(`/users/${user._id}`, { isActive: newStatus });
       
@@ -245,6 +246,7 @@ export default function UsersPage() {
     setIsSubmitting(true);
 
     try {
+      toast.dismiss();
       const payload: any = {
         name: formData.name,
         email: formData.email,
@@ -272,6 +274,7 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (userId: string) => {
+    toast.dismiss();
     const confirmed = await new Promise<boolean>((resolve) => {
       toast((t) => (
         <div className={`flex flex-col gap-3 p-2 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>

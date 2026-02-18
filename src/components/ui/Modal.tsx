@@ -28,16 +28,16 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all">
       <div
-        className={`rounded-lg shadow-xl w-full max-w-4xl transform transition-all flex flex-col max-h-[90vh] ${
+        className={`rounded-lg shadow-xl w-full max-w-4xl transform transition-all flex flex-col max-h-[90vh] overflow-hidden ${
           darkMode ? "bg-gray-800" : "bg-white"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between px-6 py-4 border-b ${
+        <div className={`flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b shrink-0 ${
           darkMode ? "border-gray-700" : "border-gray-100"
         }`}>
-          <h3 className={`text-lg font-bold ${
+          <h3 className={`text-base sm:text-lg font-bold ${
             darkMode ? "text-white" : "text-gray-900"
           }`}>{title}</h3>
           <button
@@ -53,7 +53,7 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
         </div>
 
         {/* Body */}
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">{children}</div>
       </div>
 
       {/* Click outside overlay to close */}
