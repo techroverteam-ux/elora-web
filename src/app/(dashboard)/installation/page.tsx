@@ -42,6 +42,7 @@ export default function InstallationListPage() {
   
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [viewMode, setViewMode] = useState<"table" | "card">(typeof window !== 'undefined' && window.innerWidth < 768 ? "card" : "table");
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
   const [isDownloadingPPT, setIsDownloadingPPT] = useState(false);
@@ -75,7 +76,6 @@ export default function InstallationListPage() {
   }, []);
 
   const fetchStores = async () => {
-    const startTime = Date.now();
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -107,12 +107,8 @@ export default function InstallationListPage() {
     } catch (error) {
       toast.error("Failed to load tasks");
     } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 1200) {
-        setTimeout(() => setLoading(false), 1200 - elapsed);
-      } else {
-        setLoading(false);
-      }
+      setLoading(false);
+      setInitialLoad(false);
     }
   };
 
@@ -227,7 +223,7 @@ export default function InstallationListPage() {
       }
   };
 
-  if (loading && stores.length === 0)
+  if (initialLoad && loading)
     return (
       <div className="max-w-7xl mx-auto pb-20 space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -347,10 +343,10 @@ export default function InstallationListPage() {
             <div className="relative flex-1">
                 <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                 <input type="text" placeholder="Search store name, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-blue-500`} />
+                    className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
             </div>
             <select value={filterStatus} onChange={(e) => {setFilterStatus(e.target.value); setPage(1);}}
-                className={`px-3 py-2 rounded-lg border text-sm w-full md:w-48 ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-blue-500`}>
+                className={`px-3 py-2 rounded-lg border text-sm font-medium w-full md:w-48 ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}>
                 <option value="ALL">All Status</option>
                 <option value={StoreStatus.INSTALLATION_ASSIGNED}>Pending</option>
                 <option value={StoreStatus.INSTALLATION_SUBMITTED}>Submitted</option>
@@ -360,34 +356,65 @@ export default function InstallationListPage() {
       </div>
 
       {/* CONTENT */}
+      {stores.length === 0 && !loading ? (
+        <div className={`rounded-xl border p-12 text-center ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+          <Wrench className={`w-16 h-16 mx-auto mb-4 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
+          <h3 className={`text-lg font-semibold mb-2 ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
+            {debouncedSearch ? "No stores found" : filterStatus !== "ALL" ? "No stores with this status" : "No installation tasks available"}
+          </h3>
+          <p className={`text-sm mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+            {debouncedSearch 
+              ? `No stores match "${debouncedSearch}". Try a different search term.`
+              : filterStatus !== "ALL"
+                ? `No stores found with status "${filterStatus.replace(/_/g, " ")}". Try selecting a different status.`
+                : "There are no installation tasks assigned yet."}
+          </p>
+          {(debouncedSearch || filterStatus !== "ALL") && (
+            <button 
+              onClick={() => { setSearchTerm(""); setFilterStatus("ALL"); }}
+              className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      ) : (
+      <>
       {viewMode === "card" ? (
           /* MOBILE CARD VIEW */
           <div className="space-y-4">
              {stores.map(store => {
                   const isDone = store.currentStatus === StoreStatus.COMPLETED || store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED;
+                  const canSelect = isAdmin && (store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED || store.currentStatus === StoreStatus.COMPLETED);
+                  const isSelected = selectedStoreIds.has(store._id);
                   return (
-                    <div key={store._id} onClick={() => router.push(`/installation/${store._id}`)}
-                        className={`rounded-xl shadow-sm border overflow-hidden active:scale-95 transition-transform cursor-pointer ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+                    <div key={store._id}
+                        className={`rounded-xl shadow-sm border overflow-hidden transition-all ${isSelected ? (darkMode ? "bg-blue-900/30 border-blue-500" : "bg-blue-50 border-blue-300") : darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
                         <div className={`h-1.5 w-full ${isDone ? "bg-green-500" : "bg-orange-500"}`}></div>
                         <div className="p-4">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className={`font-bold line-clamp-1 ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName}</h3>
-                                    <p className={`text-xs font-mono mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</p>
+                            <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-start gap-3 flex-1">
+                                    {canSelect && (
+                                      <button onClick={(e) => { e.stopPropagation(); toggleStoreSelection(store._id); }} className="mt-1">
+                                        {isSelected ? <CheckSquare className="h-5 w-5 text-blue-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} />}
+                                      </button>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className={`font-bold text-base ${darkMode ? "text-white" : "text-gray-900"} truncate`}>{store.storeName}</h3>
+                                        <p className={`text-xs font-mono mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</p>
+                                    </div>
                                 </div>
-                                <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide ${statusColors(store.currentStatus)}`}>
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide whitespace-nowrap ${statusColors(store.currentStatus)}`}>
                                     {store.currentStatus.replace(/_/g, " ").replace("INSTALLATION", "")}
                                 </span>
                             </div>
-                            <div className="mt-3 flex items-start gap-2 text-sm text-gray-500">
+                            <div className={`flex items-start gap-2 text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
                                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
                                 <span className="line-clamp-2">{store.location.address || store.location.city}</span>
                             </div>
-                             <div className="mt-4 flex gap-2">
-                                <button className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 text-white ${isDone ? "bg-green-600" : "bg-blue-600"}`}>
-                                    {isDone ? <><CheckCircle2 className="h-4 w-4" /> View Details</> : <><Camera className="h-4 w-4" /> Upload Proof</>}
-                                </button>
-                            </div>
+                            <button onClick={() => router.push(`/installation/${store._id}`)} className={`w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 text-white ${isDone ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
+                                {isDone ? <><CheckCircle2 className="h-4 w-4" /> View Details</> : <><Camera className="h-4 w-4" /> Upload Proof</>}
+                            </button>
                         </div>
                     </div>
                   );
@@ -490,8 +517,8 @@ export default function InstallationListPage() {
                 </div>
           </div>
       )}
+      </>
+      )}
     </div>
   );
 }
-
-

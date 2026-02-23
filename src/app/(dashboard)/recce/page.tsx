@@ -42,6 +42,7 @@ export default function RecceListPage() {
   
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [viewMode, setViewMode] = useState<"table" | "card">(typeof window !== 'undefined' && window.innerWidth < 768 ? "card" : "table");
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
   const [isDownloadingPPT, setIsDownloadingPPT] = useState(false);
@@ -77,7 +78,6 @@ export default function RecceListPage() {
   }, []);
 
   const fetchStores = async () => {
-    const startTime = Date.now();
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -89,19 +89,26 @@ export default function RecceListPage() {
       if (filterStatus !== "ALL") {
         params.append("status", filterStatus);
       } else {
-        // Show all recce-related stores (pending and completed)
-        params.append("status", `${StoreStatus.RECCE_ASSIGNED},${StoreStatus.RECCE_SUBMITTED},${StoreStatus.RECCE_APPROVED},${StoreStatus.RECCE_REJECTED}`);
+        // Show all recce-related stores (including completed for admins)
+        const statuses = isAdmin 
+          ? `${StoreStatus.RECCE_ASSIGNED},${StoreStatus.RECCE_SUBMITTED},${StoreStatus.RECCE_APPROVED},${StoreStatus.RECCE_REJECTED},${StoreStatus.INSTALLATION_ASSIGNED},${StoreStatus.INSTALLATION_SUBMITTED},${StoreStatus.INSTALLATION_REJECTED},${StoreStatus.COMPLETED}`
+          : `${StoreStatus.RECCE_ASSIGNED},${StoreStatus.RECCE_SUBMITTED},${StoreStatus.RECCE_APPROVED},${StoreStatus.RECCE_REJECTED}`;
+        params.append("status", statuses);
       }
 
       const { data } = await api.get(`/stores?${params.toString()}`);
       
-      // Additional client-side filter to ensure only recce-assigned stores appear
-      const recceStores = data.stores.filter((store: Store) => 
-        store.currentStatus === StoreStatus.RECCE_ASSIGNED ||
-        store.currentStatus === StoreStatus.RECCE_SUBMITTED ||
-        store.currentStatus === StoreStatus.RECCE_APPROVED ||
-        store.currentStatus === StoreStatus.RECCE_REJECTED
-      );
+      // Additional client-side filter
+      const recceStores = isAdmin 
+        ? data.stores.filter((store: Store) => 
+            store.recce?.submittedDate // Only show stores that have recce data
+          )
+        : data.stores.filter((store: Store) => 
+            store.currentStatus === StoreStatus.RECCE_ASSIGNED ||
+            store.currentStatus === StoreStatus.RECCE_SUBMITTED ||
+            store.currentStatus === StoreStatus.RECCE_APPROVED ||
+            store.currentStatus === StoreStatus.RECCE_REJECTED
+          );
       setStores(recceStores);
       if (data.pagination) {
           setTotalPages(data.pagination.pages);
@@ -110,12 +117,8 @@ export default function RecceListPage() {
     } catch (error) {
       toast.error("Failed to load stores");
     } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 1200) {
-        setTimeout(() => setLoading(false), 1200 - elapsed);
-      } else {
-        setLoading(false);
-      }
+      setLoading(false);
+      setInitialLoad(false);
     }
   };
 
@@ -221,16 +224,20 @@ export default function RecceListPage() {
     }
   };
 
-  const statusColors = (status: string) => {
-      switch(status) {
-          case StoreStatus.RECCE_ASSIGNED: return "bg-blue-100 text-blue-800";
-          case StoreStatus.RECCE_SUBMITTED: return "bg-yellow-100 text-yellow-800";
-          case StoreStatus.RECCE_APPROVED: return "bg-green-100 text-green-800";
-          default: return "bg-gray-100 text-gray-800";
-      }
+  const getStatusColor = (status: StoreStatus) => {
+    switch (status) {
+      case StoreStatus.UPLOADED: return "bg-gray-100 text-gray-800";
+      case StoreStatus.RECCE_ASSIGNED: return "bg-blue-100 text-blue-800";
+      case StoreStatus.RECCE_SUBMITTED: return "bg-yellow-100 text-yellow-800";
+      case StoreStatus.RECCE_APPROVED: return "bg-purple-100 text-purple-800";
+      case StoreStatus.INSTALLATION_ASSIGNED: return "bg-indigo-100 text-indigo-800";
+      case StoreStatus.INSTALLATION_SUBMITTED: return "bg-teal-100 text-teal-800";
+      case StoreStatus.COMPLETED: return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-600";
+    }
   };
 
-  if (loading && stores.length === 0)
+  if (initialLoad && loading)
     return (
       <div className="max-w-7xl mx-auto pb-20 space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -353,10 +360,10 @@ export default function RecceListPage() {
             <div className="relative flex-1">
                 <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                 <input type="text" placeholder="Search store name, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-blue-500`} />
+                    className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
             </div>
             <select value={filterStatus} onChange={(e) => {setFilterStatus(e.target.value); setPage(1);}}
-                className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"} focus:outline-none focus:border-blue-500`}>
+                className={`px-3 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}>
                 <option value="ALL">All Status</option>
                 <option value={StoreStatus.RECCE_ASSIGNED}>Pending</option>
                 <option value={StoreStatus.RECCE_SUBMITTED}>Submitted</option>
@@ -366,6 +373,30 @@ export default function RecceListPage() {
       </div>
 
       {/* CONTENT */}
+      {stores.length === 0 && !loading ? (
+        <div className={`rounded-xl border p-12 text-center ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+          <Search className={`w-16 h-16 mx-auto mb-4 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
+          <h3 className={`text-lg font-semibold mb-2 ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
+            {debouncedSearch ? "No stores found" : filterStatus !== "ALL" ? "No stores with this status" : "No recce tasks available"}
+          </h3>
+          <p className={`text-sm mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+            {debouncedSearch 
+              ? `No stores match "${debouncedSearch}". Try a different search term.`
+              : filterStatus !== "ALL"
+                ? `No stores found with status "${filterStatus.replace(/_/g, " ")}". Try selecting a different status.`
+                : "There are no recce tasks assigned yet."}
+          </p>
+          {(debouncedSearch || filterStatus !== "ALL") && (
+            <button 
+              onClick={() => { setSearchTerm(""); setFilterStatus("ALL"); }}
+              className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
       {/* MOBILE CARD VIEW */}
       <div className="lg:hidden space-y-4">
          {stores.map(store => {
@@ -389,8 +420,8 @@ export default function RecceListPage() {
                                     <p className={`text-xs font-mono mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</p>
                                 </div>
                             </div>
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide whitespace-nowrap ${statusColors(store.currentStatus)}`}>
-                                {store.currentStatus.replace(/_/g, " ").replace("RECCE", "")}
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide whitespace-nowrap ${getStatusColor(store.currentStatus)}`}>
+                                {store.currentStatus.replace(/_/g, " ")}
                             </span>
                         </div>
                         <div className={`flex items-start gap-2 text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
@@ -472,9 +503,9 @@ export default function RecceListPage() {
                                              </div>
                                            )}
                                        </td>
-                                       <td className="px-6 py-4">
-                                           <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors(store.currentStatus)}`}>
-                                               {store.currentStatus.replace(/_/g, " ").replace("RECCE", "")}
+                                       <td className="px-6 py-4 whitespace-nowrap">
+                                           <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(store.currentStatus)}`}>
+                                               {store.currentStatus.replace(/_/g, " ")}
                                            </span>
                                        </td>
                                        <td className="px-6 py-4 text-right">
@@ -509,6 +540,8 @@ export default function RecceListPage() {
                     </div>
                 </div>
           </div>
+        </>
+      )}
     </div>
   );
 }
