@@ -626,6 +626,7 @@ export default function StoresPage() {
                   </button>
                 </th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Store ID</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Client Code</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Zone</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>State</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>District</th>
@@ -642,19 +643,23 @@ export default function StoresPage() {
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Height (Ft.)</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Qty</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Board Size (Sq.Ft.)</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Board Rate/Sq.Ft.</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Total Board Cost</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Angle Charges</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Scaffolding</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Transportation</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Flanges</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Lollipop</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>One Way Vision</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Sunboard</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Total Cost</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Remark</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Images Attached</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Invoice No</th>
+                {!isRecceOrInstallUser && (
+                  <>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Board Rate/Sq.Ft.</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Total Board Cost</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Angle Charges</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Scaffolding</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Transportation</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Flanges</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Lollipop</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>One Way Vision</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Sunboard</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Total Cost</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Remark</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Images Attached</th>
+                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Invoice No</th>
+                  </>
+                )}
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Status</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Assignment</th>
                 <th className={`px-4 py-4 text-right text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Action</th>
@@ -672,6 +677,9 @@ export default function StoresPage() {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                             <div className={`text-sm font-mono font-semibold ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>{store.storeId || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm font-mono ${darkMode ? "text-blue-400" : "text-blue-600"}`}>{store.clientCode || "-"}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.zone || "-"}</div>
@@ -721,45 +729,49 @@ export default function StoresPage() {
                         <td className="px-4 py-4 whitespace-nowrap">
                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.specs?.boardSize || "-"}</div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.boardRate || 0}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}>₹{store.costDetails?.totalBoardCost?.toLocaleString() || "0"}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.angleCharges || 0}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.scaffoldingCharges || 0}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.transportation || 0}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.flanges || 0}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.lollipop || 0}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.oneWayVision || 0}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.sunboard || 0}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm font-bold ${darkMode ? "text-green-400" : "text-green-600"}`}>₹{store.commercials?.totalCost?.toLocaleString() || "0"}</div>
-                        </td>
-                        <td className="px-4 py-4">
-                            <div className={`text-xs max-w-[150px] truncate ${darkMode ? "text-gray-300" : "text-gray-700"}`} title={store.remark}>{store.remark || "-"}</div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center">
-                            <span className={`text-xs font-semibold ${store.imagesAttached ? "text-green-600" : "text-gray-400"}`}>{store.imagesAttached ? "Yes" : "No"}</span>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.commercials?.invoiceNumber || "-"}</div>
-                        </td>
+                        {!isRecceOrInstallUser && (
+                          <>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.boardRate || 0}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}>₹{store.costDetails?.totalBoardCost?.toLocaleString() || "0"}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.angleCharges || 0}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.scaffoldingCharges || 0}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.transportation || 0}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.flanges || 0}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.lollipop || 0}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.oneWayVision || 0}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.sunboard || 0}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm font-bold ${darkMode ? "text-green-400" : "text-green-600"}`}>₹{store.commercials?.totalCost?.toLocaleString() || "0"}</div>
+                            </td>
+                            <td className="px-4 py-4">
+                                <div className={`text-xs max-w-[150px] truncate ${darkMode ? "text-gray-300" : "text-gray-700"}`} title={store.remark}>{store.remark || "-"}</div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-center">
+                                <span className={`text-xs font-semibold ${store.imagesAttached ? "text-green-600" : "text-gray-400"}`}>{store.imagesAttached ? "Yes" : "No"}</span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.commercials?.invoiceNumber || "-"}</div>
+                            </td>
+                          </>
+                        )}
                         <td className="px-4 py-4 whitespace-nowrap">
                              <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-full ${getStatusColor(store.currentStatus)}`}>
                                  {store.currentStatus.replace(/_/g, " ")}

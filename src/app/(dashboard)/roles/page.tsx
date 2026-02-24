@@ -8,7 +8,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
 
-const MODULES = ["users", "roles", "stores", "recce", "installation", "enquiries", "reports"];
+const MODULES = ["users", "roles", "stores", "recce", "installation", "enquiries", "reports", "elements", "clients"];
 
 const generateDefaultPermissions = () => {
   return MODULES.reduce(
@@ -118,6 +118,20 @@ export default function RolesPage() {
           [action]: !prev.permissions[module][action],
         },
       },
+    }));
+  };
+
+  const toggleAllPermissions = (action: keyof PermissionSet) => {
+    const allChecked = MODULES.every(module => formData.permissions[module][action]);
+    setFormData((prev) => ({
+      ...prev,
+      permissions: MODULES.reduce((acc, module) => {
+        acc[module] = {
+          ...prev.permissions[module],
+          [action]: !allChecked,
+        };
+        return acc;
+      }, {} as Record<string, PermissionSet>),
     }));
   };
 
@@ -727,14 +741,26 @@ export default function RolesPage() {
                     <th className={`px-3 py-2 text-left text-xs sm:text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
                       Module
                     </th>
-                    {["View", "Create", "Edit", "Delete"].map((h) => (
-                      <th
-                        key={h}
-                        className={`px-2 py-2 text-center text-xs sm:text-sm font-semibold border-l ${darkMode ? "text-gray-300 border-gray-700" : "text-gray-900 border-gray-200"}`}
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    {(["view", "create", "edit", "delete"] as const).map((action, idx) => {
+                      const allChecked = MODULES.every(module => formData.permissions[module][action]);
+                      return (
+                        <th
+                          key={action}
+                          className={`px-2 py-2 text-center text-xs sm:text-sm font-semibold border-l ${darkMode ? "text-gray-300 border-gray-700" : "text-gray-900 border-gray-200"}`}
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="capitalize">{action}</span>
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded cursor-pointer"
+                              checked={allChecked}
+                              onChange={() => toggleAllPermissions(action)}
+                              title={`Toggle all ${action} permissions`}
+                            />
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${darkMode ? "divide-gray-700 bg-gray-800" : "divide-gray-100 bg-white"}`}>

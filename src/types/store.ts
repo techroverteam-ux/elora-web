@@ -18,6 +18,8 @@ export interface Store {
   storeCode?: string;
   storeName: string;
   vendorCode?: string;
+  clientCode?: string;
+  clientId?: string;
 
   location: {
     zone?: string;

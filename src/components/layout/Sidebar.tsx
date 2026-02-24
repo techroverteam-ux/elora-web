@@ -15,6 +15,9 @@ import {
   BarChart3,
   X,
   LogOut,
+  Layers,
+  Building2,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -61,7 +64,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       href: "/dashboard",
       icon: LayoutDashboard,
       module: "dashboard",
-      alwaysShow: true, // Dashboard is usually visible to all logged-in users
+      alwaysShow: true,
     },
     {
       name: "User Management",
@@ -92,6 +95,24 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       href: "/installation",
       icon: Hammer,
       module: "installation",
+    },
+    {
+      name: "Element Mapping",
+      href: "/elements",
+      icon: Layers,
+      module: "elements",
+    },
+    {
+      name: "Client Management",
+      href: "/clients",
+      icon: Building2,
+      module: "clients",
+    },
+    {
+      name: "RFQ Generation",
+      href: "/rfq",
+      icon: FileText,
+      module: "stores",
     },
     {
       name: "Enquiries",
