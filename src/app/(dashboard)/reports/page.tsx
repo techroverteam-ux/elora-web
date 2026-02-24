@@ -37,6 +37,15 @@ export default function ReportsPage() {
   const [assignmentsPage, setAssignmentsPage] = useState(1);
   const assignmentsPerPage = 10;
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
   const isAdmin = React.useMemo(() => {
     if (!user || !user.roles || !Array.isArray(user.roles)) return false;
     return user.roles.some((role) => 
@@ -125,10 +134,21 @@ export default function ReportsPage() {
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);
       });
+      // Add cache buster
+      params.append('_t', Date.now().toString());
       const { data } = await api.get(`/analytics/dashboard?${params.toString()}`);
-      setAnalytics(data.analytics);
+      console.log('Analytics data:', data);
+      setAnalytics(data.analytics || {});
     } catch (error) {
+      console.error('Analytics error:', error);
       toast.error("Failed to load analytics");
+      // Set empty analytics to prevent crashes
+      setAnalytics({
+        overview: { totalAssigned: 0, pending: 0, submitted: 0, approved: 0, completed: 0, completionRate: 0 },
+        recentActivity: { submissionsLast7Days: 0 },
+        distribution: { byCity: [] },
+        myTasks: []
+      });
     } finally {
       setLoading(false);
     }
@@ -387,7 +407,7 @@ export default function ReportsPage() {
                           {assignment.role}
                         </span>
                       </td>
-                      <td className={`px-4 py-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{assignment.date ? new Date(assignment.date).toLocaleDateString() : '-'}</td>
+                      <td className={`px-4 py-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{formatDate(assignment.date)}</td>
                       <td className={`px-4 py-3`}>
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
                           assignment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
@@ -449,25 +469,25 @@ export default function ReportsPage() {
         /* USER DASHBOARD */
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard icon={<Package className="h-5 w-5" />} label="Total Assigned" value={analytics.overview.totalAssigned} darkMode={darkMode} color="blue" />
-            <StatCard icon={<Clock className="h-5 w-5" />} label="Pending" value={analytics.overview.pending} darkMode={darkMode} color="yellow" />
-            <StatCard icon={<CheckCircle className="h-5 w-5" />} label="Completed" value={analytics.overview.approved || analytics.overview.completed} darkMode={darkMode} color="green" />
-            <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Success Rate" value={`${analytics.overview.completionRate}%`} darkMode={darkMode} color="purple" />
+            <StatCard icon={<Package className="h-5 w-5" />} label="Total Assigned" value={analytics?.overview?.totalAssigned || 0} darkMode={darkMode} color="blue" />
+            <StatCard icon={<Clock className="h-5 w-5" />} label="Pending" value={analytics?.overview?.pending || 0} darkMode={darkMode} color="yellow" />
+            <StatCard icon={<CheckCircle className="h-5 w-5" />} label="Completed" value={analytics?.overview?.approved || analytics?.overview?.completed || 0} darkMode={darkMode} color="green" />
+            <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Success Rate" value={`${analytics?.overview?.completionRate || 0}%`} darkMode={darkMode} color="purple" />
           </div>
 
           <div className={`p-6 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Task Breakdown</h3>
             <div className="space-y-3">
-              <ProgressBar label="Pending" value={analytics.overview.pending} total={analytics.overview.totalAssigned} color="yellow" darkMode={darkMode} />
-              <ProgressBar label="Submitted" value={analytics.overview.submitted} total={analytics.overview.totalAssigned} color="blue" darkMode={darkMode} />
-              {analytics.overview.approved !== undefined && (
-                <ProgressBar label="Approved" value={analytics.overview.approved} total={analytics.overview.totalAssigned} color="green" darkMode={darkMode} />
+              <ProgressBar label="Pending" value={analytics?.overview?.pending || 0} total={analytics?.overview?.totalAssigned || 0} color="yellow" darkMode={darkMode} />
+              <ProgressBar label="Submitted" value={analytics?.overview?.submitted || 0} total={analytics?.overview?.totalAssigned || 0} color="blue" darkMode={darkMode} />
+              {analytics?.overview?.approved !== undefined && (
+                <ProgressBar label="Approved" value={analytics.overview.approved} total={analytics?.overview?.totalAssigned || 0} color="green" darkMode={darkMode} />
               )}
-              {analytics.overview.completed !== undefined && (
-                <ProgressBar label="Completed" value={analytics.overview.completed} total={analytics.overview.totalAssigned} color="green" darkMode={darkMode} />
+              {analytics?.overview?.completed !== undefined && (
+                <ProgressBar label="Completed" value={analytics.overview.completed} total={analytics?.overview?.totalAssigned || 0} color="green" darkMode={darkMode} />
               )}
-              {analytics.overview.rejected !== undefined && analytics.overview.rejected > 0 && (
-                <ProgressBar label="Rejected" value={analytics.overview.rejected} total={analytics.overview.totalAssigned} color="red" darkMode={darkMode} />
+              {analytics?.overview?.rejected !== undefined && analytics.overview.rejected > 0 && (
+                <ProgressBar label="Rejected" value={analytics.overview.rejected} total={analytics?.overview?.totalAssigned || 0} color="red" darkMode={darkMode} />
               )}
             </div>
           </div>
@@ -479,7 +499,7 @@ export default function ReportsPage() {
               </h3>
               <div className={`p-4 rounded-lg ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
                 <div className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Submissions (Last 7 Days)</div>
-                <div className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{analytics.recentActivity.submissionsLast7Days}</div>
+                <div className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{analytics?.recentActivity?.submissionsLast7Days || 0}</div>
               </div>
             </div>
 
@@ -488,12 +508,12 @@ export default function ReportsPage() {
                 <MapPin className="h-5 w-5 text-yellow-500" /> Your Cities
               </h3>
               <div className="space-y-2">
-                {analytics.distribution.byCity.slice(0, 5).map((city: any, idx: number) => (
+                {analytics?.distribution?.byCity?.slice(0, 5).map((city: any, idx: number) => (
                   <div key={idx} className="flex justify-between items-center">
                     <span className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{city._id || "Unknown"}</span>
                     <span className={`text-sm font-bold ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>{city.count} tasks</span>
                   </div>
-                ))}
+                )) || <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data</p>}
               </div>
             </div>
           </div>
@@ -504,12 +524,14 @@ export default function ReportsPage() {
               <FileText className="h-5 w-5 text-yellow-500" /> My Tasks
             </h3>
             <div className="space-y-3">
-              {analytics.myTasks && analytics.myTasks.length > 0 ? analytics.myTasks.map((task: any, idx: number) => (
+              {analytics.myTasks && analytics.myTasks.length > 0 ? analytics.myTasks.map((task: any, idx: number) => {
+                const location = [task.city, task.district, task.state].filter(Boolean).join(', ') || 'N/A';
+                return (
                 <div key={idx} className={`p-4 rounded-lg border ${darkMode ? "bg-gray-700/30 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex-1">
                       <h4 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>{task.storeName}</h4>
-                      <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{task.city}, {task.state}</p>
+                      <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{location}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -518,13 +540,13 @@ export default function ReportsPage() {
                         task.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                        {task.status}
+                        {task.status?.replace(/_/g, ' ')}
                       </span>
-                      <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{new Date(task.assignedDate).toLocaleDateString()}</span>
+                      <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{task.assignedDate ? formatDate(task.assignedDate) : 'N/A'}</span>
                     </div>
                   </div>
                 </div>
-              )) : (
+              )}) : (
                 <p className={`text-center py-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No tasks assigned yet</p>
               )}
             </div>

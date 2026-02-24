@@ -159,7 +159,7 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Stores" value={stats?.kpi?.totalStores || 0} icon={<MapPin className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.newStoresToday || 0} today`} />
+        <StatCard title={stats?.isAdmin ? "Total Stores" : "Assigned to Me"} value={stats?.kpi?.totalStores || 0} icon={<MapPin className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.newStoresToday || 0} today`} />
         <StatCard title="Recce Completed" value={stats?.kpi?.recceDoneTotal || 0} icon={<CheckCircle2 className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.recceDoneToday || 0} today`} color="blue" />
         <StatCard title="Installations" value={stats?.kpi?.installationDoneTotal || 0} icon={<CheckCircle2 className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.installationDoneToday || 0} today`} color="green" />
         <StatCard title="Pending" value={stats?.kpi?.totalStores - stats?.kpi?.recceDoneTotal || 0} icon={<TrendingUp className="h-4 w-4" />} darkMode={darkMode} color="orange" />
@@ -220,6 +220,7 @@ export default function DashboardPage() {
       {/* Personnel & Recent Stores */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Personnel Stats */}
+        {stats?.isAdmin && stats?.personnelStats && stats.personnelStats.length > 0 && (
         <div className={`col-span-2 rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
           <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Team Performance</h3>
           <div className="overflow-x-auto">
@@ -249,6 +250,7 @@ export default function DashboardPage() {
             </table>
           </div>
         </div>
+        )}
 
         {/* Recent Stores */}
         <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>

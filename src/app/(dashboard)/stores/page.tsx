@@ -552,7 +552,7 @@ export default function StoresPage() {
                   <thead className={darkMode ? "bg-gray-800" : "bg-gray-100"}>
                     <tr>
                       <th className="px-4 py-4 w-12"><div className={`h-5 w-5 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-300"}`} /></th>
-                      {[...Array(19)].map((_, i) => (
+                      {[...Array(33)].map((_, i) => (
                         <th key={i} className="px-4 py-4"><div className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-300"}`} /></th>
                       ))}
                     </tr>
@@ -563,20 +563,34 @@ export default function StoresPage() {
                         <td className="px-4 py-4"><div className={`h-5 w-5 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className={`h-4 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-32 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className={`h-4 w-32 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
-                        <td className="px-4 py-4"><div className="space-y-1"><div className={`h-3 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></div></td>
-                        <td className="px-4 py-4"><div className="space-y-1"><div className={`h-3 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></div></td>
-                        <td className="px-4 py-4"><div className={`h-4 w-32 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
-                        <td className="px-4 py-4"><div className="space-y-1"><div className={`h-3 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></div></td>
-                        <td className="px-4 py-4"><div className="space-y-1"><div className={`h-3 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-3 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></div></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
-                        <td className="px-4 py-4"><div className="space-y-1"><div className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-3 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></div></td>
-                        <td className="px-4 py-4"><div className="space-y-1"><div className={`h-3 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></div></td>
-                        <td className="px-4 py-4"><div className="space-y-1"><div className={`h-3 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-3 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></div></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-12 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-16 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className={`h-4 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className={`h-4 w-12 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
+                        <td className="px-4 py-4"><div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className={`h-6 w-20 rounded-full animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></td>
                         <td className="px-4 py-4"><div className="space-y-1"><div className={`h-4 w-24 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /></div></td>
                         <td className="px-4 py-4"><div className="flex justify-end gap-1.5">{[...Array(3)].map((_, j) => <div key={j} className={`h-8 w-8 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />)}</div></td>
@@ -612,28 +626,42 @@ export default function StoresPage() {
                   </button>
                 </th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Store ID</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dealer Code</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dealer Name</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Zone</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>State</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>District</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Vendor Code</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Zone/State</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>District/City</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dealer Code</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>City</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dealer Name</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Address</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>PO Details</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Invoice</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>PO Number</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Invoice Remarks</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>PO Month</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Board Type</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dimensions</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Board Cost</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Other Charges</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Width (Ft.)</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Height (Ft.)</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Qty</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Board Size (Sq.Ft.)</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Board Rate/Sq.Ft.</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Total Board Cost</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Angle Charges</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Scaffolding</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Transportation</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Flanges</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Lollipop</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>One Way Vision</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Sunboard</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Total Cost</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Remark</th>
-                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Images</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Images Attached</th>
+                <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Invoice No</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Status</th>
                 <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Assignment</th>
                 <th className={`px-4 py-4 text-right text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Action</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${darkMode ? "divide-gray-700 bg-gray-900" : "divide-gray-200 bg-white"}`}>
-              {stores.map(store => {
+              {stores.map((store, index) => {
                   const isSelected = selectedStoreIds.has(store._id);
                   return (
                     <tr key={store._id} className={`transition-colors ${isSelected ? (darkMode ? "bg-blue-900/30" : "bg-blue-50") : darkMode ? "hover:bg-gray-800" : "hover:bg-gray-50"}`}>
@@ -646,56 +674,79 @@ export default function StoresPage() {
                             <div className={`text-sm font-mono font-semibold ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>{store.storeId || "-"}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm font-mono font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{store.dealerCode}</div>
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.zone || "-"}</div>
                         </td>
-                        <td className="px-4 py-4">
-                            <div className={`text-sm font-medium ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{store.storeName}</div>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.state || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.district || "-"}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.vendorCode || "-"}</div>
                         </td>
-                        <td className="px-4 py-4">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.zone || "-"}</div>
-                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.location.state || "-"}</div>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm font-mono font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{store.dealerCode}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.city || "-"}</div>
                         </td>
                         <td className="px-4 py-4">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.district || "-"}</div>
-                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.location.city || "-"}</div>
+                            <div className={`text-sm font-medium ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{store.storeName}</div>
                         </td>
                         <td className="px-4 py-4">
                             <div className={`text-sm max-w-[200px] truncate ${darkMode ? "text-gray-200" : "text-gray-900"}`} title={store.location.address}>{store.location.address || "-"}</div>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 whitespace-nowrap">
                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.commercials?.poNumber || "-"}</div>
-                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.commercials?.poMonth || "-"}</div>
                         </td>
                         <td className="px-4 py-4">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.commercials?.invoiceNumber || "-"}</div>
-                            <div className={`text-xs mt-1 max-w-[150px] truncate ${darkMode ? "text-gray-400" : "text-gray-600"}`} title={store.commercials?.invoiceRemarks}>{store.commercials?.invoiceRemarks || "-"}</div>
+                            <div className={`text-sm max-w-[150px] truncate ${darkMode ? "text-gray-200" : "text-gray-900"}`} title={store.commercials?.invoiceRemarks}>{store.commercials?.invoiceRemarks || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.commercials?.poMonth || "-"}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.specs?.type || "-"}</div>
                         </td>
-                        <td className="px-4 py-4">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.specs?.width}x{store.specs?.height} ft</div>
-                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Qty: {store.specs?.qty || 1}</div>
-                            <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{store.specs?.boardSize || "-"} sq.ft</div>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.specs?.width || "-"}</div>
                         </td>
-                        <td className="px-4 py-4">
-                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.boardRate || 0}/sq.ft</div>
-                            <div className={`text-xs mt-1 font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}>₹{store.costDetails?.totalBoardCost?.toLocaleString() || "0"}</div>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.specs?.height || "-"}</div>
                         </td>
-                        <td className="px-4 py-4">
-                            <div className={`text-xs space-y-0.5 max-w-[150px] ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                                {store.costDetails?.angleCharges ? <div className="truncate" title={`Angle: ₹${store.costDetails.angleCharges}`}>Angle: ₹{store.costDetails.angleCharges}</div> : null}
-                                {store.costDetails?.scaffoldingCharges ? <div className="truncate" title={`Scaffold: ₹${store.costDetails.scaffoldingCharges}`}>Scaffold: ₹{store.costDetails.scaffoldingCharges}</div> : null}
-                                {store.costDetails?.transportation ? <div className="truncate" title={`Transport: ₹${store.costDetails.transportation}`}>Transport: ₹{store.costDetails.transportation}</div> : null}
-                                {store.costDetails?.flanges ? <div className="truncate" title={`Flanges: ₹${store.costDetails.flanges}`}>Flanges: ₹{store.costDetails.flanges}</div> : null}
-                                {store.costDetails?.lollipop ? <div className="truncate" title={`Lollipop: ₹${store.costDetails.lollipop}`}>Lollipop: ₹{store.costDetails.lollipop}</div> : null}
-                                {store.costDetails?.oneWayVision ? <div className="truncate" title={`One Way: ₹${store.costDetails.oneWayVision}`}>One Way: ₹{store.costDetails.oneWayVision}</div> : null}
-                                {store.costDetails?.sunboard ? <div className="truncate" title={`Sunboard: ₹${store.costDetails.sunboard}`}>Sunboard: ₹{store.costDetails.sunboard}</div> : null}
-                                {!store.costDetails?.angleCharges && !store.costDetails?.scaffoldingCharges && !store.costDetails?.transportation && !store.costDetails?.flanges && !store.costDetails?.lollipop && !store.costDetails?.oneWayVision && !store.costDetails?.sunboard ? <div>-</div> : null}
-                            </div>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.specs?.qty || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.specs?.boardSize || "-"}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.boardRate || 0}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}>₹{store.costDetails?.totalBoardCost?.toLocaleString() || "0"}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.angleCharges || 0}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.scaffoldingCharges || 0}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.transportation || 0}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.flanges || 0}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.lollipop || 0}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.oneWayVision || 0}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>₹{store.costDetails?.sunboard || 0}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                             <div className={`text-sm font-bold ${darkMode ? "text-green-400" : "text-green-600"}`}>₹{store.commercials?.totalCost?.toLocaleString() || "0"}</div>
@@ -705,6 +756,9 @@ export default function StoresPage() {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-center">
                             <span className={`text-xs font-semibold ${store.imagesAttached ? "text-green-600" : "text-gray-400"}`}>{store.imagesAttached ? "Yes" : "No"}</span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.commercials?.invoiceNumber || "-"}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                              <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-full ${getStatusColor(store.currentStatus)}`}>
