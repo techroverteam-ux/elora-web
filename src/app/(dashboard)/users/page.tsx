@@ -41,6 +41,13 @@ export default function UsersPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadStats, setUploadStats] = useState<any>(null);
   
+  // Bulk Assign State
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [bulkAssignUserId, setBulkAssignUserId] = useState<string>("");
+  const [bulkAssignFiles, setBulkAssignFiles] = useState<File[]>([]);
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+  const [bulkAssignStats, setBulkAssignStats] = useState<any>(null);
+  
   // Filters & Pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -101,6 +108,7 @@ export default function UsersPage() {
         page: String(page),
         limit: String(limit),
         ...(searchTerm && { search: searchTerm }),
+        ...(roleFilter && { role: roleFilter }),
       });
       const { data } = await api.get(`/users?${params}`);
       setUsers(data.users);
@@ -309,6 +317,46 @@ export default function UsersPage() {
     }
   };
 
+  const openBulkAssignModal = (userId: string) => {
+    setBulkAssignUserId(userId);
+    setBulkAssignFiles([]);
+    setBulkAssignStats(null);
+    setIsBulkAssignOpen(true);
+  };
+
+  const handleBulkAssignFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setBulkAssignFiles(newFiles);
+    }
+  };
+
+  const removeBulkAssignFile = (index: number) => {
+    setBulkAssignFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleBulkAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (bulkAssignFiles.length === 0) return;
+    setIsBulkAssigning(true);
+    const formData = new FormData();
+    bulkAssignFiles.forEach((file) => formData.append("files", file));
+    try {
+      const { data } = await api.post(`/users/${bulkAssignUserId}/bulk-assign-stores`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setBulkAssignStats(data);
+      toast.success(`Success: ${data.successCount}, Errors: ${data.errorCount}`);
+      if (data.successCount > 0) {
+        setBulkAssignFiles([]);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Bulk assign failed");
+    } finally {
+      setIsBulkAssigning(false);
+    }
+  };
+
   return (
     <div className="space-y-4 pb-20">
       <div className="flex flex-col gap-4">
@@ -349,19 +397,29 @@ export default function UsersPage() {
         </div>
 
         {/* Search Bar */}
-        <div className="relative">
-          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2.5 rounded-lg border transition-colors ${
-              darkMode
-                ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-yellow-500"
-                : "bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-yellow-500"
-            } focus:outline-none focus:ring-2 focus:ring-yellow-500/20`}
-          />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className={`w-full pl-10 pr-4 py-2.5 rounded-lg border transition-colors ${
+                darkMode
+                  ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-yellow-500"
+                  : "bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-yellow-500"
+              } focus:outline-none focus:ring-2 focus:ring-yellow-500/20`}
+            />
+          </div>
+          <select
+            value={roleFilter}
+            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
+            className={`px-3 py-2.5 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}
+          >
+            <option value="">All Roles</option>
+            {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+          </select>
         </div>
       </div>
 
@@ -447,6 +505,9 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
+                        <button onClick={() => openBulkAssignModal(user._id)} className={`p-2 rounded hover:bg-purple-50 text-purple-600 transition-colors`} title="Bulk Assign Stores">
+                            <Upload className="h-5 w-5" />
+                        </button>
                         <button onClick={() => openEditModal(user)} className={`p-2 rounded hover:bg-blue-50 text-blue-600 transition-colors`}>
                             <Edit2 className="h-5 w-5" />
                         </button>
@@ -495,6 +556,9 @@ export default function UsersPage() {
                         {user.isActive ? "Active" : "Inactive"}
                       </button>
                       <div className="flex gap-2">
+                        <button onClick={() => openBulkAssignModal(user._id)} className="p-2 rounded-lg bg-purple-50 text-purple-600" title="Bulk Assign Stores">
+                          <Upload className="h-4 w-4" />
+                        </button>
                         <button onClick={() => openEditModal(user)} className="p-2 rounded-lg bg-blue-50 text-blue-600">
                           <Edit2 className="h-4 w-4" />
                         </button>
@@ -622,6 +686,56 @@ export default function UsersPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* BULK ASSIGN STORES MODAL */}
+      <Modal isOpen={isBulkAssignOpen} onClose={() => setIsBulkAssignOpen(false)} title="Bulk Assign Stores">
+        <div className="space-y-4">
+          {bulkAssignStats ? (
+            <div className="text-center space-y-3">
+              <div className={`text-4xl font-bold ${bulkAssignStats.errorCount === 0 ? "text-green-500" : "text-orange-500"}`}>{bulkAssignStats.successCount} / {bulkAssignStats.totalProcessed}</div>
+              <p className="text-sm text-gray-500">Stores Assigned</p>
+              {bulkAssignStats.errors?.length > 0 && (
+                <div className="mt-4 text-left bg-red-50 p-3 rounded-lg max-h-48 overflow-y-auto text-xs text-red-600">
+                  <ul className="list-disc pl-4 space-y-1">{bulkAssignStats.errors.map((e:any, i:number) => <li key={i}>{e.error} {e.row && `(Row ${e.row})`}</li>)}</ul>
+                </div>
+              )}
+              <button onClick={() => { setIsBulkAssignOpen(false); setBulkAssignStats(null); }} className="w-full bg-gray-900 text-white py-2 rounded-lg mt-2">Close</button>
+            </div>
+          ) : (
+            <form onSubmit={handleBulkAssign} className="space-y-4">
+              <div className={`p-3 rounded-lg ${darkMode ? "bg-yellow-900/20 border border-yellow-500/30" : "bg-yellow-50 border border-yellow-200"}`}>
+                <p className={`text-sm ${darkMode ? "text-yellow-400" : "text-yellow-700"}`}>
+                  Upload Excel file with stores to assign to this user. The system will validate store existence, client codes, and appropriate status for assignment.
+                </p>
+              </div>
+              <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors relative ${darkMode ? "border-gray-600 hover:bg-gray-700" : "border-gray-300 hover:bg-gray-50"}`}>
+                <input type="file" multiple accept=".xlsx,.xls" onChange={handleBulkAssignFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <Upload className={`mx-auto h-10 w-10 mb-2 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
+                <p className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Drop Excel file here or click to upload</p>
+                <p className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Supports .xlsx, .xls</p>
+              </div>
+              {bulkAssignFiles.length > 0 && (
+                <div className="space-y-2">
+                  {bulkAssignFiles.map((file, i) => (
+                    <div key={i} className={`flex items-center justify-between gap-3 p-3 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-100 border-gray-200"}`}>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileText className={`w-4 h-4 flex-shrink-0 ${darkMode ? "text-green-400" : "text-green-600"}`} />
+                        <span className={`text-sm font-medium break-all ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{file.name}</span>
+                      </div>
+                      <button type="button" onClick={()=>removeBulkAssignFile(i)} className="flex-shrink-0 p-1 rounded hover:bg-red-50 text-red-500 hover:text-red-700 transition-colors">
+                        <X className="w-4 h-4"/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button type="submit" disabled={isBulkAssigning || bulkAssignFiles.length === 0} className="w-full bg-yellow-500 text-white font-bold py-2 rounded-lg hover:bg-yellow-600 disabled:opacity-50 flex justify-center items-center">
+                {isBulkAssigning ? <Loader2 className="w-5 h-5 animate-spin" /> : "Assign Stores"}
+              </button>
+            </form>
+          )}
+        </div>
       </Modal>
 
       {/* UPLOAD MODAL */}

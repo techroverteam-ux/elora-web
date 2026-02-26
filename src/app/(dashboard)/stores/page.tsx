@@ -66,6 +66,8 @@ export default function StoresPage() {
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCity, setFilterCity] = useState("");
+  const [filterClientCode, setFilterClientCode] = useState("");
+  const [filterClientName, setFilterClientName] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Upload State
@@ -105,6 +107,7 @@ export default function StoresPage() {
   const initialFormState = {
     zone: "", state: "", district: "", city: "",
     vendorCode: "", dealerCode: "", dealerName: "", dealerAddress: "",
+    clientCode: "",
     poNumber: "", invoiceRemarks: "", poMonth: "", invoiceNo: "",
     boardRate: "", angleCharges: "", scaffoldingCharges: "", transportation: "",
     flanges: "", lollipop: "", oneWayVision: "", sunboard: "", totalCost: "",
@@ -132,6 +135,8 @@ export default function StoresPage() {
       if (filterStatus !== "ALL") params.append("status", filterStatus);
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filterCity) params.append("city", filterCity);
+      if (filterClientCode) params.append("clientCode", filterClientCode);
+      if (filterClientName) params.append("clientName", filterClientName);
 
       const { data } = await api.get(`/stores?${params.toString()}`);
       setStores(data.stores);
@@ -153,7 +158,7 @@ export default function StoresPage() {
 
   useEffect(() => {
     fetchStores();
-  }, [page, limit, filterStatus, debouncedSearch, filterCity]);
+  }, [page, limit, filterStatus, debouncedSearch, filterCity, filterClientCode, filterClientName]);
 
   // Filter users based on search term
   useEffect(() => {
@@ -191,6 +196,7 @@ export default function StoresPage() {
         dealerCode: newStoreData.dealerCode,
         storeName: newStoreData.dealerName,
         vendorCode: newStoreData.vendorCode,
+        clientCode: newStoreData.clientCode,
         location: {
           zone: newStoreData.zone, state: newStoreData.state,
           district: newStoreData.district, city: newStoreData.city,
@@ -253,6 +259,31 @@ export default function StoresPage() {
     } catch (error) {
       console.error('Template download error:', error);
       toast.error('Failed to download template');
+    }
+  };
+
+  const handleExportStores = async () => {
+    try {
+      toast.dismiss();
+      const params = new URLSearchParams();
+      if (filterStatus !== "ALL") params.append("status", filterStatus);
+      if (debouncedSearch) params.append("search", debouncedSearch);
+      if (filterCity) params.append("city", filterCity);
+      if (filterClientCode) params.append("clientCode", filterClientCode);
+      if (filterClientName) params.append("clientName", filterClientName);
+      
+      const response = await api.get(`/stores/export?${params.toString()}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Stores_Export.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Stores exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export stores');
     }
   };
 
@@ -500,6 +531,10 @@ export default function StoresPage() {
           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage and track all store activities</p>
         </div>
         <div className="flex flex-wrap gap-2">
+           <button onClick={handleExportStores} className="inline-flex items-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm bg-green-600 hover:bg-green-700 text-white">
+            <Download className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Export Stores</span>
+          </button>
            <button onClick={() => { setUploadStats(null); setSelectedFiles([]); setIsUploadOpen(true); }} className="inline-flex items-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm bg-yellow-500 hover:bg-yellow-600 text-white">
             <Upload className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Bulk Upload</span>
@@ -529,6 +564,12 @@ export default function StoresPage() {
                 </select>
                 {/* City Filter */}
                 <input type="text" placeholder="Filter by City" value={filterCity} onChange={(e) => { setFilterCity(e.target.value); setPage(1); }}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
+                {/* Client Code Filter */}
+                <input type="text" placeholder="Client Code" value={filterClientCode} onChange={(e) => { setFilterClientCode(e.target.value); setPage(1); }}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
+                {/* Client Name Filter */}
+                <input type="text" placeholder="Client Name" value={filterClientName} onChange={(e) => { setFilterClientName(e.target.value); setPage(1); }}
                     className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
             </div>
 
@@ -1217,6 +1258,7 @@ export default function StoresPage() {
                        <div><label className={labelClass}>Dealer Code *</label><input required name="dealerCode" value={newStoreData.dealerCode} onChange={handleInputChange} className={inputClass} /></div>
                        <div><label className={labelClass}>Dealer Name *</label><input required name="dealerName" value={newStoreData.dealerName} onChange={handleInputChange} className={inputClass} /></div>
                        <div><label className={labelClass}>Vendor Code</label><input name="vendorCode" value={newStoreData.vendorCode} onChange={handleInputChange} className={inputClass} /></div>
+                       <div><label className={labelClass}>Client Code</label><input name="clientCode" value={newStoreData.clientCode} onChange={handleInputChange} className={inputClass} placeholder="Optional" /></div>
                    </div>
                    
                    <div className={sectionHeaderClass}>LOCATION</div>
