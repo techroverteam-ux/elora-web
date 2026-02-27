@@ -36,6 +36,7 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [availableElements, setAvailableElements] = useState<Element[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   
@@ -74,14 +75,16 @@ export default function ClientsPage() {
   }, [searchTerm]);
 
   useEffect(() => {
-    fetchData();
     fetchElements();
+  }, []);
+
+  useEffect(() => {
+    fetchData();
   }, [page, limit, debouncedSearch]);
 
   const fetchData = async () => {
-    const startTime = Date.now();
     try {
-      setIsLoading(true);
+      setIsFetching(true);
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", limit.toString());
@@ -96,12 +99,8 @@ export default function ClientsPage() {
     } catch {
       toast.error("Failed to load clients");
     } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 800) {
-        setTimeout(() => setIsLoading(false), 800 - elapsed);
-      } else {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
+      setIsFetching(false);
     }
   };
 
@@ -400,7 +399,8 @@ export default function ClientsPage() {
       </div>
 
       <div className={`rounded-xl border overflow-hidden ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-        <div className="overflow-x-auto">
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full">
             <thead className={darkMode ? "bg-gray-800/50" : "bg-gray-50"}>
               <tr>
@@ -480,6 +480,58 @@ export default function ClientsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden space-y-3 p-4">
+          {clients.map((client) => (
+            <div key={client._id} className={`p-4 rounded-lg border transition-all ${darkMode ? "bg-gray-800/30 border-gray-700" : "bg-white border-gray-200"}`}>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className={`font-semibold text-base ${darkMode ? "text-white" : "text-gray-900"} truncate`}>
+                    {client.clientName}
+                  </div>
+                  <div className={`text-xs font-mono mt-1 ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>
+                    {client.clientCode}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2 text-sm mb-3">
+                <div className="flex justify-between">
+                  <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Branch:</span>
+                  <span className={darkMode ? "text-gray-200" : "text-gray-900"}>{client.branchName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Amount:</span>
+                  <span className={`font-semibold ${darkMode ? "text-green-400" : "text-green-600"}`}>₹{client.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={darkMode ? "text-gray-400" : "text-gray-600"}>GST:</span>
+                  <span className={`text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{client.gstNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Elements:</span>
+                  <span className={darkMode ? "text-gray-300" : "text-gray-700"}>{client.elements.length} element(s)</span>
+                </div>
+              </div>
+
+              <div className={`flex gap-2 pt-3 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+                <button
+                  onClick={() => openEditModal(client)}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium"
+                >
+                  <Edit2 className="w-3.5 h-3.5" /> Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(client._id)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 text-red-600 text-xs font-medium"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
         
         <div className={`px-4 py-3 flex items-center justify-between border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>

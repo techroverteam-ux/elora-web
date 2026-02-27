@@ -53,6 +53,14 @@ export default function EnquiriesPage() {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
   const statusColor = (status: string) => {
       switch(status) {
           case "NEW": return "bg-blue-100 text-blue-800";
@@ -178,6 +186,7 @@ export default function EnquiriesPage() {
                                <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Date</th>
                                <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>User Details</th>
                                <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Message</th>
+                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Remark</th>
                                <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Status</th>
                            </tr>
                        </thead>
@@ -187,7 +196,7 @@ export default function EnquiriesPage() {
                                    <td className="px-6 py-4 whitespace-nowrap">
                                        <div className={`flex items-center gap-2 text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
                                            <Clock className="w-4 h-4 text-gray-400" />
-                                           {new Date(enq.createdAt).toLocaleDateString()}
+                                           {formatDate(enq.createdAt)}
                                        </div>
                                    </td>
                                    <td className="px-6 py-4">
@@ -202,6 +211,11 @@ export default function EnquiriesPage() {
                                    <td className="px-6 py-4">
                                        <div className={`text-sm line-clamp-2 max-w-md ${darkMode ? "text-gray-300" : "text-gray-700"}`} title={enq.message}>
                                            {enq.message}
+                                       </div>
+                                   </td>
+                                   <td className="px-6 py-4">
+                                       <div className={`text-sm max-w-xs truncate ${darkMode ? "text-gray-300" : "text-gray-700"}`} title={enq.remark}>
+                                           {enq.remark || "-"}
                                        </div>
                                    </td>
                                    <td className="px-6 py-4">
@@ -223,7 +237,7 @@ export default function EnquiriesPage() {
                                <div className="flex-1 min-w-0">
                                    <div className={`font-semibold text-base ${darkMode ? "text-white" : "text-gray-900"} truncate`}>{enq.name}</div>
                                    <div className={`flex items-center gap-1 text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                                       <Clock className="w-3 h-3" /> {new Date(enq.createdAt).toLocaleDateString()}
+                                       <Clock className="w-3 h-3" /> {formatDate(enq.createdAt)}
                                    </div>
                                </div>
                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${statusColor(enq.status)}`}>
@@ -240,9 +254,14 @@ export default function EnquiriesPage() {
                                    <span>{enq.phone}</span>
                                </div>
                            </div>
-                           <div className={`text-sm line-clamp-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                           <div className={`text-sm line-clamp-2 mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                                {enq.message}
                            </div>
+                           {enq.remark && (
+                               <div className={`text-xs italic pt-2 border-t truncate ${darkMode ? "text-gray-400 border-gray-700" : "text-gray-500 border-gray-200"}`}>
+                                   Remark: {enq.remark}
+                               </div>
+                           )}
                        </div>
                    ))}
                </div>
@@ -270,7 +289,7 @@ export default function EnquiriesPage() {
                    {selectedEnquiry.status}
                  </span>
                  <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                   {new Date(selectedEnquiry.createdAt).toLocaleString()}
+                   {formatDate(selectedEnquiry.createdAt)}
                  </span>
                </div>
 

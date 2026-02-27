@@ -18,6 +18,7 @@ export default function ElementsPage() {
   const { darkMode } = useTheme();
   const [elements, setElements] = useState<Element[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   
@@ -48,9 +49,8 @@ export default function ElementsPage() {
   }, [page, limit, debouncedSearch]);
 
   const fetchData = async () => {
-    const startTime = Date.now();
     try {
-      setIsLoading(true);
+      setIsFetching(true);
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", limit.toString());
@@ -65,12 +65,8 @@ export default function ElementsPage() {
     } catch {
       toast.error("Failed to load elements");
     } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 800) {
-        setTimeout(() => setIsLoading(false), 800 - elapsed);
-      } else {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
+      setIsFetching(false);
     }
   };
 

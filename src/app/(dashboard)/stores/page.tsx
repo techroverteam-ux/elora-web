@@ -94,6 +94,9 @@ export default function StoresPage() {
   // Download Menu State
   const [downloadMenuOpen, setDownloadMenuOpen] = useState<{storeId: string, type: string} | null>(null);
 
+  // Delete State - Track ongoing delete confirmations
+  const deleteConfirmOpenRef = useRef<Set<string>>(new Set());
+
   // Specifications State
   const [specifications, setSpecifications] = useState([{
     type: "",
@@ -417,6 +420,11 @@ export default function StoresPage() {
   };
 
   const handleDelete = async (id: string) => {
+    // Prevent multiple confirmation dialogs for the same store
+    if (deleteConfirmOpenRef.current.has(id)) return;
+    
+    deleteConfirmOpenRef.current.add(id);
+    
     const confirmed = await new Promise<boolean>((resolve) => {
       toast((t) => (
         <div className={`flex flex-col gap-3 p-2 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
@@ -437,17 +445,99 @@ export default function StoresPage() {
             </button>
           </div>
         </div>
-      ), { duration: Infinity, style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
+      ), { duration: Infinity, position: 'bottom-center', style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
     });
+    
+    deleteConfirmOpenRef.current.delete(id);
     
     if (!confirmed) return;
     
     try {
       await api.delete(`/stores/${id}`);
-      toast.success("Store deleted");
+      toast.success("Store deleted successfully", {
+        position: 'bottom-center',
+        style: {
+          background: darkMode ? '#065f46' : '#d1fae5',
+          color: darkMode ? '#d1fae5' : '#065f46',
+          border: darkMode ? '1px solid #10b981' : '1px solid #059669',
+          borderRadius: '10px',
+          padding: '12px 16px',
+        },
+      });
       fetchStores();
     } catch (error) {
-      toast.error("Failed to delete store");
+      toast.error("Failed to delete store", {
+        position: 'bottom-center',
+        style: {
+          background: darkMode ? '#7f1d1d' : '#fee2e2',
+          color: darkMode ? '#fecaca' : '#7f1d1d',
+          border: darkMode ? '1px solid #ef4444' : '1px solid #dc2626',
+          borderRadius: '10px',
+          padding: '12px 16px',
+        },
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedStoreIds.size === 0) return;
+    if (deleteConfirmOpenRef.current.has('bulk')) return;
+    
+    deleteConfirmOpenRef.current.add('bulk');
+
+    const confirmed = await new Promise<boolean>((resolve) => {
+      toast((t) => (
+        <div className={`flex flex-col gap-3 p-2 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
+          <p className="font-semibold">Delete {selectedStoreIds.size} store(s)?</p>
+          <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>This action cannot be undone.</p>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(false); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${darkMode ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(true); }}
+              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Delete All
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity, position: 'bottom-center', style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
+    });
+
+    deleteConfirmOpenRef.current.delete('bulk');
+
+    if (!confirmed) return;
+
+    try {
+      const storeIds = Array.from(selectedStoreIds);
+      await Promise.all(storeIds.map(id => api.delete(`/stores/${id}`)));
+      toast.success(`${storeIds.length} store(s) deleted successfully`, {
+        position: 'bottom-center',
+        style: {
+          background: darkMode ? '#065f46' : '#d1fae5',
+          color: darkMode ? '#d1fae5' : '#065f46',
+          border: darkMode ? '1px solid #10b981' : '1px solid #059669',
+          borderRadius: '10px',
+          padding: '12px 16px',
+        },
+      });
+      setSelectedStoreIds(new Set());
+      fetchStores();
+    } catch (error) {
+      toast.error("Failed to delete some stores", {
+        position: 'bottom-center',
+        style: {
+          background: darkMode ? '#7f1d1d' : '#fee2e2',
+          color: darkMode ? '#fecaca' : '#7f1d1d',
+          border: darkMode ? '1px solid #ef4444' : '1px solid #dc2626',
+          borderRadius: '10px',
+          padding: '12px 16px',
+        },
+      });
     }
   };
 
@@ -573,12 +663,17 @@ export default function StoresPage() {
                     className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
             </div>
 
-            {/* Bulk Assign Button */}
+            {/* Bulk Actions */}
             {selectedStoreIds.size > 0 && (
                  <div className="flex gap-2 animate-in fade-in slide-in-from-right-4">
                     <button onClick={() => openAssignModal("RECCE")} className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">
                         <UserPlus className="h-4 w-4 mr-2" /> Assign Recce ({selectedStoreIds.size})
                     </button>
+                    {!isRecceOrInstallUser && (
+                      <button onClick={handleBulkDelete} className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm">
+                          <Trash2 className="h-4 w-4 mr-2" /> Delete ({selectedStoreIds.size})
+                      </button>
+                    )}
                  </div>
             )}
         </div>

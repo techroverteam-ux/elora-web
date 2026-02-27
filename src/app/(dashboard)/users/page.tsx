@@ -23,13 +23,16 @@ import {
   ToggleRight,
   Upload,
   Download,
+  User as UserIcon,
 } from "lucide-react";
 import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 export default function UsersPage() {
   const { darkMode } = useTheme();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -505,13 +508,16 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
-                        <button onClick={() => openBulkAssignModal(user._id)} className={`p-2 rounded hover:bg-purple-50 text-purple-600 transition-colors`} title="Bulk Assign Stores">
+                        <button onClick={() => router.push(`/users/${user._id}`)} className={`p-2 rounded hover:bg-green-50 text-green-600 transition-colors cursor-pointer`} title="View Details">
+                            <UserIcon className="h-5 w-5" />
+                        </button>
+                        <button onClick={() => openBulkAssignModal(user._id)} className={`p-2 rounded hover:bg-purple-50 text-purple-600 transition-colors cursor-pointer`} title="Bulk Assign Stores">
                             <Upload className="h-5 w-5" />
                         </button>
-                        <button onClick={() => openEditModal(user)} className={`p-2 rounded hover:bg-blue-50 text-blue-600 transition-colors`}>
+                        <button onClick={() => openEditModal(user)} className={`p-2 rounded hover:bg-blue-50 text-blue-600 transition-colors cursor-pointer`}>
                             <Edit2 className="h-5 w-5" />
                         </button>
-                        <button onClick={() => handleDelete(user._id)} className={`p-2 rounded hover:bg-red-50 text-red-600 transition-colors`}>
+                        <button onClick={() => handleDelete(user._id)} className={`p-2 rounded hover:bg-red-50 text-red-600 transition-colors cursor-pointer`}>
                             <Trash2 className="h-5 w-5" />
                         </button>
                         </div>
@@ -556,6 +562,9 @@ export default function UsersPage() {
                         {user.isActive ? "Active" : "Inactive"}
                       </button>
                       <div className="flex gap-2">
+                        <button onClick={() => router.push(`/users/${user._id}`)} className="p-2 rounded-lg bg-green-50 text-green-600" title="View Details">
+                          <UserIcon className="h-4 w-4" />
+                        </button>
                         <button onClick={() => openBulkAssignModal(user._id)} className="p-2 rounded-lg bg-purple-50 text-purple-600" title="Bulk Assign Stores">
                           <Upload className="h-4 w-4" />
                         </button>
