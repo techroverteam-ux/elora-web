@@ -8,7 +8,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
 
-const MODULES = ["users", "roles", "stores", "recce", "installation", "enquiries", "reports", "elements", "clients"];
+const MODULES = ["users", "roles", "stores", "recce", "installation", "enquiries", "reports", "elements", "clients", "rfq"];
 
 const generateDefaultPermissions = () => {
   return MODULES.reduce(
