@@ -71,13 +71,13 @@ export default function LoginPage() {
       // Call login function which will fetch user data and redirect
       await login();
     } catch (err: any) {
+      console.error("Login error:", err);
       if (err?.response?.data?.message) {
         setError(err.response.data.message);
       } else {
         setError("Something went wrong. Please check your connection.");
       }
       generateCaptcha();
-    } finally {
       setIsLoading(false);
     }
   };

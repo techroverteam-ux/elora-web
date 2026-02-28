@@ -503,7 +503,7 @@ export default function InstallationListPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-                            className={`text-xs rounded border px-2 py-1 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"}`}>
+                            className={`text-xs rounded border px-2 py-1 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}>
                             <option value={10}>10</option>
                             <option value={20}>20</option>
                             <option value={50}>50</option>

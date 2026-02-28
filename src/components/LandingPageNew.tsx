@@ -148,8 +148,8 @@ const LandingPage = () => {
       const { data } = await api.get('/stores?status=COMPLETED&limit=20');
       const portfolio = data.stores.filter((s: Store) => 
         s.currentStatus === StoreStatus.COMPLETED &&
-        s.recce?.photos?.front && 
-        s.installation?.photos?.after1
+        s.recce?.reccePhotos?.[0]?.photo && 
+        s.installation?.photos?.[0]?.installationPhoto
       ).slice(0, 20);
       if (portfolio.length > 0) {
         setCompletedStores(portfolio);
@@ -520,7 +520,7 @@ const LandingPage = () => {
                             <div key={isRealStore ? item._id : item.id} className="group relative overflow-hidden rounded-xl aspect-square border border-gray-200 shadow-md">
                               <div className="absolute inset-0 transition-opacity duration-700 ease-in-out group-hover:opacity-0">
                                 <img 
-                                  src={isRealStore ? `http://localhost:5000${item.installation?.photos?.after1?.replace(/\\/g, '/')}` : item.afterImage}
+                                  src={isRealStore ? `http://localhost:5000${item.installation?.photos?.[0]?.installationPhoto?.replace(/\\/g, '/')}` : item.afterImage}
                                   alt={`After - ${item.storeName}`}
                                   className="w-full h-full object-cover"
                                 />
@@ -531,7 +531,7 @@ const LandingPage = () => {
                               
                               <div className="absolute inset-0 opacity-0 transition-opacity duration-700 ease-in-out group-hover:opacity-100">
                                 <img 
-                                  src={isRealStore ? `http://localhost:5000${item.recce?.photos?.front?.replace(/\\/g, '/')}` : item.beforeImage}
+                                  src={isRealStore ? `http://localhost:5000${item.recce?.reccePhotos?.[0]?.photo?.replace(/\\/g, '/')}` : item.beforeImage}
                                   alt={`Before - ${item.storeName}`}
                                   className="w-full h-full object-cover"
                                 />

@@ -81,18 +81,23 @@ export interface Store {
   recce?: {
     assignedDate?: string;
     submittedDate?: string;
-    sizes?: { width: number; height: number };
-    photos?: { front: string; side: string; closeUp: string };
+    initialPhotos?: string[];
+    reccePhotos?: Array<{
+      photo: string;
+      measurements: { width: number; height: number; unit: string };
+      elements?: Array<{ elementId?: string; elementName: string; quantity: number }>;
+    }>;
     notes?: string;
+    submittedBy?: string;
   };
 
   installation?: {
     assignedDate?: string;
     submittedDate?: string;
-    photos?: {
-      after1?: string;
-      after2?: string;
-    };
+    photos?: Array<{
+      reccePhotoIndex: number;
+      installationPhoto: string;
+    }>;
   };
 
   createdAt: string;

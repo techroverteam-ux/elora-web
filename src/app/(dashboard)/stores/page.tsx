@@ -297,7 +297,16 @@ export default function StoresPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pptx`);
+      
+      // Extract filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pptx`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+      
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -316,7 +325,16 @@ export default function StoresPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pdf`);
+      
+      // Extract filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pdf`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+      
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -328,6 +346,34 @@ export default function StoresPage() {
     }
   };
 
+  const downloadExcel = async (storeId: string, dealerCode: string, type: "recce" | "installation") => {
+    try {
+      toast.loading(`Generating ${type} Excel...`);
+      const response = await api.get(`/stores/${storeId}/excel/${type}`, { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      
+      // Extract filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.xlsx`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+      
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.dismiss();
+      toast.success("Excel Downloaded!");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Failed to download Excel. Ensure data exists.");
+    }
+  };
+
   const toggleDownloadMenu = (storeId: string, type: string) => {
     if (downloadMenuOpen?.storeId === storeId && downloadMenuOpen?.type === type) {
       setDownloadMenuOpen(null);
@@ -336,10 +382,12 @@ export default function StoresPage() {
     }
   };
 
-  const handleDownload = async (storeId: string, dealerCode: string, reportType: "recce" | "installation", format: "pdf" | "ppt") => {
+  const handleDownload = async (storeId: string, dealerCode: string, reportType: "recce" | "installation", format: "pdf" | "ppt" | "excel") => {
     setDownloadMenuOpen(null);
     if (format === "pdf") {
       await downloadPDF(storeId, dealerCode, reportType);
+    } else if (format === "excel") {
+      await downloadExcel(storeId, dealerCode, reportType);
     } else {
       await downloadPPT(storeId, dealerCode, reportType);
     }
@@ -961,6 +1009,7 @@ export default function StoresPage() {
                                             <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                             </div>
                                           )}
                                         </div>
@@ -976,6 +1025,7 @@ export default function StoresPage() {
                                             <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                             </div>
                                           )}
                                         </div>
@@ -989,6 +1039,7 @@ export default function StoresPage() {
                                          <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                            <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                            <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                           <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                          </div>
                                        )}
                                      </div>
@@ -1002,6 +1053,7 @@ export default function StoresPage() {
                                             <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                             </div>
                                           )}
                                         </div>
@@ -1011,6 +1063,7 @@ export default function StoresPage() {
                                             <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                             </div>
                                           )}
                                         </div>
@@ -1109,6 +1162,7 @@ export default function StoresPage() {
                           <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                           </div>
                         )}
                       </div>
@@ -1127,6 +1181,7 @@ export default function StoresPage() {
                           <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                           </div>
                         )}
                       </div>
@@ -1141,6 +1196,7 @@ export default function StoresPage() {
                         <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                           <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                           <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                          <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                         </div>
                       )}
                     </div>
@@ -1155,6 +1211,7 @@ export default function StoresPage() {
                           <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                           </div>
                         )}
                       </div>
@@ -1166,6 +1223,7 @@ export default function StoresPage() {
                           <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                           </div>
                         )}
                       </div>
