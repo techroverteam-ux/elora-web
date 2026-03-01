@@ -111,13 +111,28 @@ export default function RFQGenerationPage() {
     setIsGenerating(true);
     try {
       const response = await api.post("/rfq/generate", { storeIds: Array.from(selectedStoreIds) }, { responseType: "blob" });
+      
+      const skippedStores = response.headers["x-skipped-stores"];
+      if (skippedStores) {
+        const skipped = JSON.parse(skippedStores);
+        if (skipped.length > 0) {
+          toast.error(`${skipped.length} store(s) skipped: ${skipped.map((s: any) => s.reason).join(", ")}`, { duration: 5000 });
+        }
+      }
+
+      const contentType = response.headers["content-type"];
+      const contentDisposition = response.headers["content-disposition"];
+      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || (contentType?.includes("zip") ? "RFQs.zip" : `RFQ_${Date.now()}.xlsx`);
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `RFQ_${Date.now()}.xlsx`);
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
+      
       toast.success("RFQ generated successfully!");
       setSelectedStoreIds(new Set());
     } catch (error: any) {
