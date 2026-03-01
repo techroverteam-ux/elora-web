@@ -116,7 +116,7 @@ export default function RFQGenerationPage() {
       if (skippedStores) {
         const skipped = JSON.parse(skippedStores);
         if (skipped.length > 0) {
-          toast.error(`${skipped.length} store(s) skipped: ${skipped.map((s: any) => s.reason).join(", ")}`, { duration: 5000 });
+          toast.error(`${skipped.length} store(s) skipped: ${skipped.map((s: any) => `${s.storeId} (${s.reason})`).join(", ")}`, { duration: 6000 });
         }
       }
 
@@ -136,7 +136,25 @@ export default function RFQGenerationPage() {
       toast.success("RFQ generated successfully!");
       setSelectedStoreIds(new Set());
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to generate RFQ");
+      if (error.response?.status === 400 && error.response?.data) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const result = JSON.parse(reader.result as string);
+            if (result.skippedStores && result.skippedStores.length > 0) {
+              const reasons = result.skippedStores.map((s: any) => `${s.storeId}: ${s.reason}`).join("; ");
+              toast.error(`Failed to generate RFQ. ${reasons}`, { duration: 6000 });
+            } else {
+              toast.error(result.error || "Failed to generate RFQ");
+            }
+          } catch {
+            toast.error("Failed to generate RFQ");
+          }
+        };
+        reader.readAsText(error.response.data);
+      } else {
+        toast.error(error.response?.data?.message || "Failed to generate RFQ");
+      }
     } finally {
       setIsGenerating(false);
     }
