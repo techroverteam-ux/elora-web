@@ -15,42 +15,44 @@ import {
   Building2,
   Package,
   IndianRupee,
-  Calendar,
   FileSpreadsheet,
+  Plus,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useAuth } from "@/src/context/AuthContext";
 import { Skeleton, CardSkeleton } from "@/src/components/ui/Skeleton";
+
+interface ReccePhoto {
+  file: File | null;
+  preview: string | null;
+  width: string;
+  height: string;
+  unit: string;
+  elements: Array<{ elementId: string; elementName: string; quantity: number }>;
+}
 
 export default function RecceSubmissionPage() {
   const router = useRouter();
   const { darkMode } = useTheme();
+  const { user } = useAuth();
   const params = useParams();
   const id = params?.id as string;
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [clientElements, setClientElements] = useState<any[]>([]);
 
-  // Form State
-  const [width, setWidth] = useState("");
-  const [height, setHeight] = useState("");
-  const [unit, setUnit] = useState("ft");
+  const isRecceUser = user?.roles?.some((r: any) => r.code === "RECCE" || r.name === "RECCE");
+
   const [notes, setNotes] = useState("");
-
-  // File State
-  const [photos, setPhotos] = useState<{
-    front: File | null;
-    side: File | null;
-    closeUp: File | null;
-  }>({ front: null, side: null, closeUp: null });
-
-  // Previews
-  const [previews, setPreviews] = useState<{
-    front: string | null;
-    side: string | null;
-    closeUp: string | null;
-  }>({ front: null, side: null, closeUp: null });
+  const [initialPhotos, setInitialPhotos] = useState<File[]>([]);
+  const [initialPreviews, setInitialPreviews] = useState<string[]>([]);
+  const [reccePhotos, setReccePhotos] = useState<ReccePhoto[]>([
+    { file: null, preview: null, width: "", height: "", unit: "in", elements: [] },
+  ]);
 
   const API_BASE_URL = "http://localhost:5000";
 
@@ -64,33 +66,32 @@ export default function RecceSubmissionPage() {
         const s = data.store;
         setStore(s);
 
+        // Fetch client elements
+        if (s.clientId) {
+          try {
+            const clientRes = await api.get(`/clients/${s.clientId}`);
+            console.log("Client response:", clientRes.data);
+            setClientElements(clientRes.data?.elements || []);
+          } catch (err) {
+            console.error("Failed to fetch client elements:", err);
+          }
+        }
+
         if (s.recce && s.recce.submittedDate) {
-          if (s.recce.sizes) {
-            setWidth(String(s.recce.sizes.width));
-            setHeight(String(s.recce.sizes.height));
-            setUnit(s.recce.sizes.unit || "ft");
+          if (s.recce.notes) setNotes(s.recce.notes);
+          if (s.recce.initialPhotos && s.recce.initialPhotos.length > 0) {
+            setInitialPreviews(s.recce.initialPhotos.map((p: string) => `${API_BASE_URL}/${p}`));
           }
-          if (s.recce.notes) {
-            setNotes(s.recce.notes);
-          }
-          setPreviews({
-            front: s.recce.photos?.front
-              ? `${API_BASE_URL}/${s.recce.photos.front}`
-              : null,
-            side: s.recce.photos?.side
-              ? `${API_BASE_URL}/${s.recce.photos.side}`
-              : null,
-            closeUp: s.recce.photos?.closeUp
-              ? `${API_BASE_URL}/${s.recce.photos.closeUp}`
-              : null,
-          });
-        } else {
-          if (s.specs?.boardSize) {
-            const parts = s.specs.boardSize.toLowerCase().split("x");
-            if (parts.length === 2) {
-              setWidth(parts[0].trim());
-              setHeight(parts[1].trim());
-            }
+          if (s.recce.reccePhotos && s.recce.reccePhotos.length > 0) {
+            const loaded = s.recce.reccePhotos.map((rp: any) => ({
+              file: null,
+              preview: `${API_BASE_URL}/${rp.photo}`,
+              width: String(rp.measurements.width || ""),
+              height: String(rp.measurements.height || ""),
+              unit: rp.measurements.unit || "in",
+              elements: rp.elements || [],
+            }));
+            setReccePhotos(loaded);
           }
         }
       } catch (error) {
@@ -107,42 +108,126 @@ export default function RecceSubmissionPage() {
     fetchStore();
   }, [id]);
 
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    type: "front" | "side" | "closeUp",
-  ) => {
+  const handleInitialPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const totalPhotos = initialPhotos.length + filesArray.length;
+      
+      if (totalPhotos > 10) {
+        toast.error("Maximum 10 initial photos allowed");
+        return;
+      }
+
+      setInitialPhotos([...initialPhotos, ...filesArray]);
+      const newPreviews = filesArray.map(file => URL.createObjectURL(file));
+      setInitialPreviews([...initialPreviews, ...newPreviews]);
+    }
+  };
+
+  const removeInitialPhoto = (index: number) => {
+    setInitialPhotos(initialPhotos.filter((_, i) => i !== index));
+    setInitialPreviews(initialPreviews.filter((_, i) => i !== index));
+  };
+
+  const handleReccePhotoChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setPhotos((prev) => ({ ...prev, [type]: file }));
-
-      const url = URL.createObjectURL(file);
-      setPreviews((prev) => ({ ...prev, [type]: url }));
+      const newReccePhotos = [...reccePhotos];
+      newReccePhotos[index].file = file;
+      newReccePhotos[index].preview = URL.createObjectURL(file);
+      setReccePhotos(newReccePhotos);
     }
+  };
+
+  const removeReccePhoto = (index: number) => {
+    if (reccePhotos.length === 1) {
+      toast.error("At least one recce photo is required");
+      return;
+    }
+    setReccePhotos(reccePhotos.filter((_, i) => i !== index));
+  };
+
+  const addReccePhoto = () => {
+    setReccePhotos([...reccePhotos, { file: null, preview: null, width: "", height: "", unit: "in", elements: [] }]);
+  };
+
+  const updateReccePhoto = (index: number, field: keyof ReccePhoto, value: any) => {
+    const newReccePhotos = [...reccePhotos];
+    (newReccePhotos[index] as any)[field] = value;
+    setReccePhotos(newReccePhotos);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!width || !height) return toast.error("Please enter board dimensions");
-    if (!photos.front || !photos.side || !photos.closeUp)
-      return toast.error("Please upload all 3 site photos (Front View, Side View, and Close-Up) with visible measurements for accurate recce documentation");
+    
+    // Check if this is a resubmission (already has submitted data)
+    const isResubmission = store?.recce?.submittedDate;
+    
+    if (reccePhotos.length === 0) {
+      return toast.error("At least one recce photo is required");
+    }
+
+    for (let i = 0; i < reccePhotos.length; i++) {
+      if (!reccePhotos[i].file && !reccePhotos[i].preview) {
+        return toast.error(`Please upload photo for recce photo ${i + 1}`);
+      }
+      if (!reccePhotos[i].width || !reccePhotos[i].height) {
+        return toast.error(`Please enter measurements for recce photo ${i + 1}`);
+      }
+    }
 
     setSubmitting(true);
     const formData = new FormData();
-    formData.append("width", width);
-    formData.append("height", height);
-    formData.append("unit", unit);
     formData.append("notes", notes);
+    formData.append("initialPhotosCount", String(initialPhotos.length));
 
-    formData.append("front", photos.front);
-    formData.append("side", photos.side);
-    formData.append("closeUp", photos.closeUp);
+    initialPhotos.forEach((photo, index) => {
+      formData.append(`initialPhoto${index}`, photo);
+    });
+
+    const reccePhotosData = reccePhotos
+      .filter(rp => rp.file)
+      .map((rp) => ({
+        width: rp.width,
+        height: rp.height,
+        unit: rp.unit,
+        elements: rp.elements,
+      }));
+    formData.append("reccePhotosData", JSON.stringify(reccePhotosData));
+
+    let photoIndex = 0;
+    reccePhotos.forEach((rp) => {
+      if (rp.file) {
+        formData.append(`reccePhoto${photoIndex}`, rp.file);
+        photoIndex++;
+      }
+    });
+
+    // For resubmission, send existing photos data
+    if (isResubmission) {
+      const existingReccePhotos = reccePhotos
+        .filter(rp => !rp.file && rp.preview)
+        .map((rp) => ({
+          photo: rp.preview?.replace(`${API_BASE_URL}/`, ""),
+          width: rp.width,
+          height: rp.height,
+          unit: rp.unit,
+          elements: rp.elements,
+        }));
+      formData.append("existingReccePhotos", JSON.stringify(existingReccePhotos));
+      
+      const existingInitialPhotos = initialPreviews
+        .filter(preview => !initialPhotos.some(file => URL.createObjectURL(file) === preview))
+        .map(preview => preview.replace(`${API_BASE_URL}/`, ""));
+      formData.append("existingInitialPhotos", JSON.stringify(existingInitialPhotos));
+    }
 
     try {
       await api.post(`/stores/${id}/recce`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      toast.success("Recce Submitted Successfully!");
+      toast.success(isResubmission ? "Recce Updated Successfully!" : "Recce Submitted Successfully!");
       router.push("/recce");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Submission failed");
@@ -166,14 +251,6 @@ export default function RecceSubmissionPage() {
         <div className="max-w-7xl mx-auto p-4">
           <div className="grid md:grid-cols-3 gap-4 mb-6">
             <CardSkeleton />
-            <CardSkeleton />
-            <CardSkeleton />
-          </div>
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <CardSkeleton />
-            <CardSkeleton />
-          </div>
-          <div className="grid md:grid-cols-2 gap-6">
             <CardSkeleton />
             <CardSkeleton />
           </div>
@@ -275,7 +352,7 @@ export default function RecceSubmissionPage() {
         </div>
 
         {/* Board Specs & Costs */}
-        <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className={`grid ${isRecceUser ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-4 mb-6`}>
           {/* Board Specifications */}
           <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <div className="flex items-center gap-2 mb-3">
@@ -291,124 +368,247 @@ export default function RecceSubmissionPage() {
             </div>
           </div>
 
-          {/* Cost Breakdown */}
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <IndianRupee className="h-5 w-5 text-yellow-500" />
-              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Cost Details</h3>
-            </div>
-            <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-              <div className="flex justify-between"><span className="text-gray-500">Board Rate:</span> <span>₹{store.costDetails?.boardRate || 0}/sq.ft</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Board Cost:</span> <span>₹{store.costDetails?.totalBoardCost?.toLocaleString() || 0}</span></div>
-              {store.costDetails?.angleCharges ? <div className="flex justify-between"><span className="text-gray-500">Angle:</span> <span>₹{store.costDetails.angleCharges}</span></div> : null}
-              {store.costDetails?.scaffoldingCharges ? <div className="flex justify-between"><span className="text-gray-500">Scaffolding:</span> <span>₹{store.costDetails.scaffoldingCharges}</span></div> : null}
-              {store.costDetails?.transportation ? <div className="flex justify-between"><span className="text-gray-500">Transport:</span> <span>₹{store.costDetails.transportation}</span></div> : null}
-              <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700 font-bold text-green-600">
-                <span>Total Cost:</span> <span>₹{store.commercials?.totalCost?.toLocaleString() || 0}</span>
+          {/* Cost Breakdown - Hidden for recce users */}
+          {!isRecceUser && (
+            <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <IndianRupee className="h-5 w-5 text-yellow-500" />
+                <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Cost Details</h3>
+              </div>
+              <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                <div className="flex justify-between"><span className="text-gray-500">Board Rate:</span> <span>₹{store.costDetails?.boardRate || 0}/sq.ft</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Board Cost:</span> <span>₹{store.costDetails?.totalBoardCost?.toLocaleString() || 0}</span></div>
+                {store.costDetails?.angleCharges ? <div className="flex justify-between"><span className="text-gray-500">Angle:</span> <span>₹{store.costDetails.angleCharges}</span></div> : null}
+                {store.costDetails?.scaffoldingCharges ? <div className="flex justify-between"><span className="text-gray-500">Scaffolding:</span> <span>₹{store.costDetails.scaffoldingCharges}</span></div> : null}
+                {store.costDetails?.transportation ? <div className="flex justify-between"><span className="text-gray-500">Transport:</span> <span>₹{store.costDetails.transportation}</span></div> : null}
+                <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700 font-bold text-green-600">
+                  <span>Total Cost:</span> <span>₹{store.commercials?.totalCost?.toLocaleString() || 0}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Recce Form */}
-        <div className="grid md:grid-cols-2 gap-6">
-        <form onSubmit={handleSubmit} className="md:col-span-2 space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-          {/* SECTION 1: MEASUREMENTS */}
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <h3 className={`font-bold flex items-center gap-2 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
-              <Ruler className="h-5 w-5 text-yellow-500" /> Measurements
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  Width
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
-                  value={width}
-                  onChange={(e) => setWidth(e.target.value)}
-                  placeholder="0.0"
-                />
-              </div>
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  Height
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                  placeholder="0.0"
-                />
-              </div>
+        {/* Client Elements */}
+        {clientElements.length > 0 && (
+          <div className={`p-4 rounded-xl border mb-6 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <Package className="h-5 w-5 text-yellow-500" />
+              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Available Elements for This Client</h3>
             </div>
-            <div className="mt-4">
-              <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                Unit
-              </label>
-              <select
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className={`w-full p-3 border rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
-              >
-                <option value="ft">Feet (ft)</option>
-                <option value="m">Meters (m)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* SECTION 2: PHOTOS */}
-          <div className={`p-4 rounded-xl border md:row-span-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <h3 className={`font-bold flex items-center gap-2 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
-              <Camera className="h-5 w-5 text-yellow-500" /> Site Photos
-            </h3>
-
-            <div className="space-y-4">
-              {["front", "side", "closeUp"].map((type) => (
-                <div key={type} className="flex items-center gap-4">
-                  <label className="flex-1 relative block cursor-pointer group">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleFileChange(e, type as any)}
-                    />
-                    <div
-                      className={`h-24 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-colors overflow-hidden ${
-                        previews[type as keyof typeof previews] 
-                          ? "border-green-500 bg-green-50 dark:bg-green-900/20" 
-                          : darkMode 
-                            ? "border-gray-600 bg-gray-700 hover:bg-gray-600" 
-                            : "border-gray-300 bg-gray-50 hover:bg-gray-100"
-                      }`}
-                    >
-                      {previews[type as keyof typeof previews] ? (
-                        <img
-                          src={previews[type as keyof typeof previews]!}
-                          alt="Preview"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <>
-                          <Camera className={`h-6 w-6 mb-1 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
-                          <span className={`text-xs font-medium capitalize ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                            {type} View
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {clientElements.map((element: any) => (
+                <div key={element.elementId} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
+                  <div className={`font-medium text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{element.elementName}</div>
+                  <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Rate: ₹{element.customRate}</div>
                 </div>
               ))}
             </div>
           </div>
+        )}
 
-          {/* SECTION 3: NOTES */}
+        {/* Recce Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Initial Photos Section */}
+          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <h3 className={`font-bold flex items-center gap-2 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
+              <Camera className="h-5 w-5 text-yellow-500" /> Initial Store Photos (Optional - Max 10)
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+              {initialPreviews.map((preview, index) => (
+                <div key={index} className="relative">
+                  <img src={preview} alt={`Initial ${index + 1}`} className="w-full h-24 object-cover rounded-lg" />
+                  <button
+                    type="button"
+                    onClick={() => removeInitialPhoto(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {initialPhotos.length < 10 && (
+              <label className={`block cursor-pointer border-2 border-dashed rounded-lg p-4 text-center ${darkMode ? "border-gray-600 hover:bg-gray-700" : "border-gray-300 hover:bg-gray-50"}`}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleInitialPhotoChange}
+                />
+                <Camera className={`h-8 w-8 mx-auto mb-2 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
+                <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  Upload Initial Photos ({initialPhotos.length}/10)
+                </span>
+              </label>
+            )}
+          </div>
+
+          {/* Recce Photos */}
+          {reccePhotos.map((reccePhoto, index) => (
+            <div key={index} className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
+                  <Ruler className="h-5 w-5 text-yellow-500" /> Recce Photo {index + 1}
+                </h3>
+                {reccePhotos.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeReccePhoto(index)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Photo Upload */}
+              <div className="mb-4">
+                {reccePhoto.preview ? (
+                  <div className="relative inline-block">
+                    <img src={reccePhoto.preview} alt={`Recce ${index + 1}`} className="w-full max-w-xs h-48 object-cover rounded-lg" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newReccePhotos = [...reccePhotos];
+                        newReccePhotos[index].file = null;
+                        newReccePhotos[index].preview = null;
+                        setReccePhotos(newReccePhotos);
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className={`block cursor-pointer border-2 border-dashed rounded-lg p-8 text-center ${darkMode ? "border-gray-600 hover:bg-gray-700" : "border-gray-300 hover:bg-gray-50"}`}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleReccePhotoChange(index, e)}
+                    />
+                    <Camera className={`h-12 w-12 mx-auto mb-2 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
+                    <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                      Upload Recce Photo
+                    </span>
+                  </label>
+                )}
+              </div>
+
+              {/* Measurements */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Width
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                    value={reccePhoto.width}
+                    onChange={(e) => updateReccePhoto(index, "width", e.target.value)}
+                    placeholder="0.0"
+                  />
+                </div>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Height
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                    value={reccePhoto.height}
+                    onChange={(e) => updateReccePhoto(index, "height", e.target.value)}
+                    placeholder="0.0"
+                  />
+                </div>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Unit
+                  </label>
+                  <select
+                    value={reccePhoto.unit}
+                    onChange={(e) => updateReccePhoto(index, "unit", e.target.value)}
+                    className={`w-full p-3 border rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                  >
+                    <option value="in">Inches (in)</option>
+                    <option value="ft">Feet (ft)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Elements Section */}
+              {clientElements.length > 0 && (
+                <div className="mt-4">
+                  <label className={`block text-xs font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Elements (Optional)
+                  </label>
+                  <div className="space-y-2">
+                    {clientElements.map((element: any) => {
+                      const selectedElement = reccePhoto.elements.find(e => e.elementId === element.elementId.toString());
+                      return (
+                        <div key={element.elementId} className={`flex items-center gap-3 p-2 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-50"}`}>
+                          <input
+                            type="checkbox"
+                            checked={!!selectedElement}
+                            onChange={(e) => {
+                              const newReccePhotos = [...reccePhotos];
+                              if (e.target.checked) {
+                                newReccePhotos[index].elements.push({
+                                  elementId: element.elementId.toString(),
+                                  elementName: element.elementName,
+                                  quantity: 1,
+                                });
+                              } else {
+                                newReccePhotos[index].elements = newReccePhotos[index].elements.filter(
+                                  e => e.elementId !== element.elementId.toString()
+                                );
+                              }
+                              setReccePhotos(newReccePhotos);
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span className={`flex-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                            {element.elementName}
+                          </span>
+                          {selectedElement && (
+                            <input
+                              type="number"
+                              min="1"
+                              value={selectedElement.quantity}
+                              onChange={(e) => {
+                                const newReccePhotos = [...reccePhotos];
+                                const elem = newReccePhotos[index].elements.find(el => el.elementId === element.elementId.toString());
+                                if (elem) elem.quantity = parseInt(e.target.value) || 1;
+                                setReccePhotos(newReccePhotos);
+                              }}
+                              className={`w-20 p-2 border rounded text-sm ${darkMode ? "bg-gray-600 border-gray-500 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                              placeholder="Qty"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Add Recce Photo Button */}
+          <button
+            type="button"
+            onClick={addReccePhoto}
+            className={`w-full p-4 border-2 border-dashed rounded-xl flex items-center justify-center gap-2 ${darkMode ? "border-gray-600 text-gray-400 hover:bg-gray-700" : "border-gray-300 text-gray-500 hover:bg-gray-50"}`}
+          >
+            <Plus className="h-5 w-5" />
+            Add Another Recce Photo
+          </button>
+
+          {/* Notes */}
           <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <h3 className={`font-bold flex items-center gap-2 mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
               <FileText className="h-5 w-5 text-yellow-500" /> Remarks
@@ -421,24 +621,20 @@ export default function RecceSubmissionPage() {
             />
           </div>
 
-          </div>
-          {/* SUBMIT BUTTON */}
-          <div className="pt-2 md:col-span-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-yellow-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-600 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
-            >
-              {submitting ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <CheckCircle2 />
-              )}
-              Submit Recce Report
-            </button>
-          </div>
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-yellow-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-600 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
+          >
+            {submitting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <CheckCircle2 />
+            )}
+            Submit Recce Report
+          </button>
         </form>
-        </div>
       </div>
     </div>
   );

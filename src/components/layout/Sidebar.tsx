@@ -124,7 +124,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       name: "RFQ Generation",
       href: "/rfq",
       icon: FileText,
-      module: "stores",
+      module: "rfq",
     },
     {
       name: "Enquiries",

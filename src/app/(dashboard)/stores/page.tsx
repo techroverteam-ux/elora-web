@@ -66,6 +66,8 @@ export default function StoresPage() {
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCity, setFilterCity] = useState("");
+  const [filterClientCode, setFilterClientCode] = useState("");
+  const [filterClientName, setFilterClientName] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Upload State
@@ -92,6 +94,9 @@ export default function StoresPage() {
   // Download Menu State
   const [downloadMenuOpen, setDownloadMenuOpen] = useState<{storeId: string, type: string} | null>(null);
 
+  // Delete State - Track ongoing delete confirmations
+  const deleteConfirmOpenRef = useRef<Set<string>>(new Set());
+
   // Specifications State
   const [specifications, setSpecifications] = useState([{
     type: "",
@@ -105,6 +110,7 @@ export default function StoresPage() {
   const initialFormState = {
     zone: "", state: "", district: "", city: "",
     vendorCode: "", dealerCode: "", dealerName: "", dealerAddress: "",
+    clientCode: "",
     poNumber: "", invoiceRemarks: "", poMonth: "", invoiceNo: "",
     boardRate: "", angleCharges: "", scaffoldingCharges: "", transportation: "",
     flanges: "", lollipop: "", oneWayVision: "", sunboard: "", totalCost: "",
@@ -132,6 +138,8 @@ export default function StoresPage() {
       if (filterStatus !== "ALL") params.append("status", filterStatus);
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filterCity) params.append("city", filterCity);
+      if (filterClientCode) params.append("clientCode", filterClientCode);
+      if (filterClientName) params.append("clientName", filterClientName);
 
       const { data } = await api.get(`/stores?${params.toString()}`);
       setStores(data.stores);
@@ -153,7 +161,7 @@ export default function StoresPage() {
 
   useEffect(() => {
     fetchStores();
-  }, [page, limit, filterStatus, debouncedSearch, filterCity]);
+  }, [page, limit, filterStatus, debouncedSearch, filterCity, filterClientCode, filterClientName]);
 
   // Filter users based on search term
   useEffect(() => {
@@ -191,6 +199,7 @@ export default function StoresPage() {
         dealerCode: newStoreData.dealerCode,
         storeName: newStoreData.dealerName,
         vendorCode: newStoreData.vendorCode,
+        clientCode: newStoreData.clientCode,
         location: {
           zone: newStoreData.zone, state: newStoreData.state,
           district: newStoreData.district, city: newStoreData.city,
@@ -256,6 +265,31 @@ export default function StoresPage() {
     }
   };
 
+  const handleExportStores = async () => {
+    try {
+      toast.dismiss();
+      const params = new URLSearchParams();
+      if (filterStatus !== "ALL") params.append("status", filterStatus);
+      if (debouncedSearch) params.append("search", debouncedSearch);
+      if (filterCity) params.append("city", filterCity);
+      if (filterClientCode) params.append("clientCode", filterClientCode);
+      if (filterClientName) params.append("clientName", filterClientName);
+      
+      const response = await api.get(`/stores/export?${params.toString()}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Stores_Export.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Stores exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export stores');
+    }
+  };
+
   const downloadPPT = async (storeId: string, dealerCode: string, type: "recce" | "installation") => {
     try {
       toast.loading(`Generating ${type} PPT...`);
@@ -263,7 +297,16 @@ export default function StoresPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pptx`);
+      
+      // Extract filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pptx`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+      
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -282,7 +325,16 @@ export default function StoresPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pdf`);
+      
+      // Extract filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.pdf`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+      
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -294,6 +346,34 @@ export default function StoresPage() {
     }
   };
 
+  const downloadExcel = async (storeId: string, dealerCode: string, type: "recce" | "installation") => {
+    try {
+      toast.loading(`Generating ${type} Excel...`);
+      const response = await api.get(`/stores/${storeId}/excel/${type}`, { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      
+      // Extract filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${type.charAt(0).toUpperCase() + type.slice(1)}_${dealerCode}.xlsx`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+      
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.dismiss();
+      toast.success("Excel Downloaded!");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Failed to download Excel. Ensure data exists.");
+    }
+  };
+
   const toggleDownloadMenu = (storeId: string, type: string) => {
     if (downloadMenuOpen?.storeId === storeId && downloadMenuOpen?.type === type) {
       setDownloadMenuOpen(null);
@@ -302,10 +382,12 @@ export default function StoresPage() {
     }
   };
 
-  const handleDownload = async (storeId: string, dealerCode: string, reportType: "recce" | "installation", format: "pdf" | "ppt") => {
+  const handleDownload = async (storeId: string, dealerCode: string, reportType: "recce" | "installation", format: "pdf" | "ppt" | "excel") => {
     setDownloadMenuOpen(null);
     if (format === "pdf") {
       await downloadPDF(storeId, dealerCode, reportType);
+    } else if (format === "excel") {
+      await downloadExcel(storeId, dealerCode, reportType);
     } else {
       await downloadPPT(storeId, dealerCode, reportType);
     }
@@ -386,6 +468,11 @@ export default function StoresPage() {
   };
 
   const handleDelete = async (id: string) => {
+    // Prevent multiple confirmation dialogs for the same store
+    if (deleteConfirmOpenRef.current.has(id)) return;
+    
+    deleteConfirmOpenRef.current.add(id);
+    
     const confirmed = await new Promise<boolean>((resolve) => {
       toast((t) => (
         <div className={`flex flex-col gap-3 p-2 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
@@ -406,17 +493,99 @@ export default function StoresPage() {
             </button>
           </div>
         </div>
-      ), { duration: Infinity, style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
+      ), { duration: Infinity, position: 'bottom-center', style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
     });
+    
+    deleteConfirmOpenRef.current.delete(id);
     
     if (!confirmed) return;
     
     try {
       await api.delete(`/stores/${id}`);
-      toast.success("Store deleted");
+      toast.success("Store deleted successfully", {
+        position: 'bottom-center',
+        style: {
+          background: darkMode ? '#065f46' : '#d1fae5',
+          color: darkMode ? '#d1fae5' : '#065f46',
+          border: darkMode ? '1px solid #10b981' : '1px solid #059669',
+          borderRadius: '10px',
+          padding: '12px 16px',
+        },
+      });
       fetchStores();
     } catch (error) {
-      toast.error("Failed to delete store");
+      toast.error("Failed to delete store", {
+        position: 'bottom-center',
+        style: {
+          background: darkMode ? '#7f1d1d' : '#fee2e2',
+          color: darkMode ? '#fecaca' : '#7f1d1d',
+          border: darkMode ? '1px solid #ef4444' : '1px solid #dc2626',
+          borderRadius: '10px',
+          padding: '12px 16px',
+        },
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedStoreIds.size === 0) return;
+    if (deleteConfirmOpenRef.current.has('bulk')) return;
+    
+    deleteConfirmOpenRef.current.add('bulk');
+
+    const confirmed = await new Promise<boolean>((resolve) => {
+      toast((t) => (
+        <div className={`flex flex-col gap-3 p-2 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
+          <p className="font-semibold">Delete {selectedStoreIds.size} store(s)?</p>
+          <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>This action cannot be undone.</p>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(false); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${darkMode ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(true); }}
+              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Delete All
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity, position: 'bottom-center', style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
+    });
+
+    deleteConfirmOpenRef.current.delete('bulk');
+
+    if (!confirmed) return;
+
+    try {
+      const storeIds = Array.from(selectedStoreIds);
+      await Promise.all(storeIds.map(id => api.delete(`/stores/${id}`)));
+      toast.success(`${storeIds.length} store(s) deleted successfully`, {
+        position: 'bottom-center',
+        style: {
+          background: darkMode ? '#065f46' : '#d1fae5',
+          color: darkMode ? '#d1fae5' : '#065f46',
+          border: darkMode ? '1px solid #10b981' : '1px solid #059669',
+          borderRadius: '10px',
+          padding: '12px 16px',
+        },
+      });
+      setSelectedStoreIds(new Set());
+      fetchStores();
+    } catch (error) {
+      toast.error("Failed to delete some stores", {
+        position: 'bottom-center',
+        style: {
+          background: darkMode ? '#7f1d1d' : '#fee2e2',
+          color: darkMode ? '#fecaca' : '#7f1d1d',
+          border: darkMode ? '1px solid #ef4444' : '1px solid #dc2626',
+          borderRadius: '10px',
+          padding: '12px 16px',
+        },
+      });
     }
   };
 
@@ -500,6 +669,10 @@ export default function StoresPage() {
           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage and track all store activities</p>
         </div>
         <div className="flex flex-wrap gap-2">
+           <button onClick={handleExportStores} className="inline-flex items-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm bg-green-600 hover:bg-green-700 text-white">
+            <Download className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Export Stores</span>
+          </button>
            <button onClick={() => { setUploadStats(null); setSelectedFiles([]); setIsUploadOpen(true); }} className="inline-flex items-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm bg-yellow-500 hover:bg-yellow-600 text-white">
             <Upload className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Bulk Upload</span>
@@ -530,14 +703,25 @@ export default function StoresPage() {
                 {/* City Filter */}
                 <input type="text" placeholder="Filter by City" value={filterCity} onChange={(e) => { setFilterCity(e.target.value); setPage(1); }}
                     className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
+                {/* Client Code Filter */}
+                <input type="text" placeholder="Client Code" value={filterClientCode} onChange={(e) => { setFilterClientCode(e.target.value); setPage(1); }}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
+                {/* Client Name Filter */}
+                <input type="text" placeholder="Client Name" value={filterClientName} onChange={(e) => { setFilterClientName(e.target.value); setPage(1); }}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
             </div>
 
-            {/* Bulk Assign Button */}
+            {/* Bulk Actions */}
             {selectedStoreIds.size > 0 && (
                  <div className="flex gap-2 animate-in fade-in slide-in-from-right-4">
                     <button onClick={() => openAssignModal("RECCE")} className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">
                         <UserPlus className="h-4 w-4 mr-2" /> Assign Recce ({selectedStoreIds.size})
                     </button>
+                    {!isRecceOrInstallUser && (
+                      <button onClick={handleBulkDelete} className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm">
+                          <Trash2 className="h-4 w-4 mr-2" /> Delete ({selectedStoreIds.size})
+                      </button>
+                    )}
                  </div>
             )}
         </div>
@@ -825,6 +1009,7 @@ export default function StoresPage() {
                                             <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                             </div>
                                           )}
                                         </div>
@@ -840,6 +1025,7 @@ export default function StoresPage() {
                                             <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                             </div>
                                           )}
                                         </div>
@@ -853,6 +1039,7 @@ export default function StoresPage() {
                                          <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                            <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                            <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                           <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                          </div>
                                        )}
                                      </div>
@@ -866,6 +1053,7 @@ export default function StoresPage() {
                                             <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                             </div>
                                           )}
                                         </div>
@@ -875,6 +1063,7 @@ export default function StoresPage() {
                                             <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                                               <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                                              <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                                             </div>
                                           )}
                                         </div>
@@ -973,6 +1162,7 @@ export default function StoresPage() {
                           <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                           </div>
                         )}
                       </div>
@@ -991,6 +1181,7 @@ export default function StoresPage() {
                           <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                           </div>
                         )}
                       </div>
@@ -1005,6 +1196,7 @@ export default function StoresPage() {
                         <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                           <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                           <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                          <button onClick={()=>handleDownload(store._id, store.dealerCode, store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ? "installation" : "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                         </div>
                       )}
                     </div>
@@ -1019,6 +1211,7 @@ export default function StoresPage() {
                           <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                           </div>
                         )}
                       </div>
@@ -1030,6 +1223,7 @@ export default function StoresPage() {
                           <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileText className="w-3.5 h-3.5"/>PDF</button>
                             <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>PPT</button>
+                            <button onClick={()=>handleDownload(store._id, store.dealerCode, "installation", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}><FileSpreadsheet className="w-3.5 h-3.5"/>Excel</button>
                           </div>
                         )}
                       </div>
@@ -1217,6 +1411,7 @@ export default function StoresPage() {
                        <div><label className={labelClass}>Dealer Code *</label><input required name="dealerCode" value={newStoreData.dealerCode} onChange={handleInputChange} className={inputClass} /></div>
                        <div><label className={labelClass}>Dealer Name *</label><input required name="dealerName" value={newStoreData.dealerName} onChange={handleInputChange} className={inputClass} /></div>
                        <div><label className={labelClass}>Vendor Code</label><input name="vendorCode" value={newStoreData.vendorCode} onChange={handleInputChange} className={inputClass} /></div>
+                       <div><label className={labelClass}>Client Code</label><input name="clientCode" value={newStoreData.clientCode} onChange={handleInputChange} className={inputClass} placeholder="Optional" /></div>
                    </div>
                    
                    <div className={sectionHeaderClass}>LOCATION</div>
