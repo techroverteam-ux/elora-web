@@ -174,10 +174,12 @@ export default function StoresPage() {
 
   const fetchClients = async () => {
     try {
-      const { data } = await api.get("/clients/all");
-      setClients(data.clients || []);
+      const { data } = await api.get("/clients");
+      console.log("Fetched clients:", data);
+      setClients(data.clients || data || []);
     } catch (error) {
       console.error("Failed to fetch clients", error);
+      toast.error("Failed to load clients");
     }
   };
 

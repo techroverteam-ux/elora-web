@@ -204,28 +204,30 @@ export default function StoreDetailsPage() {
             )}
           </div>
 
-          {/* Commercial Details Card */}
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <FileSpreadsheet className="h-5 w-5 text-yellow-500" />
-              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Commercial</h3>
+          {/* Commercial Details Card - Only show if PO details exist */}
+          {(store.commercials?.poNumber || store.commercials?.poMonth || store.commercials?.invoiceNumber || store.commercials?.totalCost) && (
+            <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <FileSpreadsheet className="h-5 w-5 text-yellow-500" />
+                <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Commercial</h3>
+              </div>
+              {isEditing ? (
+                <div className="space-y-2">
+                  <input placeholder="PO Number" value={editData.commercials?.poNumber || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, poNumber: e.target.value}})} className={inputClass} />
+                  <input placeholder="PO Month" value={editData.commercials?.poMonth || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, poMonth: e.target.value}})} className={inputClass} />
+                  <input placeholder="Invoice Number" value={editData.commercials?.invoiceNumber || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, invoiceNumber: e.target.value}})} className={inputClass} />
+                  <input type="number" placeholder="Total Cost" value={editData.commercials?.totalCost || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, totalCost: Number(e.target.value)}})} className={inputClass} />
+                </div>
+              ) : (
+                <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                  <div><span className="text-gray-500">PO Number:</span> {store.commercials?.poNumber || "-"}</div>
+                  <div><span className="text-gray-500">PO Month:</span> {store.commercials?.poMonth || "-"}</div>
+                  <div><span className="text-gray-500">Invoice:</span> {store.commercials?.invoiceNumber || "-"}</div>
+                  <div><span className="text-gray-500">Total Cost:</span> ₹{store.commercials?.totalCost?.toLocaleString() || 0}</div>
+                </div>
+              )}
             </div>
-            {isEditing ? (
-              <div className="space-y-2">
-                <input placeholder="PO Number" value={editData.commercials?.poNumber || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, poNumber: e.target.value}})} className={inputClass} />
-                <input placeholder="PO Month" value={editData.commercials?.poMonth || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, poMonth: e.target.value}})} className={inputClass} />
-                <input placeholder="Invoice Number" value={editData.commercials?.invoiceNumber || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, invoiceNumber: e.target.value}})} className={inputClass} />
-                <input type="number" placeholder="Total Cost" value={editData.commercials?.totalCost || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, totalCost: Number(e.target.value)}})} className={inputClass} />
-              </div>
-            ) : (
-              <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                <div><span className="text-gray-500">PO Number:</span> {store.commercials?.poNumber || "-"}</div>
-                <div><span className="text-gray-500">PO Month:</span> {store.commercials?.poMonth || "-"}</div>
-                <div><span className="text-gray-500">Invoice:</span> {store.commercials?.invoiceNumber || "-"}</div>
-                <div><span className="text-gray-500">Total Cost:</span> ₹{store.commercials?.totalCost?.toLocaleString() || 0}</div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Board Specs & Costs */}
