@@ -54,8 +54,6 @@ export default function RecceSubmissionPage() {
     { file: null, preview: null, width: "", height: "", unit: "in", elements: [] },
   ]);
 
-  const API_BASE_URL = "http://localhost:5000";
-
   useEffect(() => {
     if (!id) return;
 
@@ -80,12 +78,13 @@ export default function RecceSubmissionPage() {
         if (s.recce && s.recce.submittedDate) {
           if (s.recce.notes) setNotes(s.recce.notes);
           if (s.recce.initialPhotos && s.recce.initialPhotos.length > 0) {
-            setInitialPreviews(s.recce.initialPhotos.map((p: string) => `${API_BASE_URL}/${p}`));
+            // Images are stored as relative paths, prepend CDN URL
+            setInitialPreviews(s.recce.initialPhotos.map((p: string) => `https://storage.enamorimpex.com/${p}`));
           }
           if (s.recce.reccePhotos && s.recce.reccePhotos.length > 0) {
             const loaded = s.recce.reccePhotos.map((rp: any) => ({
               file: null,
-              preview: `${API_BASE_URL}/${rp.photo}`,
+              preview: `https://storage.enamorimpex.com/${rp.photo}`,
               width: String(rp.measurements.width || ""),
               height: String(rp.measurements.height || ""),
               unit: rp.measurements.unit || "in",
@@ -208,7 +207,7 @@ export default function RecceSubmissionPage() {
       const existingReccePhotos = reccePhotos
         .filter(rp => !rp.file && rp.preview)
         .map((rp) => ({
-          photo: rp.preview?.replace(`${API_BASE_URL}/`, ""),
+          photo: rp.preview?.replace('https://storage.enamorimpex.com/', ""),
           width: rp.width,
           height: rp.height,
           unit: rp.unit,
@@ -218,7 +217,7 @@ export default function RecceSubmissionPage() {
       
       const existingInitialPhotos = initialPreviews
         .filter(preview => !initialPhotos.some(file => URL.createObjectURL(file) === preview))
-        .map(preview => preview.replace(`${API_BASE_URL}/`, ""));
+        .map(preview => preview.replace('https://storage.enamorimpex.com/', ""));
       formData.append("existingInitialPhotos", JSON.stringify(existingInitialPhotos));
     }
 
