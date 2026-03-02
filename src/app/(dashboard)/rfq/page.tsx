@@ -34,6 +34,7 @@ export default function RFQGenerationPage() {
   const [filterInvoiceNo, setFilterInvoiceNo] = useState("");
   const [filterClientCode, setFilterClientCode] = useState("");
   const [filterCity, setFilterCity] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -179,41 +180,49 @@ export default function RFQGenerationPage() {
     <div className="space-y-4 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>RFQ Generation</h1>
-          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Create Request for Quotation for selected stores</p>
+          <h1 className={`text-xl sm:text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>RFQ Generation</h1>
+          <p className={`text-xs sm:text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Create Request for Quotation for selected stores</p>
         </div>
-        {selectedStoreIds.size > 0 && (
-          <button onClick={handleGenerateRFQ} disabled={isGenerating} className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm disabled:opacity-50">
-            {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
-            Generate RFQ ({selectedStoreIds.size})
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border transition-all text-sm ${darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"}`}
+          >
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">Filters</span>
           </button>
-        )}
+          {selectedStoreIds.size > 0 && (
+            <button onClick={handleGenerateRFQ} disabled={isGenerating} className="inline-flex items-center px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-xs sm:text-sm disabled:opacity-50 whitespace-nowrap">
+              {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
+              <span className="hidden sm:inline">Generate RFQ</span> ({selectedStoreIds.size})
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-        <div className="flex items-center gap-2 mb-3">
-          <Filter className={`h-4 w-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
-          <span className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Filters</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          <div className="relative">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
-            <input type="text" placeholder="Search stores..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pl-10 ${inputClass}`} />
+      {showFilters && (
+        <div className={`p-3 sm:p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="relative">
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+              <input type="text" placeholder="Search stores..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pl-10 ${inputClass}`} />
+            </div>
+            <input type="text" placeholder="Zone" value={filterZone} onChange={(e) => setFilterZone(e.target.value)} className={inputClass} />
+            <input type="text" placeholder="State" value={filterState} onChange={(e) => setFilterState(e.target.value)} className={inputClass} />
+            <input type="text" placeholder="District" value={filterDistrict} onChange={(e) => setFilterDistrict(e.target.value)} className={inputClass} />
+            <input type="text" placeholder="City" value={filterCity} onChange={(e) => setFilterCity(e.target.value)} className={inputClass} />
+            <input type="text" placeholder="Vendor Code" value={filterVendorCode} onChange={(e) => setFilterVendorCode(e.target.value)} className={inputClass} />
+            <input type="text" placeholder="Dealer Code" value={filterDealerCode} onChange={(e) => setFilterDealerCode(e.target.value)} className={inputClass} />
+            <input type="text" placeholder="Client Code" value={filterClientCode} onChange={(e) => setFilterClientCode(e.target.value)} className={inputClass} />
+            <input type="text" placeholder="PO Number" value={filterPONumber} onChange={(e) => setFilterPONumber(e.target.value)} className={inputClass} />
+            <input type="text" placeholder="Invoice No" value={filterInvoiceNo} onChange={(e) => setFilterInvoiceNo(e.target.value)} className={inputClass} />
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass}>
+              <option value="ALL">All Status</option>
+              {Object.values(StoreStatus).map(s => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
+            </select>
           </div>
-          <input type="text" placeholder="Zone" value={filterZone} onChange={(e) => setFilterZone(e.target.value)} className={inputClass} />
-          <input type="text" placeholder="State" value={filterState} onChange={(e) => setFilterState(e.target.value)} className={inputClass} />
-          <input type="text" placeholder="District" value={filterDistrict} onChange={(e) => setFilterDistrict(e.target.value)} className={inputClass} />
-          <input type="text" placeholder="Vendor Code" value={filterVendorCode} onChange={(e) => setFilterVendorCode(e.target.value)} className={inputClass} />
-          <input type="text" placeholder="Dealer Code" value={filterDealerCode} onChange={(e) => setFilterDealerCode(e.target.value)} className={inputClass} />
-          <input type="text" placeholder="PO Number" value={filterPONumber} onChange={(e) => setFilterPONumber(e.target.value)} className={inputClass} />
-          <input type="text" placeholder="Invoice No" value={filterInvoiceNo} onChange={(e) => setFilterInvoiceNo(e.target.value)} className={inputClass} />
-          <input type="text" placeholder="Client Code" value={filterClientCode} onChange={(e) => setFilterClientCode(e.target.value)} className={inputClass} />
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass}>
-            <option value="ALL">All Status</option>
-            {Object.values(StoreStatus).map(s => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
-          </select>
         </div>
-      </div>
+      )}
 
       <div className={`rounded-xl border overflow-hidden shadow-sm ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
         {isLoading ? (
@@ -228,7 +237,8 @@ export default function RFQGenerationPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className={darkMode ? "bg-gray-800/50" : "bg-gray-50"}>
                   <tr>
@@ -237,13 +247,13 @@ export default function RFQGenerationPage() {
                         {selectedStoreIds.size === stores.length && stores.length > 0 ? <CheckSquare className="h-5 w-5 text-yellow-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />}
                       </button>
                     </th>
-                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Store ID</th>
-                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Client Code</th>
-                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dealer Code</th>
-                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Store Name</th>
-                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>City</th>
-                    <th className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Status</th>
-                    <th className={`px-4 py-4 text-right text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Action</th>
+                    <th className={`px-4 py-4 text-left text-xs sm:text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Store ID</th>
+                    <th className={`px-4 py-4 text-left text-xs sm:text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Client Code</th>
+                    <th className={`px-4 py-4 text-left text-xs sm:text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dealer Code</th>
+                    <th className={`px-4 py-4 text-left text-xs sm:text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Store Name</th>
+                    <th className={`px-4 py-4 text-left text-xs sm:text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>City</th>
+                    <th className={`px-4 py-4 text-left text-xs sm:text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Status</th>
+                    <th className={`px-4 py-4 text-right text-xs sm:text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Action</th>
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${darkMode ? "divide-gray-700 bg-gray-900" : "divide-gray-200 bg-white"}`}>
@@ -257,19 +267,19 @@ export default function RFQGenerationPage() {
                           </button>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className={`text-sm font-mono font-semibold ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>{store.storeId || "-"}</div>
+                          <div className={`text-xs sm:text-sm font-mono font-semibold ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>{store.storeId || "-"}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className={`text-sm font-mono ${darkMode ? "text-blue-400" : "text-blue-600"}`}>{store.clientCode || "-"}</div>
+                          <div className={`text-xs sm:text-sm font-mono ${darkMode ? "text-blue-400" : "text-blue-600"}`}>{store.clientCode || "-"}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className={`text-sm font-mono ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{store.dealerCode}</div>
+                          <div className={`text-xs sm:text-sm font-mono ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{store.dealerCode}</div>
                         </td>
                         <td className="px-4 py-4">
-                          <div className={`text-sm font-medium ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{store.storeName}</div>
+                          <div className={`text-xs sm:text-sm font-medium ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{store.storeName}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.city || "-"}</div>
+                          <div className={`text-xs sm:text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.city || "-"}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-full ${getStatusColor(store.currentStatus)}`}>
@@ -288,7 +298,42 @@ export default function RFQGenerationPage() {
               </table>
             </div>
 
-            <div className={`px-4 py-3 flex items-center justify-between border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3 p-3">
+              {stores.map((store) => {
+                const isSelected = selectedStoreIds.has(store._id);
+                return (
+                  <div key={store._id} className={`p-3 rounded-lg border ${isSelected ? (darkMode ? "bg-blue-900/30 border-blue-500" : "bg-blue-50 border-blue-300") : darkMode ? "bg-gray-800/30 border-gray-700" : "bg-white border-gray-200"}`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-start gap-2 flex-1">
+                        <button onClick={() => toggleStoreSelection(store._id)} className="mt-1">
+                          {isSelected ? <CheckSquare className="h-5 w-5 text-blue-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} />}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-xs font-mono font-semibold ${darkMode ? "text-yellow-400" : "text-yellow-600"} mb-1`}>{store.storeId || store.dealerCode}</div>
+                          <div className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-900"} truncate`}>{store.storeName}</div>
+                          <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"} mt-1`}>{store.location.city}</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-full whitespace-nowrap ${getStatusColor(store.currentStatus)}`}>
+                        {store.currentStatus.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                    <div className={`flex items-center justify-between text-xs mt-2 pt-2 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+                      <div>
+                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Client: </span>
+                        <span className={`font-mono ${darkMode ? "text-blue-400" : "text-blue-600"}`}>{store.clientCode || "-"}</span>
+                      </div>
+                      <button onClick={() => router.push(`/store/${store._id}`)} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 text-blue-600 text-xs font-medium">
+                        <Eye className="w-3 h-3" /> View
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className={`px-3 sm:px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>
               <div className={`text-xs font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
                 Showing {(page - 1) * limit + 1}-{Math.min(page * limit, totalStores)} of {totalStores}
               </div>

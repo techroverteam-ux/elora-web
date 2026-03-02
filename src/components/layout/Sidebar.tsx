@@ -169,9 +169,9 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         }`}
       >
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Sidebar Header with LOGO - Hidden on mobile */}
+          {/* Sidebar Header with LOGO */}
           <div
-            className={`hidden md:flex items-center justify-between h-20 flex-shrink-0 px-6 border-b ${
+            className={`flex items-center justify-between h-20 flex-shrink-0 px-6 border-b ${
               darkMode
                 ? "bg-purple-900/30 border-purple-700/50"
                 : "bg-yellow-50/50 border-gray-200"
@@ -188,26 +188,6 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                 />
               </div>
             </div>
-          </div>
-
-          {/* Mobile: Close button only */}
-          <div
-            className={`md:hidden flex items-center justify-end h-16 flex-shrink-0 px-6 border-b ${
-              darkMode
-                ? "bg-purple-900/30 border-purple-700/50"
-                : "bg-yellow-50/50 border-gray-200"
-            }`}
-          >
-            <button
-              className={`md:hidden p-2 rounded-lg transition-colors ${
-                darkMode
-                  ? "text-gray-300 hover:text-white hover:bg-gray-800"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-              onClick={() => setIsOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </button>
           </div>
 
           {/* Navigation Links */}
