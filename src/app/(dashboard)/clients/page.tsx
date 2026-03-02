@@ -680,7 +680,7 @@ export default function ClientsPage() {
                 className={`flex-1 rounded-md border px-3 py-2 text-sm focus:ring-1 focus:ring-yellow-500 focus:outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
               >
                 <option value="">Select Element</option>
-                {availableElements.map((element) => (
+                {availableElements.filter(element => !formData.elements.some(e => e.elementId === element._id)).map((element) => (
                   <option key={element._id} value={element._id}>
                     {element.name} (₹{element.standardRate}/sq.ft)
                   </option>

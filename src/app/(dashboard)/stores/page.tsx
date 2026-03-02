@@ -28,8 +28,11 @@ import {
   User,
   Edit2,
   Check,
-  XCircle
+  XCircle,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
+import { exportToExcel } from "@/src/utils/excelExport";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import Modal from "@/src/components/ui/Modal";
@@ -55,6 +58,7 @@ export default function StoresPage() {
   // Data State
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [clients, setClients] = useState<any[]>([]);
   
   // Pagination State
   const [page, setPage] = useState(1);
@@ -105,6 +109,7 @@ export default function StoresPage() {
     unit: "ft",
     qty: "1"
   }]);
+  const [showSpecifications, setShowSpecifications] = useState(false);
 
   // Initial Form State
   const initialFormState = {
@@ -163,6 +168,19 @@ export default function StoresPage() {
     fetchStores();
   }, [page, limit, filterStatus, debouncedSearch, filterCity, filterClientCode, filterClientName]);
 
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const fetchClients = async () => {
+    try {
+      const { data } = await api.get("/clients/all");
+      setClients(data.clients || []);
+    } catch (error) {
+      console.error("Failed to fetch clients", error);
+    }
+  };
+
   // Filter users based on search term
   useEffect(() => {
     if (!userSearchTerm) {
@@ -188,21 +206,21 @@ export default function StoresPage() {
     if (!newStoreData.dealerCode || !newStoreData.dealerName) {
       return toast.error("Dealer Code and Name are required");
     }
+    if (!newStoreData.clientCode) {
+      return toast.error("Client Code is required");
+    }
     setIsSavingStore(true);
     try {
-      // Use first specification for main specs
-      const mainSpec = specifications[0];
-      const width = mainSpec.unit === "m" ? Number(mainSpec.width) * 3.28084 : Number(mainSpec.width);
-      const height = mainSpec.unit === "m" ? Number(mainSpec.height) * 3.28084 : Number(mainSpec.height);
-      
       const payload = {
         dealerCode: newStoreData.dealerCode,
         storeName: newStoreData.dealerName,
         vendorCode: newStoreData.vendorCode,
         clientCode: newStoreData.clientCode,
         location: {
-          zone: newStoreData.zone, state: newStoreData.state,
-          district: newStoreData.district, city: newStoreData.city,
+          zone: newStoreData.zone,
+          state: newStoreData.state,
+          district: newStoreData.district,
+          city: newStoreData.city,
           address: newStoreData.dealerAddress,
           ...(newStoreData.latitude && newStoreData.longitude && {
             coordinates: {
@@ -210,35 +228,12 @@ export default function StoresPage() {
               lng: Number(newStoreData.longitude)
             }
           })
-        },
-        commercials: {
-          poNumber: newStoreData.poNumber, poMonth: newStoreData.poMonth,
-          invoiceNumber: newStoreData.invoiceNo, invoiceRemarks: newStoreData.invoiceRemarks,
-          totalCost: Number(newStoreData.totalCost) || 0,
-        },
-        costDetails: {
-          boardRate: Number(newStoreData.boardRate) || 0,
-          angleCharges: Number(newStoreData.angleCharges) || 0,
-          scaffoldingCharges: Number(newStoreData.scaffoldingCharges) || 0,
-          transportation: Number(newStoreData.transportation) || 0,
-          flanges: Number(newStoreData.flanges) || 0,
-          lollipop: Number(newStoreData.lollipop) || 0,
-          oneWayVision: Number(newStoreData.oneWayVision) || 0,
-          sunboard: Number(newStoreData.sunboard) || 0,
-        },
-        specs: {
-          type: mainSpec.type,
-          width: width || 0,
-          height: height || 0,
-          qty: Number(mainSpec.qty) || 1,
-          boardSize: `${width}x${height}`,
-        },
+        }
       };
       await api.post("/stores", payload);
       toast.success("Store Added Successfully");
       setIsAddStoreOpen(false);
       setNewStoreData(initialFormState);
-      setSpecifications([{ type: "", width: "", height: "", unit: "ft", qty: "1" }]);
       fetchStores();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to add store");
@@ -631,16 +626,28 @@ export default function StoresPage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setUploadStats(data);
-      toast.success(`Success: ${data.successCount}, Errors: ${data.errorCount}`);
-      if (data.successCount > 0) {
+      if (data.errorCount > 0) {
+        toast.error(`Upload rejected: ${data.errorCount} errors found. Fix and re-upload.`);
+      } else {
+        toast.success(`All ${data.successCount} stores uploaded successfully!`);
         fetchStores();
         setSelectedFiles([]);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Upload failed");
+      if (error.response?.data?.rows) {
+        setUploadStats(error.response.data);
+      }
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleExportUploadResults = (type: 'valid' | 'invalid' | 'all') => {
+    if (!uploadStats?.rows) return;
+    const filename = `Store_Upload_${type === 'valid' ? 'Valid' : type === 'invalid' ? 'Invalid' : 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    exportToExcel(uploadStats.rows, type, filename);
+    toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} rows exported!`);
   };
 
   const getStatusColor = (status: StoreStatus) => {
@@ -1263,15 +1270,70 @@ export default function StoresPage() {
        <Modal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} title="Bulk Upload Stores">
          <div className="space-y-4">
            {uploadStats ? (
-             <div className="text-center space-y-3">
-               <div className={`text-4xl font-bold ${uploadStats.errorCount === 0 ? "text-green-500" : "text-orange-500"}`}>{uploadStats.successCount} / {uploadStats.totalProcessed}</div>
-               <p className="text-sm text-gray-500">Records Processed</p>
-               {uploadStats.errors?.length > 0 && (
-                 <div className="mt-4 text-left bg-red-50 p-3 rounded-lg max-h-48 overflow-y-auto text-xs text-red-600">
-                    <ul className="list-disc pl-4 space-y-1">{uploadStats.errors.map((e:any, i:number) => <li key={i}>{e.error} {e.row && `(Row ${e.row})`}</li>)}</ul>
+             <div className="space-y-4">
+               <div className={`p-4 rounded-lg ${uploadStats.errorCount === 0 ? darkMode ? "bg-green-900/20 border border-green-500/30" : "bg-green-50 border border-green-200" : darkMode ? "bg-red-900/20 border border-red-500/30" : "bg-red-50 border border-red-200"}`}>
+                 <div className="flex items-center gap-3 mb-2">
+                   {uploadStats.errorCount === 0 ? <CheckCircle2 className="w-6 h-6 text-green-500" /> : <AlertCircle className="w-6 h-6 text-red-500" />}
+                   <div>
+                     <p className={`font-bold text-lg ${uploadStats.errorCount === 0 ? "text-green-600" : "text-red-600"}`}>
+                       {uploadStats.errorCount === 0 ? "Upload Successful!" : "Upload Rejected"}
+                     </p>
+                     <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+                       Processed: {uploadStats.totalProcessed} | Valid: {uploadStats.successCount} | Errors: {uploadStats.errorCount}
+                     </p>
+                   </div>
                  </div>
-               )}
-               <button onClick={() => { setIsUploadOpen(false); setUploadStats(null); }} className="w-full bg-gray-900 text-white py-2 rounded-lg mt-2">Close</button>
+                 {uploadStats.errorCount > 0 && (
+                   <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Fix all errors and re-upload the file. Use export buttons below to download corrected data.</p>
+                 )}
+               </div>
+
+               <div className="flex gap-2">
+                 <button onClick={() => handleExportUploadResults('valid')} disabled={uploadStats.successCount === 0} className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm">
+                   <Download className="w-4 h-4" /> Export Valid ({uploadStats.successCount})
+                 </button>
+                 <button onClick={() => handleExportUploadResults('invalid')} disabled={uploadStats.errorCount === 0} className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm">
+                   <Download className="w-4 h-4" /> Export Invalid ({uploadStats.errorCount})
+                 </button>
+                 <button onClick={() => handleExportUploadResults('all')} className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm">
+                   <Download className="w-4 h-4" /> Export All
+                 </button>
+               </div>
+
+               <div className={`border rounded-lg ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+                 <div className="max-h-[400px] overflow-auto scrollbar-thin scrollbar-thumb-yellow-500 scrollbar-track-gray-200">
+                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                     <thead className={`sticky top-0 ${darkMode ? "bg-gray-800" : "bg-gray-50"}`}>
+                       <tr>
+                         <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Row</th>
+                         <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Client Code</th>
+                         <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dealer Code</th>
+                         <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Dealer Name</th>
+                         <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>State</th>
+                         <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>City</th>
+                         <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Status/Error</th>
+                       </tr>
+                     </thead>
+                     <tbody className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}>
+                       {uploadStats.rows?.map((row: any, idx: number) => (
+                         <tr key={idx} className={row.status === 'error' ? (darkMode ? "bg-red-900/10" : "bg-red-50") : (darkMode ? "bg-green-900/10" : "bg-green-50")}>
+                           <td className={`px-3 py-2 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.rowNumber}</td>
+                           <td className={`px-3 py-2 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.data.clientCode || '-'}</td>
+                           <td className={`px-3 py-2 text-xs font-mono ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.data.dealerCode || '-'}</td>
+                           <td className={`px-3 py-2 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.data.dealerName || '-'}</td>
+                           <td className={`px-3 py-2 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.data.state || '-'}</td>
+                           <td className={`px-3 py-2 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.data.city || '-'}</td>
+                           <td className={`px-3 py-2 text-xs ${row.status === 'success' ? "text-green-600 font-semibold" : "text-red-600"}`}>
+                             {row.status === 'success' ? '✓ Valid' : row.error}
+                           </td>
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                 </div>
+               </div>
+
+               <button onClick={() => { setIsUploadOpen(false); setUploadStats(null); setSelectedFiles([]); }} className={`w-full py-2 rounded-lg font-medium ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}>Close</button>
              </div>
            ) : (
              <form onSubmit={handleUpload} className="space-y-4">
@@ -1411,37 +1473,38 @@ export default function StoresPage() {
                        <div><label className={labelClass}>Dealer Code *</label><input required name="dealerCode" value={newStoreData.dealerCode} onChange={handleInputChange} className={inputClass} /></div>
                        <div><label className={labelClass}>Dealer Name *</label><input required name="dealerName" value={newStoreData.dealerName} onChange={handleInputChange} className={inputClass} /></div>
                        <div><label className={labelClass}>Vendor Code</label><input name="vendorCode" value={newStoreData.vendorCode} onChange={handleInputChange} className={inputClass} /></div>
-                       <div><label className={labelClass}>Client Code</label><input name="clientCode" value={newStoreData.clientCode} onChange={handleInputChange} className={inputClass} placeholder="Optional" /></div>
+                       <div>
+                         <label className={labelClass}>Select Client</label>
+                         <select 
+                           onChange={(e) => {
+                             const selectedClient = clients.find(c => c._id === e.target.value);
+                             if (selectedClient) {
+                               setNewStoreData({ ...newStoreData, clientCode: selectedClient.clientCode });
+                             }
+                           }}
+                           className={inputClass}
+                         >
+                           <option value="">Select a client...</option>
+                           {clients.map(client => (
+                             <option key={client._id} value={client._id}>
+                               {client.clientName} ({client.clientCode})
+                             </option>
+                           ))}
+                         </select>
+                       </div>
+                       <div><label className={labelClass}>Client Code *</label><input required name="clientCode" value={newStoreData.clientCode} onChange={handleInputChange} className={inputClass} placeholder="e.g., CLI001" /></div>
                    </div>
                    
                    <div className={sectionHeaderClass}>LOCATION</div>
                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className={labelClass}>City *</label><input required name="city" value={newStoreData.city} onChange={handleInputChange} className={inputClass} /></div>
+                        <div><label className={labelClass}>Zone</label><input name="zone" value={newStoreData.zone} onChange={handleInputChange} className={inputClass} /></div>
                         <div><label className={labelClass}>State</label><input name="state" value={newStoreData.state} onChange={handleInputChange} className={inputClass} /></div>
+                        <div><label className={labelClass}>District *</label><input required name="district" value={newStoreData.district} onChange={handleInputChange} className={inputClass} /></div>
+                        <div><label className={labelClass}>City *</label><input required name="city" value={newStoreData.city} onChange={handleInputChange} className={inputClass} /></div>
                         <div className="col-span-2"><label className={labelClass}>Address</label><input name="dealerAddress" value={newStoreData.dealerAddress} onChange={handleInputChange} className={inputClass} /></div>
                         <div><label className={labelClass}>Latitude</label><input type="number" step="any" name="latitude" value={newStoreData.latitude} onChange={handleInputChange} className={inputClass} placeholder="e.g. 28.7041" /></div>
                         <div><label className={labelClass}>Longitude</label><input type="number" step="any" name="longitude" value={newStoreData.longitude} onChange={handleInputChange} className={inputClass} placeholder="e.g. 77.1025" /></div>
                    </div>
-
-                   <div className={sectionHeaderClass}>SPECIFICATIONS</div>
-                   {specifications.map((spec, index) => (
-                     <div key={index} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                       <div className="flex justify-between items-center mb-2">
-                         <span className="text-xs font-bold">Board #{index + 1}</span>
-                         {specifications.length > 1 && (
-                           <button type="button" onClick={() => setSpecifications(specifications.filter((_, i) => i !== index))} className="text-red-500 text-xs">Remove</button>
-                         )}
-                       </div>
-                       <div className="grid grid-cols-4 gap-2">
-                         <div><label className={labelClass}>Type</label><input value={spec.type} onChange={(e) => { const newSpecs = [...specifications]; newSpecs[index].type = e.target.value; setSpecifications(newSpecs); }} className={inputClass} placeholder="Flex/LED" /></div>
-                         <div><label className={labelClass}>Width</label><input type="number" step="0.01" value={spec.width} onChange={(e) => { const newSpecs = [...specifications]; newSpecs[index].width = e.target.value; setSpecifications(newSpecs); }} className={inputClass} /></div>
-                         <div><label className={labelClass}>Height</label><input type="number" step="0.01" value={spec.height} onChange={(e) => { const newSpecs = [...specifications]; newSpecs[index].height = e.target.value; setSpecifications(newSpecs); }} className={inputClass} /></div>
-                         <div><label className={labelClass}>Unit</label><select value={spec.unit} onChange={(e) => { const newSpecs = [...specifications]; newSpecs[index].unit = e.target.value; setSpecifications(newSpecs); }} className={inputClass}><option value="ft">Feet</option><option value="m">Meters</option></select></div>
-                       </div>
-                       <div className="mt-2"><label className={labelClass}>Quantity</label><input type="number" value={spec.qty} onChange={(e) => { const newSpecs = [...specifications]; newSpecs[index].qty = e.target.value; setSpecifications(newSpecs); }} className={inputClass} /></div>
-                     </div>
-                   ))}
-                   <button type="button" onClick={() => setSpecifications([...specifications, { type: "", width: "", height: "", unit: "ft", qty: "1" }])} className="text-sm text-yellow-600 hover:text-yellow-700 font-medium">+ Add Another Board</button>
                </div>
                 <div className="flex justify-end gap-3 pt-4 border-t">
                     <button type="button" onClick={() => setIsAddStoreOpen(false)} className="px-4 py-2 rounded text-gray-600 hover:bg-gray-100">Cancel</button>

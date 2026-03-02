@@ -30,7 +30,8 @@ interface ReccePhoto {
   width: string;
   height: string;
   unit: string;
-  elements: Array<{ elementId: string; elementName: string; quantity: number }>;
+  elementId: string;
+  elementName: string;
 }
 
 export default function RecceSubmissionPage() {
@@ -51,7 +52,7 @@ export default function RecceSubmissionPage() {
   const [initialPhotos, setInitialPhotos] = useState<File[]>([]);
   const [initialPreviews, setInitialPreviews] = useState<string[]>([]);
   const [reccePhotos, setReccePhotos] = useState<ReccePhoto[]>([
-    { file: null, preview: null, width: "", height: "", unit: "in", elements: [] },
+    { file: null, preview: null, width: "", height: "", unit: "in", elementId: "", elementName: "" },
   ]);
 
   useEffect(() => {
@@ -88,7 +89,8 @@ export default function RecceSubmissionPage() {
               width: String(rp.measurements.width || ""),
               height: String(rp.measurements.height || ""),
               unit: rp.measurements.unit || "in",
-              elements: rp.elements || [],
+              elementId: rp.elements?.[0]?.elementId || "",
+              elementName: rp.elements?.[0]?.elementName || "",
             }));
             setReccePhotos(loaded);
           }
@@ -147,7 +149,7 @@ export default function RecceSubmissionPage() {
   };
 
   const addReccePhoto = () => {
-    setReccePhotos([...reccePhotos, { file: null, preview: null, width: "", height: "", unit: "in", elements: [] }]);
+    setReccePhotos([...reccePhotos, { file: null, preview: null, width: "", height: "", unit: "in", elementId: "", elementName: "" }]);
   };
 
   const updateReccePhoto = (index: number, field: keyof ReccePhoto, value: any) => {
@@ -173,6 +175,9 @@ export default function RecceSubmissionPage() {
       if (!reccePhotos[i].width || !reccePhotos[i].height) {
         return toast.error(`Please enter measurements for recce photo ${i + 1}`);
       }
+      if (!reccePhotos[i].elementId) {
+        return toast.error(`Please select an element for recce photo ${i + 1}`);
+      }
     }
 
     setSubmitting(true);
@@ -190,7 +195,7 @@ export default function RecceSubmissionPage() {
         width: rp.width,
         height: rp.height,
         unit: rp.unit,
-        elements: rp.elements,
+        elements: [{ elementId: rp.elementId, elementName: rp.elementName, quantity: 1 }],
       }));
     formData.append("reccePhotosData", JSON.stringify(reccePhotosData));
 
@@ -211,7 +216,7 @@ export default function RecceSubmissionPage() {
           width: rp.width,
           height: rp.height,
           unit: rp.unit,
-          elements: rp.elements,
+          elements: [{ elementId: rp.elementId, elementName: rp.elementName, quantity: 1 }],
         }));
       formData.append("existingReccePhotos", JSON.stringify(existingReccePhotos));
       
@@ -539,59 +544,30 @@ export default function RecceSubmissionPage() {
                 </div>
               </div>
 
-              {/* Elements Section */}
+              {/* Element Selection */}
               {clientElements.length > 0 && (
                 <div className="mt-4">
                   <label className={`block text-xs font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                    Elements (Optional)
+                    Select Element *
                   </label>
-                  <div className="space-y-2">
-                    {clientElements.map((element: any) => {
-                      const selectedElement = reccePhoto.elements.find(e => e.elementId === element.elementId.toString());
-                      return (
-                        <div key={element.elementId} className={`flex items-center gap-3 p-2 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-50"}`}>
-                          <input
-                            type="checkbox"
-                            checked={!!selectedElement}
-                            onChange={(e) => {
-                              const newReccePhotos = [...reccePhotos];
-                              if (e.target.checked) {
-                                newReccePhotos[index].elements.push({
-                                  elementId: element.elementId.toString(),
-                                  elementName: element.elementName,
-                                  quantity: 1,
-                                });
-                              } else {
-                                newReccePhotos[index].elements = newReccePhotos[index].elements.filter(
-                                  e => e.elementId !== element.elementId.toString()
-                                );
-                              }
-                              setReccePhotos(newReccePhotos);
-                            }}
-                            className="w-4 h-4"
-                          />
-                          <span className={`flex-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                            {element.elementName}
-                          </span>
-                          {selectedElement && (
-                            <input
-                              type="number"
-                              min="1"
-                              value={selectedElement.quantity}
-                              onChange={(e) => {
-                                const newReccePhotos = [...reccePhotos];
-                                const elem = newReccePhotos[index].elements.find(el => el.elementId === element.elementId.toString());
-                                if (elem) elem.quantity = parseInt(e.target.value) || 1;
-                                setReccePhotos(newReccePhotos);
-                              }}
-                              className={`w-20 p-2 border rounded text-sm ${darkMode ? "bg-gray-600 border-gray-500 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                              placeholder="Qty"
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <select
+                    value={reccePhoto.elementId}
+                    onChange={(e) => {
+                      const selectedElement = clientElements.find(el => el.elementId.toString() === e.target.value);
+                      const newReccePhotos = [...reccePhotos];
+                      newReccePhotos[index].elementId = e.target.value;
+                      newReccePhotos[index].elementName = selectedElement?.elementName || "";
+                      setReccePhotos(newReccePhotos);
+                    }}
+                    className={`w-full p-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                  >
+                    <option value="">-- Select an element --</option>
+                    {clientElements.map((element: any) => (
+                      <option key={element.elementId} value={element.elementId.toString()}>
+                        {element.elementName} (₹{element.customRate})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
             </div>

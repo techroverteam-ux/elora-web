@@ -9,12 +9,22 @@ export default function DashboardPage() {
   const { darkMode } = useTheme();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ startDate: "", endDate: "", status: "", zone: "", state: "" });
+  const [filters, setFilters] = useState({ startDate: "", endDate: "", status: "", zone: "", state: "", store: "", client: "", city: "", district: "" });
   const [showFilters, setShowFilters] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   useEffect(() => {
     fetchStats();
   }, []);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      fetchStats();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, filters]);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -72,21 +82,35 @@ export default function DashboardPage() {
           <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Dashboard</h1>
           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Overview & Analytics</p>
         </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
-            darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"
-          }`}
-        >
-          <Filter className="w-4 h-4" />
-          Filters
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+              autoRefresh
+                ? darkMode ? "bg-green-900/30 border-green-700/50 text-green-400" : "bg-green-50 border-green-200 text-green-700"
+                : darkMode ? "bg-gray-800 border-gray-700 text-gray-400" : "bg-white border-gray-200 text-gray-500"
+            }`}
+            title={autoRefresh ? "Auto-refresh enabled (30s)" : "Auto-refresh disabled"}
+          >
+            <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+            {autoRefresh ? 'Live' : 'Paused'}
+          </button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+              darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            Filters
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
       {showFilters && (
         <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <input
                 type="date"
@@ -125,6 +149,20 @@ export default function DashboardPage() {
             </div>
             <input
               type="text"
+              placeholder="Store Name/Code"
+              value={filters.store}
+              onChange={(e) => setFilters({ ...filters, store: e.target.value })}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
+            />
+            <input
+              type="text"
+              placeholder="Client Code"
+              value={filters.client}
+              onChange={(e) => setFilters({ ...filters, client: e.target.value })}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
+            />
+            <input
+              type="text"
               placeholder="Zone"
               value={filters.zone}
               onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
@@ -137,9 +175,23 @@ export default function DashboardPage() {
               onChange={(e) => setFilters({ ...filters, state: e.target.value })}
               className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
             />
+            <input
+              type="text"
+              placeholder="City"
+              value={filters.city}
+              onChange={(e) => setFilters({ ...filters, city: e.target.value })}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
+            />
+            <input
+              type="text"
+              placeholder="District"
+              value={filters.district}
+              onChange={(e) => setFilters({ ...filters, district: e.target.value })}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
+            />
             <button
               onClick={() => {
-                setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "" });
+                setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", store: "", client: "", city: "", district: "" });
                 setInternalDates({ startDate: "", endDate: "" });
                 fetchStats();
               }}
@@ -173,12 +225,12 @@ export default function DashboardPage() {
             <PieChart className="w-5 h-5" /> Status Breakdown
           </h3>
           <div className="space-y-3">
-            {stats?.statusBreakdown?.map((item: any) => (
+            {stats?.statusBreakdown && stats.statusBreakdown.length > 0 ? stats.statusBreakdown.map((item: any) => (
               <div key={item._id} className="flex items-center justify-between">
-                <span className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{item._id?.replace(/_/g, " ")}</span>
+                <span className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{item._id?.replace(/_/g, " ") || "Unknown"}</span>
                 <span className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{item.count}</span>
               </div>
-            ))}
+            )) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data available</p>}
           </div>
         </div>
 
@@ -188,7 +240,7 @@ export default function DashboardPage() {
             <BarChart3 className="w-5 h-5" /> Zone Distribution
           </h3>
           <div className="space-y-3">
-            {stats?.zoneDistribution?.map((item: any) => (
+            {stats?.zoneDistribution && stats.zoneDistribution.length > 0 ? stats.zoneDistribution.map((item: any) => (
               <div key={item._id} className="flex items-center gap-3">
                 <span className={`text-sm flex-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{item._id || "N/A"}</span>
                 <div className="flex-1 bg-gray-200 rounded-full h-2">
@@ -196,7 +248,7 @@ export default function DashboardPage() {
                 </div>
                 <span className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{item.count}</span>
               </div>
-            ))}
+            )) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data available</p>}
           </div>
         </div>
       </div>
@@ -206,8 +258,9 @@ export default function DashboardPage() {
         <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
           <Calendar className="w-5 h-5" /> Monthly Trend (Last 6 Months)
         </h3>
+        {stats?.monthlyTrend && stats.monthlyTrend.length > 0 ? (
         <div className="flex items-end justify-between gap-2 h-48">
-          {stats?.monthlyTrend?.map((item: any) => (
+          {stats.monthlyTrend.map((item: any) => (
             <div key={item._id} className="flex-1 flex flex-col items-center gap-2">
               <div className="w-full bg-yellow-500 rounded-t-lg" style={{ height: `${(item.count / Math.max(...stats.monthlyTrend.map((m: any) => m.count))) * 100}%` }}></div>
               <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{item._id}</span>
@@ -215,6 +268,7 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+        ) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data available</p>}
       </div>
 
       {/* Personnel & Recent Stores */}
@@ -256,18 +310,18 @@ export default function DashboardPage() {
         <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
           <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Recent Stores</h3>
           <div className="space-y-4">
-            {stats?.recentStores?.map((store: any) => (
+            {stats?.recentStores && stats.recentStores.length > 0 ? stats.recentStores.map((store: any) => (
               <div key={store._id} className={`flex items-start gap-3 p-3 rounded-lg border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
                 <div className={`p-2 rounded-full ${darkMode ? "bg-gray-700" : "bg-white"}`}>
                   <MapPin className="w-4 h-4 text-yellow-500" />
                 </div>
-                <div>
-                  <h4 className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName}</h4>
-                  <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.location?.city} • {store.dealerCode}</p>
+                <div className="flex-1 min-w-0">
+                  <h4 className={`text-sm font-bold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName || "Unnamed Store"}</h4>
+                  <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.location?.city || "N/A"} • {store.dealerCode}</p>
                   <span className="text-[10px] uppercase font-bold text-gray-400">{store.currentStatus?.replace(/_/g, " ")}</span>
                 </div>
               </div>
-            ))}
+            )) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No recent stores</p>}
           </div>
         </div>
       </div>
@@ -275,14 +329,16 @@ export default function DashboardPage() {
       {/* State Distribution */}
       <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
         <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Top 10 States</h3>
+        {stats?.stateDistribution && stats.stateDistribution.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {stats?.stateDistribution?.map((item: any) => (
+          {stats.stateDistribution.map((item: any) => (
             <div key={item._id} className={`p-4 rounded-lg border text-center ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
               <div className={`text-2xl font-black ${darkMode ? "text-white" : "text-gray-900"}`}>{item.count}</div>
-              <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{item._id || "N/A"}</div>
+              <div className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-600"}`} title={item._id || "N/A"}>{item._id || "N/A"}</div>
             </div>
           ))}
         </div>
+        ) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data available</p>}
       </div>
     </div>
   );

@@ -657,10 +657,10 @@ export default function UsersPage() {
           <div className="space-y-1.5">
             <div className="flex justify-between items-end">
               <label className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Password</label>
-              {!editingUser && <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-400"}`}>Min 8 characters</span>}
+              {editingUser ? <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-400"}`}>Leave empty to keep current</span> : <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-400"}`}>Min 8 characters</span>}
             </div>
             <div className="relative">
-              <input type={showPassword ? "text" : "password"} required={!editingUser} value={formData.password} onChange={(e) => { setFormData({ ...formData, password: e.target.value }); checkStrength(e.target.value); }} className={`w-full px-4 py-2.5 pr-10 rounded-lg border focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"}`} />
+              <input type={showPassword ? "text" : "password"} required={!editingUser} value={formData.password} onChange={(e) => { setFormData({ ...formData, password: e.target.value }); checkStrength(e.target.value); }} placeholder={editingUser ? "Enter new password to change" : ""} className={`w-full px-4 py-2.5 pr-10 rounded-lg border focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"}`} />
                <button type="button" onClick={() => setShowPassword(!showPassword)} className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors focus:outline-none ${darkMode ? "text-gray-400 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"}`}>
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                </button>

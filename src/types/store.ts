@@ -98,6 +98,7 @@ export interface Store {
       reccePhotoIndex: number;
       installationPhoto: string;
     }>;
+    submittedBy?: string;
   };
 
   createdAt: string;

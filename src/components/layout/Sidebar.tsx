@@ -35,20 +35,20 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   // --- HELPER: CHECK PERMISSIONS DYNAMICALLY ---
   const canView = (moduleName: string) => {
     // Debug logging
-    console.log('Checking permissions for module:', moduleName);
-    console.log('User data:', user);
-    
+    console.log("Checking permissions for module:", moduleName);
+    console.log("User data:", user);
+
     // 1. If no user or roles, deny
     if (!user || !user.roles || !Array.isArray(user.roles)) {
-      console.log('No user or roles found');
+      console.log("No user or roles found");
       return false;
     }
 
-    console.log('User roles:', user.roles);
+    console.log("User roles:", user.roles);
 
     // 2. SUPER_ADMIN bypass: They see everything
     if (user.roles.some((r: any) => r.code === "SUPER_ADMIN")) {
-      console.log('User is SUPER_ADMIN, allowing access');
+      console.log("User is SUPER_ADMIN, allowing access");
       return true;
     }
 
@@ -77,6 +77,12 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       icon: LayoutDashboard,
       module: "dashboard",
       alwaysShow: true,
+    },
+    {
+      name: "Client Management",
+      href: "/clients",
+      icon: Building2,
+      module: "clients",
     },
     {
       name: "User Management",
@@ -114,12 +120,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       icon: Layers,
       module: "elements",
     },
-    {
-      name: "Client Management",
-      href: "/clients",
-      icon: Building2,
-      module: "clients",
-    },
+
     {
       name: "RFQ Generation",
       href: "/rfq",
