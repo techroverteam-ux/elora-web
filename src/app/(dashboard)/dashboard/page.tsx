@@ -214,7 +214,7 @@ export default function DashboardPage() {
         <StatCard title={stats?.isAdmin ? "Total Stores" : "Assigned to Me"} value={stats?.kpi?.totalStores || 0} icon={<MapPin className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.newStoresToday || 0} today`} />
         <StatCard title="Recce Completed" value={stats?.kpi?.recceDoneTotal || 0} icon={<CheckCircle2 className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.recceDoneToday || 0} today`} color="blue" />
         <StatCard title="Installations" value={stats?.kpi?.installationDoneTotal || 0} icon={<CheckCircle2 className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.installationDoneToday || 0} today`} color="green" />
-        <StatCard title="Pending" value={stats?.kpi?.totalStores - stats?.kpi?.recceDoneTotal || 0} icon={<TrendingUp className="h-4 w-4" />} darkMode={darkMode} color="orange" />
+        <StatCard title="Pending Recce" value={stats?.kpi?.recceAssigned || 0} icon={<TrendingUp className="h-4 w-4" />} darkMode={darkMode} color="orange" subtitle="Assigned for recce" />
       </div>
 
       {/* Charts Row */}
@@ -344,7 +344,7 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon, darkMode, trend, color = "yellow" }: any) {
+function StatCard({ title, value, icon, darkMode, trend, color = "yellow", subtitle }: any) {
   const colors: any = {
     yellow: { bg: "bg-yellow-500/20", text: "text-yellow-500" },
     blue: { bg: "bg-blue-500/20", text: "text-blue-500" },
@@ -359,6 +359,7 @@ function StatCard({ title, value, icon, darkMode, trend, color = "yellow" }: any
         <div>
           <p className={`text-xs font-medium uppercase ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{title}</p>
           <h3 className={`text-2xl font-black mt-2 ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</h3>
+          {subtitle && <p className={`text-[10px] mt-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{subtitle}</p>}
           {trend && <p className="text-xs text-green-500 font-medium mt-1">{trend}</p>}
         </div>
         <div className={`p-2 rounded-lg ${c.bg} ${c.text}`}>{icon}</div>

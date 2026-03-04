@@ -255,7 +255,7 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard icon={<Package className="h-5 w-5" />} label="Total Stores" value={analytics.overview.totalStores} darkMode={darkMode} color="blue" />
             <StatCard icon={<Users className="h-5 w-5" />} label="Active Users" value={analytics.overview.activeUsers} darkMode={darkMode} color="green" />
-            <StatCard icon={<Clock className="h-5 w-5" />} label="Recce Pending" value={analytics.recce.assigned} darkMode={darkMode} color="yellow" />
+            <StatCard icon={<Clock className="h-5 w-5" />} label="Pending Recce" value={analytics.recce.assigned} darkMode={darkMode} color="yellow" />
             <StatCard icon={<CheckCircle className="h-5 w-5" />} label="Completed" value={analytics.installation.completed} darkMode={darkMode} color="green" />
             <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Completion Rate" value={`${analytics.installation.completionRate}%`} darkMode={darkMode} color="purple" />
           </div>
@@ -468,10 +468,11 @@ export default function ReportsPage() {
       ) : (
         /* USER DASHBOARD */
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard icon={<Package className="h-5 w-5" />} label="Total Assigned" value={analytics?.overview?.totalAssigned || 0} darkMode={darkMode} color="blue" />
             <StatCard icon={<Clock className="h-5 w-5" />} label="Pending" value={analytics?.overview?.pending || 0} darkMode={darkMode} color="yellow" />
-            <StatCard icon={<CheckCircle className="h-5 w-5" />} label="Completed" value={analytics?.overview?.approved || analytics?.overview?.completed || 0} darkMode={darkMode} color="green" />
+            <StatCard icon={<FileText className="h-5 w-5" />} label="Submitted" value={analytics?.overview?.submitted || 0} darkMode={darkMode} color="blue" />
+            <StatCard icon={<CheckCircle className="h-5 w-5" />} label="Approved" value={analytics?.overview?.approved || analytics?.overview?.completed || 0} darkMode={darkMode} color="green" />
             <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Success Rate" value={`${analytics?.overview?.completionRate || 0}%`} darkMode={darkMode} color="purple" />
           </div>
 

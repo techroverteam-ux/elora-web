@@ -404,7 +404,6 @@ export default function RecceSubmissionPage() {
               {clientElements.map((element: any) => (
                 <div key={element.elementId} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
                   <div className={`font-medium text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{element.elementName}</div>
-                  <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Rate: ₹{element.customRate}</div>
                 </div>
               ))}
             </div>
@@ -467,6 +466,33 @@ export default function RecceSubmissionPage() {
                 )}
               </div>
 
+              {/* Element Selection */}
+              {clientElements.length > 0 && (
+                <div className="mb-4">
+                  <label className={`block text-xs font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Select Element *
+                  </label>
+                  <select
+                    value={reccePhoto.elementId}
+                    onChange={(e) => {
+                      const selectedElement = clientElements.find(el => el.elementId.toString() === e.target.value);
+                      const newReccePhotos = [...reccePhotos];
+                      newReccePhotos[index].elementId = e.target.value;
+                      newReccePhotos[index].elementName = selectedElement?.elementName || "";
+                      setReccePhotos(newReccePhotos);
+                    }}
+                    className={`w-full p-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                  >
+                    <option value="">-- Select an element --</option>
+                    {clientElements.map((element: any) => (
+                      <option key={element.elementId} value={element.elementId.toString()}>
+                        {element.elementName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Photo Upload */}
               <div className="mb-4">
                 {reccePhoto.preview ? (
@@ -502,15 +528,15 @@ export default function RecceSubmissionPage() {
               </div>
 
               {/* Measurements */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-3">
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                    Width
+                    Width (in)
                   </label>
                   <input
                     type="number"
                     step="0.1"
-                    className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                    className={`w-full p-2.5 border rounded-lg text-base font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                     value={reccePhoto.width}
                     onChange={(e) => updateReccePhoto(index, "width", e.target.value)}
                     placeholder="0.0"
@@ -518,12 +544,12 @@ export default function RecceSubmissionPage() {
                 </div>
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                    Height
+                    Height (in)
                   </label>
                   <input
                     type="number"
                     step="0.1"
-                    className={`w-full p-3 border rounded-lg text-lg font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                    className={`w-full p-2.5 border rounded-lg text-base font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                     value={reccePhoto.height}
                     onChange={(e) => updateReccePhoto(index, "height", e.target.value)}
                     placeholder="0.0"
@@ -536,40 +562,30 @@ export default function RecceSubmissionPage() {
                   <select
                     value={reccePhoto.unit}
                     onChange={(e) => updateReccePhoto(index, "unit", e.target.value)}
-                    className={`w-full p-3 border rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                    className={`w-full p-2.5 border rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                   >
-                    <option value="in">Inches (in)</option>
-                    <option value="ft">Feet (ft)</option>
+                    <option value="in">in</option>
+                    <option value="ft">ft</option>
                   </select>
+                </div>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    In Feet
+                  </label>
+                  <div className={`w-full p-2.5 border rounded-lg text-base font-bold ${darkMode ? "bg-gray-800 border-gray-600 text-yellow-400" : "bg-blue-50 border-blue-200 text-blue-700"}`}>
+                    {reccePhoto.width && reccePhoto.height ? (
+                      <span>
+                        {reccePhoto.unit === "in" 
+                          ? `${(parseFloat(reccePhoto.width) / 12).toFixed(2)} × ${(parseFloat(reccePhoto.height) / 12).toFixed(2)}`
+                          : `${parseFloat(reccePhoto.width).toFixed(2)} × ${parseFloat(reccePhoto.height).toFixed(2)}`
+                        }
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </div>
                 </div>
               </div>
-
-              {/* Element Selection */}
-              {clientElements.length > 0 && (
-                <div className="mt-4">
-                  <label className={`block text-xs font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                    Select Element *
-                  </label>
-                  <select
-                    value={reccePhoto.elementId}
-                    onChange={(e) => {
-                      const selectedElement = clientElements.find(el => el.elementId.toString() === e.target.value);
-                      const newReccePhotos = [...reccePhotos];
-                      newReccePhotos[index].elementId = e.target.value;
-                      newReccePhotos[index].elementName = selectedElement?.elementName || "";
-                      setReccePhotos(newReccePhotos);
-                    }}
-                    className={`w-full p-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
-                  >
-                    <option value="">-- Select an element --</option>
-                    {clientElements.map((element: any) => (
-                      <option key={element.elementId} value={element.elementId.toString()}>
-                        {element.elementName} (₹{element.customRate})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
           ))}
 

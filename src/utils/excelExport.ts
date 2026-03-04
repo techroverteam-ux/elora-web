@@ -41,3 +41,30 @@ export const exportToExcel = (rows: any[], type: 'valid' | 'invalid' | 'all', fi
 
   XLSX.writeFile(wb, filename);
 };
+
+export const exportUsersToExcel = (rows: any[], type: 'valid' | 'invalid' | 'all', filename: string) => {
+  const headers = ['Name', 'Email', 'Password', 'Role Codes (comma separated)', 'Status/Error'];
+
+  let filteredRows = rows;
+  if (type === 'valid') {
+    filteredRows = rows.filter(r => r.status === 'success');
+  } else if (type === 'invalid') {
+    filteredRows = rows.filter(r => r.status === 'error');
+  }
+
+  const data = filteredRows.map(row => [
+    row.data.name,
+    row.data.email,
+    row.data.password,
+    row.data.roleCodes,
+    row.status === 'success' ? '✓ Valid' : row.error
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Users');
+
+  ws['!cols'] = [{ wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 35 }, { wch: 40 }];
+
+  XLSX.writeFile(wb, filename);
+};

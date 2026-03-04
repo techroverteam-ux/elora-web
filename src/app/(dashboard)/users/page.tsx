@@ -24,11 +24,14 @@ import {
   Upload,
   Download,
   User as UserIcon,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { exportUsersToExcel } from "@/src/utils/excelExport";
 
 export default function UsersPage() {
   const { darkMode } = useTheme();
@@ -186,16 +189,28 @@ export default function UsersPage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setUploadStats(data);
-      toast.success(`Success: ${data.successCount}, Errors: ${data.errorCount}`);
-      if (data.successCount > 0) {
+      if (data.errorCount > 0) {
+        toast.error(`Upload rejected: ${data.errorCount} errors found. Fix and re-upload.`);
+      } else {
+        toast.success(`All ${data.successCount} users uploaded successfully!`);
         fetchUsers();
         setSelectedFiles([]);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Upload failed");
+      if (error.response?.data?.rows) {
+        setUploadStats(error.response.data);
+      }
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleExportUploadResults = (type: 'valid' | 'invalid' | 'all') => {
+    if (!uploadStats?.rows) return;
+    const filename = `User_Upload_${type === 'valid' ? 'Valid' : type === 'invalid' ? 'Invalid' : 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    exportUsersToExcel(uploadStats.rows, type, filename);
+    toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} rows exported!`);
   };
 
   const toggleUserStatus = async (user: User) => {
@@ -288,25 +303,29 @@ export default function UsersPage() {
     toast.dismiss();
     const confirmed = await new Promise<boolean>((resolve) => {
       toast((t) => (
-        <div className={`flex flex-col gap-3 p-2 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
-          <p className="font-semibold">Delete this user?</p>
-          <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>This action cannot be undone.</p>
-          <div className="flex gap-2 justify-end">
+        <div className={`rounded-xl shadow-2xl border-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+          <div className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+            <p className={`font-bold text-base ${darkMode ? "text-white" : "text-gray-900"}`}>Delete this user?</p>
+          </div>
+          <div className="px-6 py-4">
+            <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>This action cannot be undone. The user will be permanently removed from the system.</p>
+          </div>
+          <div className={`px-6 py-4 flex gap-3 justify-end border-t ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-gray-50"}`}>
             <button
               onClick={() => { toast.dismiss(t.id); resolve(false); }}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${darkMode ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all border-2 ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"}`}
             >
               Cancel
             </button>
             <button
               onClick={() => { toast.dismiss(t.id); resolve(true); }}
-              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              className="px-4 py-2 text-sm font-semibold text-white bg-red-600 border-2 border-red-600 rounded-lg hover:bg-red-700 hover:border-red-700 transition-all shadow-lg shadow-red-500/20"
             >
               Delete
             </button>
           </div>
         </div>
-      ), { duration: Infinity, style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
+      ), { duration: Infinity, style: { background: 'transparent', boxShadow: 'none', padding: 0, maxWidth: '420px' } });
     });
     
     if (!confirmed) return;
@@ -751,15 +770,70 @@ export default function UsersPage() {
       <Modal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} title="Bulk Upload Users">
         <div className="space-y-4">
           {uploadStats ? (
-            <div className="text-center space-y-3">
-              <div className={`text-4xl font-bold ${uploadStats.errorCount === 0 ? "text-green-500" : "text-orange-500"}`}>{uploadStats.successCount} / {uploadStats.totalProcessed}</div>
-              <p className="text-sm text-gray-500">Records Processed</p>
-              {uploadStats.errors?.length > 0 && (
-                <div className="mt-4 text-left bg-red-50 p-3 rounded-lg max-h-48 overflow-y-auto text-xs text-red-600">
-                  <ul className="list-disc pl-4 space-y-1">{uploadStats.errors.map((e:any, i:number) => <li key={i}>{e.error} {e.row && `(Row ${e.row})`}</li>)}</ul>
+            <div className="space-y-4">
+              <div className={`p-4 rounded-lg ${uploadStats.errorCount === 0 ? darkMode ? "bg-green-900/20 border border-green-500/30" : "bg-green-50 border border-green-200" : darkMode ? "bg-red-900/20 border border-red-500/30" : "bg-red-50 border border-red-200"}`}>
+                <div className="flex items-center gap-3 mb-2">
+                  {uploadStats.errorCount === 0 ? <CheckCircle className="w-6 h-6 text-green-500" /> : <AlertCircle className="w-6 h-6 text-red-500" />}
+                  <div>
+                    <p className={`font-bold text-lg ${uploadStats.errorCount === 0 ? "text-green-600" : "text-red-600"}`}>
+                      {uploadStats.errorCount === 0 ? "Upload Successful!" : "Upload Rejected"}
+                    </p>
+                    <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+                      Processed: {uploadStats.totalProcessed} | Valid: {uploadStats.successCount} | Errors: {uploadStats.errorCount}
+                    </p>
+                  </div>
                 </div>
+                {uploadStats.errorCount > 0 && (
+                  <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Fix all errors and re-upload the file. Use export buttons below to download corrected data.</p>
+                )}
+              </div>
+
+              {uploadStats.rows && (
+                <>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleExportUploadResults('valid')} disabled={uploadStats.successCount === 0} className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm">
+                      <Download className="w-4 h-4" /> Export Valid ({uploadStats.successCount})
+                    </button>
+                    <button onClick={() => handleExportUploadResults('invalid')} disabled={uploadStats.errorCount === 0} className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm">
+                      <Download className="w-4 h-4" /> Export Invalid ({uploadStats.errorCount})
+                    </button>
+                    <button onClick={() => handleExportUploadResults('all')} className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm">
+                      <Download className="w-4 h-4" /> Export All
+                    </button>
+                  </div>
+
+                  <div className={`border rounded-lg ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+                    <div className="max-h-[400px] overflow-auto scrollbar-thin scrollbar-thumb-yellow-500 scrollbar-track-gray-200">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className={`sticky top-0 ${darkMode ? "bg-gray-800" : "bg-gray-50"}`}>
+                          <tr>
+                            <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Row</th>
+                            <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Name</th>
+                            <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Email</th>
+                            <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Role Codes</th>
+                            <th className={`px-3 py-2 text-left text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Status/Error</th>
+                          </tr>
+                        </thead>
+                        <tbody className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}>
+                          {uploadStats.rows?.map((row: any, idx: number) => (
+                            <tr key={idx} className={row.status === 'error' ? (darkMode ? "bg-red-900/10" : "bg-red-50") : (darkMode ? "bg-green-900/10" : "bg-green-50")}>
+                              <td className={`px-3 py-2 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.rowNumber}</td>
+                              <td className={`px-3 py-2 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.data.name || '-'}</td>
+                              <td className={`px-3 py-2 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.data.email || '-'}</td>
+                              <td className={`px-3 py-2 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{row.data.roleCodes || '-'}</td>
+                              <td className={`px-3 py-2 text-xs ${row.status === 'success' ? "text-green-600 font-semibold" : "text-red-600"}`}>
+                                {row.status === 'success' ? '✓ Valid' : row.error}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
               )}
-              <button onClick={() => { setIsUploadOpen(false); setUploadStats(null); }} className="w-full bg-gray-900 text-white py-2 rounded-lg mt-2">Close</button>
+
+              <button onClick={() => { setIsUploadOpen(false); setUploadStats(null); setSelectedFiles([]); }} className={`w-full py-2 rounded-lg font-medium ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}>Close</button>
             </div>
           ) : (
             <form onSubmit={handleUpload} className="space-y-4">
@@ -782,7 +856,15 @@ export default function UsersPage() {
               {selectedFiles.length > 0 && (
                 <div className="space-y-2">
                   {selectedFiles.map((file, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 bg-gray-100 rounded text-sm"><span className="truncate">{file.name}</span><button type="button" onClick={()=>removeFile(i)} className="text-red-500"><X className="w-4 h-4"/></button></div>
+                    <div key={i} className={`flex items-center justify-between gap-3 p-3 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-100 border-gray-200"}`}>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileText className={`w-4 h-4 flex-shrink-0 ${darkMode ? "text-green-400" : "text-green-600"}`} />
+                        <span className={`text-sm font-medium break-all ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{file.name}</span>
+                      </div>
+                      <button type="button" onClick={()=>removeFile(i)} className="flex-shrink-0 p-1 rounded hover:bg-red-50 text-red-500 hover:text-red-700 transition-colors">
+                        <X className="w-4 h-4"/>
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}

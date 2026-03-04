@@ -62,6 +62,8 @@ export default function ClientsPage() {
     branchName: "",
     amount: "",
     gstNumber: "",
+    elements: "",
+    submit: "",
   });
 
   const [selectedElementId, setSelectedElementId] = useState("");
@@ -127,6 +129,8 @@ export default function ClientsPage() {
       branchName: "",
       amount: "",
       gstNumber: "",
+      elements: "",
+      submit: "",
     });
     setSelectedElementId("");
     setIsModalOpen(true);
@@ -146,6 +150,8 @@ export default function ClientsPage() {
       branchName: "",
       amount: "",
       gstNumber: "",
+      elements: "",
+      submit: "",
     });
     setSelectedElementId("");
     setIsModalOpen(true);
@@ -212,6 +218,8 @@ export default function ClientsPage() {
       branchName: "",
       amount: "",
       gstNumber: "",
+      elements: "",
+      submit: "",
     };
 
     if (!formData.clientName.trim()) {
@@ -252,11 +260,16 @@ export default function ClientsPage() {
     e.preventDefault();
     
     if (!validateForm()) {
-      toast.error("Please fix all validation errors");
+      return;
+    }
+
+    if (formData.elements.length === 0) {
+      setErrors({ ...errors, elements: "At least one element is required", submit: "" });
       return;
     }
 
     setIsSubmitting(true);
+    setErrors({ ...errors, submit: "" });
 
     try {
       const payload = {
@@ -278,34 +291,40 @@ export default function ClientsPage() {
       await fetchData();
       setIsModalOpen(false);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Operation failed");
+      const errorMessage = error.response?.data?.message || "Operation failed";
+      setErrors({ ...errors, submit: errorMessage });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (clientId: string) => {
+    toast.dismiss();
     const confirmed = await new Promise<boolean>((resolve) => {
       toast((t) => (
-        <div className={`flex flex-col gap-3 p-2 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
-          <p className="font-semibold">Delete this client?</p>
-          <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>This action cannot be undone.</p>
-          <div className="flex gap-2 justify-end">
+        <div className={`rounded-xl shadow-2xl border-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+          <div className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+            <p className={`font-bold text-base ${darkMode ? "text-white" : "text-gray-900"}`}>Delete this client?</p>
+          </div>
+          <div className="px-6 py-4">
+            <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>This action cannot be undone. The client will be permanently removed from the system.</p>
+          </div>
+          <div className={`px-6 py-4 flex gap-3 justify-end border-t ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-gray-50"}`}>
             <button
               onClick={() => { toast.dismiss(t.id); resolve(false); }}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${darkMode ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all border-2 ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"}`}
             >
               Cancel
             </button>
             <button
               onClick={() => { toast.dismiss(t.id); resolve(true); }}
-              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              className="px-4 py-2 text-sm font-semibold text-white bg-red-600 border-2 border-red-600 rounded-lg hover:bg-red-700 hover:border-red-700 transition-all shadow-lg shadow-red-500/20"
             >
               Delete
             </button>
           </div>
         </div>
-      ), { duration: Infinity, style: { background: 'transparent', boxShadow: 'none', padding: 0 } });
+      ), { duration: Infinity, style: { background: 'transparent', boxShadow: 'none', padding: 0, maxWidth: '420px' } });
     });
     
     if (!confirmed) return;
@@ -655,7 +674,9 @@ export default function ClientsPage() {
               <input
                 required
                 maxLength={15}
+                pattern="[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}"
                 placeholder="22AAAAA0000A1Z5"
+                title="GST format: 22AAAAA0000A1Z5"
                 className={`w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none uppercase ${errors.gstNumber ? "border-red-500 focus:ring-red-500" : "focus:ring-yellow-500"} ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"}`}
                 value={formData.gstNumber}
                 onChange={(e) => {
@@ -671,7 +692,7 @@ export default function ClientsPage() {
 
           <div>
             <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-              Elements
+              Elements *
             </label>
             <div className="flex gap-2 mb-3">
               <select
@@ -694,6 +715,10 @@ export default function ClientsPage() {
                 Add
               </button>
             </div>
+
+            {formData.elements.length === 0 && (
+              <p className="text-red-500 text-xs mb-2">{errors.elements || "At least one element is required"}</p>
+            )}
 
             {formData.elements.length > 0 && (
               <div className={`border rounded-md max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-yellow-500 scrollbar-track-gray-200 dark:scrollbar-track-gray-700 ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
@@ -757,6 +782,11 @@ export default function ClientsPage() {
           </div>
 
           <div className={`flex justify-end gap-3 pt-3 border-t ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
+            {errors.submit && (
+              <div className="flex-1">
+                <p className="text-red-500 text-sm font-medium">{errors.submit}</p>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
@@ -767,7 +797,7 @@ export default function ClientsPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 font-medium text-sm flex items-center justify-center"
+              className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 font-medium text-sm flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin inline mr-2" />}
               {editingClient ? "Save Changes" : "Add Client"}
