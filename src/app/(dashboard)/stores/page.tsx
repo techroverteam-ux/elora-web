@@ -3089,35 +3089,6 @@ export default function StoresPage() {
             <div className={sectionHeaderClass}>BASIC DETAILS</div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>Dealer Code *</label>
-                <input
-                  required
-                  name="dealerCode"
-                  value={newStoreData.dealerCode}
-                  onChange={handleInputChange}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Dealer Name *</label>
-                <input
-                  required
-                  name="dealerName"
-                  value={newStoreData.dealerName}
-                  onChange={handleInputChange}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Vendor Code</label>
-                <input
-                  name="vendorCode"
-                  value={newStoreData.vendorCode}
-                  onChange={handleInputChange}
-                  className={inputClass}
-                />
-              </div>
-              <div>
                 <label className={labelClass}>Select Client</label>
                 <select
                   onChange={(e) => {
@@ -3150,6 +3121,37 @@ export default function StoresPage() {
                   onChange={handleInputChange}
                   className={inputClass}
                   placeholder="e.g., CLI001"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Dealer Code *</label>
+                <input
+                  required
+                  name="dealerCode"
+                  value={newStoreData.dealerCode}
+                  onChange={handleInputChange}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Dealer Name *</label>
+                <input
+                  required
+                  name="dealerName"
+                  value={newStoreData.dealerName}
+                  onChange={handleInputChange}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Vendor Code</label>
+                <input
+                  name="vendorCode"
+                  value={newStoreData.vendorCode}
+                  onChange={handleInputChange}
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -3244,9 +3246,8 @@ export default function StoresPage() {
             >
               {isSavingStore && (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              )}{" "}
-              Save Store
-              D:\WORK\akshay-dev\1-fresh-elora\elora-web-new\src\app\(dashboard)\stores\page.tsx{" "}
+              )}
+              Save
             </button>
           </div>
         </form>

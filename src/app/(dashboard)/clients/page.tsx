@@ -598,29 +598,29 @@ export default function ClientsPage() {
         title={editingClient ? "Edit Client" : "Add Client"}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                Client Name *
-              </label>
-              <input
-                required
-                minLength={2}
-                maxLength={100}
-                pattern="[^0-9]*"
-                className={`w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none ${errors.clientName ? "border-red-500 focus:ring-red-500" : "focus:ring-yellow-500"} ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                value={formData.clientName}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[0-9]/g, '');
-                  setFormData({ ...formData, clientName: value });
-                  if (errors.clientName) setErrors({ ...errors, clientName: "" });
-                }}
-              />
-              {errors.clientName && (
-                <p className="text-red-500 text-xs mt-1">{errors.clientName}</p>
-              )}
-            </div>
+          <div>
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              Client Name *
+            </label>
+            <input
+              required
+              minLength={2}
+              maxLength={100}
+              pattern="[^0-9]*"
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none ${errors.clientName ? "border-red-500 focus:ring-red-500" : "focus:ring-yellow-500"} ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+              value={formData.clientName}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[0-9]/g, '');
+                setFormData({ ...formData, clientName: value });
+                if (errors.clientName) setErrors({ ...errors, clientName: "" });
+              }}
+            />
+            {errors.clientName && (
+              <p className="text-red-500 text-xs mt-1">{errors.clientName}</p>
+            )}
+          </div>
 
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                 Branch Name *
@@ -800,7 +800,7 @@ export default function ClientsPage() {
               className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 font-medium text-sm flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin inline mr-2" />}
-              {editingClient ? "Save Changes" : "Add Client"}
+              Save
             </button>
           </div>
         </form>
