@@ -1523,39 +1523,64 @@ export default function StoresPage() {
                             {store.commercials?.poMonth || "-"}
                           </div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4">
                           <div
                             className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
                           >
-                            {store.specs?.type || "-"}
+                            {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0
+                              ? store.recce.reccePhotos.map((rp: any, idx: number) => rp.elements?.[0]?.elementName || "-").join(", ") || "-"
+                              : store.specs?.type || "-"}
                           </div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4">
                           <div
                             className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
                           >
-                            {store.specs?.width || "-"}
+                            {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0
+                              ? store.recce.reccePhotos.map((rp: any) => {
+                                  const width = rp.measurements?.width || 0;
+                                  const unit = rp.measurements?.unit || "in";
+                                  return unit === "in" ? (width / 12).toFixed(2) : width;
+                                }).join(", ") || "-"
+                              : store.specs?.width || "-"}
                           </div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4">
                           <div
                             className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
                           >
-                            {store.specs?.height || "-"}
+                            {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0
+                              ? store.recce.reccePhotos.map((rp: any) => {
+                                  const height = rp.measurements?.height || 0;
+                                  const unit = rp.measurements?.unit || "in";
+                                  return unit === "in" ? (height / 12).toFixed(2) : height;
+                                }).join(", ") || "-"
+                              : store.specs?.height || "-"}
                           </div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4">
                           <div
                             className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
                           >
-                            {store.specs?.qty || "-"}
+                            {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0
+                              ? store.recce.reccePhotos.map((rp: any) => rp.elements?.[0]?.quantity || 1).join(", ") || "-"
+                              : store.specs?.qty || "-"}
                           </div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4">
                           <div
                             className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
                           >
-                            {store.specs?.boardSize || "-"}
+                            {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0
+                              ? store.recce.reccePhotos.map((rp: any) => {
+                                  const width = rp.measurements?.width || 0;
+                                  const height = rp.measurements?.height || 0;
+                                  const unit = rp.measurements?.unit || "in";
+                                  const widthFt = unit === "in" ? width / 12 : width;
+                                  const heightFt = unit === "in" ? height / 12 : height;
+                                  return (widthFt * heightFt).toFixed(2);
+                                }).join(", ") || "-"
+                              : store.specs?.boardSize || "-"}
                           </div>
                         </td>
                         {!isRecceOrInstallUser && (
