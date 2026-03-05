@@ -210,8 +210,11 @@ export default function DashboardPage() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-3">
         <StatCard title={stats?.isAdmin ? "Total Stores" : "Assigned to Me"} value={stats?.kpi?.totalStores || 0} icon={<MapPin className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.newStoresToday || 0} today`} />
+        {stats?.isAdmin && stats?.kpi?.totalClients !== undefined && (
+          <StatCard title="Total Clients" value={stats?.kpi?.totalClients || 0} icon={<Users className="h-4 w-4" />} darkMode={darkMode} color="purple" />
+        )}
         <StatCard title="Recce Completed" value={stats?.kpi?.recceDoneTotal || 0} icon={<CheckCircle2 className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.recceDoneToday || 0} today`} color="blue" />
         <StatCard title="Installations" value={stats?.kpi?.installationDoneTotal || 0} icon={<CheckCircle2 className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.installationDoneToday || 0} today`} color="green" />
         <StatCard title="Pending Recce" value={stats?.kpi?.recceAssigned || 0} icon={<TrendingUp className="h-4 w-4" />} darkMode={darkMode} color="orange" subtitle="Assigned for recce" />
@@ -260,71 +263,70 @@ export default function DashboardPage() {
         </h3>
         {stats?.monthlyTrend && stats.monthlyTrend.length > 0 ? (
         <div className="flex items-end justify-between gap-2 h-48">
-          {stats.monthlyTrend.map((item: any) => (
+          {stats.monthlyTrend.map((item: any) => {
+            const maxCount = Math.max(...stats.monthlyTrend.map((m: any) => m.count));
+            const heightPercent = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+            return (
             <div key={item._id} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full bg-yellow-500 rounded-t-lg" style={{ height: `${(item.count / Math.max(...stats.monthlyTrend.map((m: any) => m.count))) * 100}%` }}></div>
-              <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{item._id}</span>
               <span className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{item.count}</span>
+              <div className="w-full bg-yellow-500 rounded-t-lg" style={{ height: `${heightPercent}%`, minHeight: '20px' }}></div>
+              <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{item._id}</span>
             </div>
-          ))}
+          )})}
         </div>
         ) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data available</p>}
       </div>
 
-      {/* Personnel & Recent Stores */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Personnel Stats */}
-        {stats?.isAdmin && stats?.personnelStats && stats.personnelStats.length > 0 && (
-        <div className={`col-span-2 rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Team Performance</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className={`text-xs uppercase ${darkMode ? "text-gray-400 bg-gray-800/50" : "text-gray-500 bg-gray-50"}`}>
-                <tr>
-                  <th className="px-4 py-3 text-left rounded-l-lg">Name</th>
-                  <th className="px-4 py-3 text-left">Role</th>
-                  <th className="px-4 py-3 text-center">Assigned</th>
-                  <th className="px-4 py-3 text-center rounded-r-lg">Completed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats?.personnelStats?.map((person: any) => (
-                  <tr key={person._id} className={`border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-                    <td className={`px-4 py-3 font-medium ${darkMode ? "text-white" : "text-gray-900"}`}>{person.name}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${person.role === "RECCE" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}`}>
-                        {person.role}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-3 text-center font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{person.assignedCount}</td>
-                    <td className="px-4 py-3 text-center text-green-500 font-bold">{person.completedCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        )}
-
-        {/* Recent Stores */}
-        <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Recent Stores</h3>
-          <div className="space-y-4">
-            {stats?.recentStores && stats.recentStores.length > 0 ? stats.recentStores.map((store: any) => (
-              <div key={store._id} className={`flex items-start gap-3 p-3 rounded-lg border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
-                <div className={`p-2 rounded-full ${darkMode ? "bg-gray-700" : "bg-white"}`}>
-                  <MapPin className="w-4 h-4 text-yellow-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className={`text-sm font-bold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName || "Unnamed Store"}</h4>
-                  <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.location?.city || "N/A"} • {store.dealerCode}</p>
-                  <span className="text-[10px] uppercase font-bold text-gray-400">{store.currentStatus?.replace(/_/g, " ")}</span>
-                </div>
+      {/* Recent Stores - Full Width */}
+      <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+        <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Recent Stores</h3>
+        <div className="flex gap-3 overflow-x-auto">
+          {stats?.recentStores && stats.recentStores.length > 0 ? stats.recentStores.map((store: any) => (
+            <div key={store._id} className={`p-3 rounded-lg border flex-shrink-0 w-48 ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <MapPin className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                <h4 className={`text-sm font-bold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName || "Unnamed"}</h4>
               </div>
-            )) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No recent stores</p>}
-          </div>
+              <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.location?.city || "N/A"}</p>
+              <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</p>
+              <span className={`text-[10px] uppercase font-bold block mt-2 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{store.currentStatus?.replace(/_/g, " ")}</span>
+            </div>
+          )) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No recent stores</p>}
         </div>
       </div>
+
+      {/* Personnel Stats */}
+      {stats?.isAdmin && stats?.personnelStats && stats.personnelStats.length > 0 && (
+      <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+        <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Team Performance</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className={`text-xs uppercase ${darkMode ? "text-gray-400 bg-gray-800/50" : "text-gray-500 bg-gray-50"}`}>
+              <tr>
+                <th className="px-4 py-3 text-left rounded-l-lg">Name</th>
+                <th className="px-4 py-3 text-left">Role</th>
+                <th className="px-4 py-3 text-center">Assigned</th>
+                <th className="px-4 py-3 text-center rounded-r-lg">Completed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats?.personnelStats?.map((person: any) => (
+                <tr key={person._id} className={`border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
+                  <td className={`px-4 py-3 font-medium ${darkMode ? "text-white" : "text-gray-900"}`}>{person.name}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${person.role === "RECCE" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}`}>
+                      {person.role}
+                    </span>
+                  </td>
+                  <td className={`px-4 py-3 text-center font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{person.assignedCount}</td>
+                  <td className="px-4 py-3 text-center text-green-500 font-bold">{person.completedCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      )}
 
       {/* State Distribution */}
       <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
@@ -350,19 +352,20 @@ function StatCard({ title, value, icon, darkMode, trend, color = "yellow", subti
     blue: { bg: "bg-blue-500/20", text: "text-blue-500" },
     green: { bg: "bg-green-500/20", text: "text-green-500" },
     orange: { bg: "bg-orange-500/20", text: "text-orange-500" },
+    purple: { bg: "bg-purple-500/20", text: "text-purple-500" },
   };
   const c = colors[color] || colors.yellow;
 
   return (
-    <div className={`p-4 rounded-xl border transition-all hover:scale-105 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+    <div className={`p-3 rounded-xl border transition-all hover:scale-105 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
       <div className="flex items-start justify-between">
         <div>
-          <p className={`text-xs font-medium uppercase ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{title}</p>
-          <h3 className={`text-2xl font-black mt-2 ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</h3>
-          {subtitle && <p className={`text-[10px] mt-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{subtitle}</p>}
-          {trend && <p className="text-xs text-green-500 font-medium mt-1">{trend}</p>}
+          <p className={`text-[10px] font-medium uppercase ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{title}</p>
+          <h3 className={`text-xl font-black mt-1 ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</h3>
+          {subtitle && <p className={`text-[9px] mt-0.5 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{subtitle}</p>}
+          {trend && <p className="text-[10px] text-green-500 font-medium mt-0.5">{trend}</p>}
         </div>
-        <div className={`p-2 rounded-lg ${c.bg} ${c.text}`}>{icon}</div>
+        <div className={`p-1.5 rounded-lg ${c.bg} ${c.text}`}>{icon}</div>
       </div>
     </div>
   );
