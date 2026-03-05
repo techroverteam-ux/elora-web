@@ -1589,7 +1589,7 @@ export default function StoresPage() {
                               <div
                                 className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
                               >
-                                ₹{store.recce?.costDetails?.boardRate || store.costDetails?.boardRate || 0}
+                                ₹{(store.recce as any)?.costDetails?.boardRate || store.costDetails?.boardRate || 0}
                               </div>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
@@ -1597,7 +1597,7 @@ export default function StoresPage() {
                                 className={`text-sm font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}
                               >
                                 ₹
-                                {store.recce?.costDetails?.totalBoardCost?.toLocaleString() || store.costDetails?.totalBoardCost?.toLocaleString() ||
+                                {(store.recce as any)?.costDetails?.totalBoardCost?.toLocaleString() || store.costDetails?.totalBoardCost?.toLocaleString() ||
                                   "0"}
                               </div>
                             </td>
@@ -1655,7 +1655,7 @@ export default function StoresPage() {
                                 className={`text-sm font-bold ${darkMode ? "text-green-400" : "text-green-600"}`}
                               >
                                 ₹
-                                {store.recce?.commercials?.totalCost?.toLocaleString() || store.commercials?.totalCost?.toLocaleString() ||
+                                {(store.recce as any)?.commercials?.totalCost?.toLocaleString() || store.commercials?.totalCost?.toLocaleString() ||
                                   "0"}
                               </div>
                             </td>
