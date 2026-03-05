@@ -1589,7 +1589,17 @@ export default function StoresPage() {
                               <div
                                 className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
                               >
-                                ₹{(store.recce as any)?.costDetails?.boardRate || store.costDetails?.boardRate || 0}
+                                {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0 && store.clientId
+                                  ? (() => {
+                                      const rates: string[] = [];
+                                      store.recce.reccePhotos.forEach((rp: any) => {
+                                        if (rp.elements && rp.elements.length > 0) {
+                                          rates.push(rp.elements[0].customRate || "0");
+                                        }
+                                      });
+                                      return rates.length > 0 ? `₹${rates.join(", ₹")}` : "₹0";
+                                    })()
+                                  : `₹${store.costDetails?.boardRate || 0}`}
                               </div>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
