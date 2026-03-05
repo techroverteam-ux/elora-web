@@ -1589,7 +1589,7 @@ export default function StoresPage() {
                               <div
                                 className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
                               >
-                                ₹{store.costDetails?.boardRate || 0}
+                                ₹{store.recce?.costDetails?.boardRate || store.costDetails?.boardRate || 0}
                               </div>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
@@ -1597,7 +1597,7 @@ export default function StoresPage() {
                                 className={`text-sm font-semibold ${darkMode ? "text-gray-100" : "text-gray-900"}`}
                               >
                                 ₹
-                                {store.costDetails?.totalBoardCost?.toLocaleString() ||
+                                {store.recce?.costDetails?.totalBoardCost?.toLocaleString() || store.costDetails?.totalBoardCost?.toLocaleString() ||
                                   "0"}
                               </div>
                             </td>
@@ -1655,7 +1655,7 @@ export default function StoresPage() {
                                 className={`text-sm font-bold ${darkMode ? "text-green-400" : "text-green-600"}`}
                               >
                                 ₹
-                                {store.commercials?.totalCost?.toLocaleString() ||
+                                {store.recce?.commercials?.totalCost?.toLocaleString() || store.commercials?.totalCost?.toLocaleString() ||
                                   "0"}
                               </div>
                             </td>
@@ -1669,9 +1669,9 @@ export default function StoresPage() {
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-center">
                               <span
-                                className={`text-xs font-semibold ${store.imagesAttached ? "text-green-600" : "text-gray-400"}`}
+                                className={`text-xs font-semibold ${(store.recce?.reccePhotos && store.recce.reccePhotos.length > 0) || store.imagesAttached ? "text-green-600" : "text-gray-400"}`}
                               >
-                                {store.imagesAttached ? "Yes" : "No"}
+                                {(store.recce?.reccePhotos && store.recce.reccePhotos.length > 0) || store.imagesAttached ? "Yes" : "No"}
                               </span>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
