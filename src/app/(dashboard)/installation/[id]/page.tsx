@@ -76,11 +76,17 @@ export default function InstallationSubmissionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const reccePhotosCount = store?.recce?.reccePhotos?.length || 0;
+    const approvedReccePhotos = store?.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED") || [];
+    const approvedCount = approvedReccePhotos.length;
+    
+    if (approvedCount === 0) {
+      return toast.error("No approved recce photos found");
+    }
+
     const uploadedCount = Object.keys(installationPhotos).length + Object.keys(previews).filter(k => previews[parseInt(k)] && !installationPhotos[parseInt(k)]).length;
 
-    if (uploadedCount < reccePhotosCount) {
-      return toast.error(`Please upload installation photos for all ${reccePhotosCount} recce photos`);
+    if (uploadedCount < approvedCount) {
+      return toast.error(`Please upload installation photos for all ${approvedCount} approved recce photos`);
     }
 
     setSubmitting(true);
@@ -89,13 +95,14 @@ export default function InstallationSubmissionPage() {
     const photosData: Array<{ reccePhotoIndex: number }> = [];
     let fileIndex = 0;
 
-    for (let i = 0; i < reccePhotosCount; i++) {
-      if (installationPhotos[i]) {
-        formData.append(`installationPhoto${fileIndex}`, installationPhotos[i]!);
-        photosData.push({ reccePhotoIndex: i });
+    approvedReccePhotos.forEach((reccePhoto: any) => {
+      const originalIndex = store?.recce?.reccePhotos?.findIndex((p: any) => p.photo === reccePhoto.photo) || 0;
+      if (installationPhotos[originalIndex]) {
+        formData.append(`installationPhoto${fileIndex}`, installationPhotos[originalIndex]!);
+        photosData.push({ reccePhotoIndex: originalIndex });
         fileIndex++;
       }
-    }
+    });
 
     formData.append("installationPhotosData", JSON.stringify(photosData));
 
@@ -221,21 +228,24 @@ export default function InstallationSubmissionPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className={`font-bold text-lg ${darkMode ? "text-white" : "text-gray-900"}`}>Recce Photos & Installation Upload</h3>
+                <h3 className={`font-bold text-lg ${darkMode ? "text-white" : "text-gray-900"}`}>Approved Recce Photos & Installation Upload</h3>
                 <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-                  Total: {store.recce.reccePhotos.length} photos
+                  Total Approved: {store.recce.reccePhotos.filter((p: any) => p.approvalStatus === "APPROVED").length} photos
                 </span>
               </div>
               <div className="space-y-6">
-                {store.recce.reccePhotos.slice((currentPage - 1) * photosPerPage, currentPage * photosPerPage).map((reccePhoto, idx) => {
-                  const index = (currentPage - 1) * photosPerPage + idx;
+                {store.recce.reccePhotos
+                  .filter((p: any) => p.approvalStatus === "APPROVED")
+                  .slice((currentPage - 1) * photosPerPage, currentPage * photosPerPage)
+                  .map((reccePhoto, idx) => {
+                  const originalIndex = store.recce!.reccePhotos!.findIndex((p: any) => p.photo === reccePhoto.photo);
                   return (
-                  <div key={index} className={`p-4 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
+                  <div key={originalIndex} className={`p-4 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <h4 className={`font-bold mb-2 ${darkMode ? "text-blue-400" : "text-blue-600"}`}>Recce Photo {index + 1}</h4>
+                        <h4 className={`font-bold mb-2 ${darkMode ? "text-blue-400" : "text-blue-600"}`}>Recce Photo {originalIndex + 1}</h4>
                         <div className="aspect-video rounded-lg overflow-hidden border-2 border-blue-500 mb-3">
-                          <img src={getPhotoUrl(reccePhoto.photo) || ''} alt={`Recce ${index + 1}`} className="h-full w-full object-cover" />
+                          <img src={getPhotoUrl(reccePhoto.photo) || ''} alt={`Recce ${originalIndex + 1}`} className="h-full w-full object-cover" />
                         </div>
                         <div className={`p-3 rounded-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
                           <div className="flex items-center gap-2 mb-2">
@@ -264,12 +274,12 @@ export default function InstallationSubmissionPage() {
                       </div>
 
                       <div>
-                        <h4 className={`font-bold mb-2 ${darkMode ? "text-green-400" : "text-green-600"}`}>Installation Photo {index + 1}</h4>
+                        <h4 className={`font-bold mb-2 ${darkMode ? "text-green-400" : "text-green-600"}`}>Installation Photo {originalIndex + 1}</h4>
                         <label className="block cursor-pointer group">
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, index)} />
-                          <div className={`aspect-video rounded-lg border-2 border-dashed flex flex-col items-center justify-center overflow-hidden transition-all ${previews[index] ? "border-green-500 bg-green-50 dark:bg-green-900/20" : darkMode ? "border-gray-600 bg-gray-700 hover:bg-gray-600" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}`}>
-                            {previews[index] ? (
-                              <img src={previews[index]!} alt={`Installation ${index + 1}`} className="h-full w-full object-cover" />
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, originalIndex)} />
+                          <div className={`aspect-video rounded-lg border-2 border-dashed flex flex-col items-center justify-center overflow-hidden transition-all ${previews[originalIndex] ? "border-green-500 bg-green-50 dark:bg-green-900/20" : darkMode ? "border-gray-600 bg-gray-700 hover:bg-gray-600" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}`}>
+                            {previews[originalIndex] ? (
+                              <img src={previews[originalIndex]!} alt={`Installation ${originalIndex + 1}`} className="h-full w-full object-cover" />
                             ) : (
                               <>
                                 <Camera className={`h-8 w-8 mb-2 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
@@ -285,7 +295,7 @@ export default function InstallationSubmissionPage() {
                 })}
               </div>
 
-              {store.recce.reccePhotos.length > photosPerPage && (
+              {store.recce.reccePhotos.filter((p: any) => p.approvalStatus === "APPROVED").length > photosPerPage && (
                 <div className={`flex items-center justify-between mt-6 pt-4 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
                   <button
                     type="button"
@@ -296,13 +306,13 @@ export default function InstallationSubmissionPage() {
                     Previous
                   </button>
                   <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-                    Page {currentPage} of {Math.ceil((store.recce?.reccePhotos?.length || 0) / photosPerPage)}
+                    Page {currentPage} of {Math.ceil((store.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED").length || 0) / photosPerPage)}
                   </span>
                   <button
                     type="button"
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil((store.recce?.reccePhotos?.length || 0) / photosPerPage), p + 1))}
-                    disabled={currentPage === Math.ceil((store.recce?.reccePhotos?.length || 0) / photosPerPage)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentPage === Math.ceil((store.recce?.reccePhotos?.length || 0) / photosPerPage) ? "opacity-50 cursor-not-allowed" : ""} ${darkMode ? "bg-gray-700 text-white hover:bg-gray-600" : "bg-gray-200 text-gray-900 hover:bg-gray-300"}`}
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil((store.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED").length || 0) / photosPerPage), p + 1))}
+                    disabled={currentPage === Math.ceil((store.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED").length || 0) / photosPerPage)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentPage === Math.ceil((store.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED").length || 0) / photosPerPage) ? "opacity-50 cursor-not-allowed" : ""} ${darkMode ? "bg-gray-700 text-white hover:bg-gray-600" : "bg-gray-200 text-gray-900 hover:bg-gray-300"}`}
                   >
                     Next
                   </button>

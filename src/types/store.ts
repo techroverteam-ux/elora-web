@@ -86,9 +86,16 @@ export interface Store {
       photo: string;
       measurements: { width: number; height: number; unit: string };
       elements?: Array<{ elementId?: string; elementName: string; quantity: number }>;
+      approvalStatus?: "PENDING" | "APPROVED" | "REJECTED";
+      approvedBy?: string;
+      approvedAt?: string;
+      rejectionReason?: string;
     }>;
     notes?: string;
     submittedBy?: string;
+    approvedPhotosCount?: number;
+    rejectedPhotosCount?: number;
+    pendingPhotosCount?: number;
   };
 
   installation?: {

@@ -18,7 +18,8 @@ import {
   Calendar,
   User,
   CheckCircle,
-  Loader2
+  Loader2,
+  UserPlus
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -268,8 +269,54 @@ export default function StoreDetailsPage() {
               </div>
             ) : (
               <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                <div className="flex justify-between"><span className="text-gray-500">Board Rate:</span> <span>₹{store.costDetails?.boardRate || 0}/sq.ft</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Board Cost:</span> <span>₹{store.costDetails?.totalBoardCost?.toLocaleString() || 0}</span></div>
+                {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0 ? (
+                  <>
+                    <div className="mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                      <div className="text-xs font-semibold mb-1 text-gray-500">Board Costs:</div>
+                      {store.recce.reccePhotos.map((photo: any, idx: number) => {
+                        if (photo.elements && photo.elements.length > 0 && photo.elements[0].customRate) {
+                          const width = photo.measurements?.unit === "in" ? photo.measurements.width / 12 : photo.measurements.width;
+                          const height = photo.measurements?.unit === "in" ? photo.measurements.height / 12 : photo.measurements.height;
+                          const boardSize = width * height;
+                          const cost = boardSize * photo.elements[0].customRate * (photo.elements[0].quantity || 1);
+                          return (
+                            <div key={idx} className="text-xs mb-1">
+                              <div className="flex justify-between">
+                                <span>{photo.elements[0].elementName}:</span>
+                                <span>₹{photo.elements[0].customRate}/sq.ft</span>
+                              </div>
+                              <div className="flex justify-between text-[10px] text-gray-500 ml-2">
+                                <span>({boardSize.toFixed(2)} sq.ft × {photo.elements[0].quantity || 1})</span>
+                                <span>₹{cost.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+                    <div className="flex justify-between font-semibold">
+                      <span className="text-gray-500">Total Board Cost:</span>
+                      <span>₹{(() => {
+                        let total = 0;
+                        store.recce.reccePhotos.forEach((photo: any) => {
+                          if (photo.elements && photo.elements.length > 0 && photo.elements[0].customRate) {
+                            const width = photo.measurements?.unit === "in" ? photo.measurements.width / 12 : photo.measurements.width;
+                            const height = photo.measurements?.unit === "in" ? photo.measurements.height / 12 : photo.measurements.height;
+                            const boardSize = width * height;
+                            total += boardSize * photo.elements[0].customRate * (photo.elements[0].quantity || 1);
+                          }
+                        });
+                        return total.toLocaleString();
+                      })()}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between"><span className="text-gray-500">Board Rate:</span> <span>₹{store.costDetails?.boardRate || 0}/sq.ft</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Board Cost:</span> <span>₹{store.costDetails?.totalBoardCost?.toLocaleString() || 0}</span></div>
+                  </>
+                )}
                 {store.costDetails?.angleCharges ? <div className="flex justify-between"><span className="text-gray-500">Angle:</span> <span>₹{store.costDetails.angleCharges}</span></div> : null}
                 {store.costDetails?.scaffoldingCharges ? <div className="flex justify-between"><span className="text-gray-500">Scaffolding:</span> <span>₹{store.costDetails.scaffoldingCharges}</span></div> : null}
                 {store.costDetails?.transportation ? <div className="flex justify-between"><span className="text-gray-500">Transport:</span> <span>₹{store.costDetails.transportation}</span></div> : null}
@@ -285,7 +332,7 @@ export default function StoreDetailsPage() {
               <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
               <h3 className={`font-bold text-sm sm:text-base ${darkMode ? "text-white" : "text-gray-900"}`}>Recce Details</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4">
               <div className={`text-xs sm:text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
@@ -302,57 +349,124 @@ export default function StoreDetailsPage() {
                   </div>
                 )}
               </div>
-              {store.recce.reccePhotos && store.recce.reccePhotos.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold mb-2 flex items-center gap-1">
-                    <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4" /> Recce Photos ({store.recce.reccePhotos.length})
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {store.recce.reccePhotos.slice(0, 6).map((photo: any, idx: number) => (
-                      <a key={idx} href={photo.photo} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
-                        <img src={photo.photo} alt={`Recce ${idx + 1}`} className="w-full h-full object-cover" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
+
+            {/* Initial Photos */}
+            {store.recce.initialPhotos && store.recce.initialPhotos.length > 0 && (
+              <div className="mb-4">
+                <h4 className={`font-semibold text-sm mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>Initial Photos ({store.recce.initialPhotos.length})</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {store.recce.initialPhotos.map((photo: string, idx: number) => (
+                    <a key={idx} href={photo} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
+                      <img src={photo} alt={`Initial ${idx + 1}`} className="w-full h-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recce Photos with Details */}
+            {store.recce.reccePhotos && store.recce.reccePhotos.length > 0 && (
+              <div className="space-y-4">
+                <h4 className={`font-semibold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Recce Photos ({store.recce.reccePhotos.length})</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {store.recce.reccePhotos.map((photo: any, idx: number) => {
+                    const width = photo.measurements?.unit === "in" ? photo.measurements.width / 12 : photo.measurements.width;
+                    const height = photo.measurements?.unit === "in" ? photo.measurements.height / 12 : photo.measurements.height;
+                    const boardSize = (width * height).toFixed(2);
+                    return (
+                      <div key={idx} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
+                        <div className="flex gap-3">
+                          <a href={photo.photo} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                            <img src={photo.photo} alt={`Photo ${idx + 1}`} className="w-40 h-40 object-cover rounded border border-gray-300 dark:border-gray-600" />
+                          </a>
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-xs font-semibold mb-2 ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>Photo {idx + 1}</div>
+                            <div className={`space-y-1 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                              <div><span className="text-gray-500">Size:</span> {width.toFixed(2)} × {height.toFixed(2)} ft ({boardSize} sq.ft)</div>
+                              {photo.elements && photo.elements.length > 0 && (
+                                <>
+                                  <div><span className="text-gray-500">Element:</span> {photo.elements[0].elementName}</div>
+                                  <div><span className="text-gray-500">Qty:</span> {photo.elements[0].quantity || 1}</div>
+                                  {photo.elements[0].customRate && (
+                                    <div><span className="text-gray-500">Rate:</span> ₹{photo.elements[0].customRate}/sq.ft</div>
+                                  )}
+                                  {photo.elements[0].customRate && (
+                                    <div className="font-semibold"><span className="text-gray-500">Cost:</span> ₹{(parseFloat(boardSize) * photo.elements[0].customRate * (photo.elements[0].quantity || 1)).toLocaleString()}</div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Installation Details */}
-        {store.installation && (
+        {store.recce && (store.currentStatus === "RECCE_SUBMITTED" || store.currentStatus === "RECCE_APPROVED" || store.currentStatus === "INSTALLATION_ASSIGNED" || store.currentStatus === "INSTALLATION_SUBMITTED" || store.currentStatus === "COMPLETED") && (
           <div className={`p-3 sm:p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
-              <h3 className={`font-bold text-sm sm:text-base ${darkMode ? "text-white" : "text-gray-900"}`}>Installation Details</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-              <div className={`text-xs sm:text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-                  <span>Submitted: {store.installation.submittedDate ? new Date(store.installation.submittedDate).toLocaleDateString() : "-"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-                  <span>By: {store.installation.submittedBy || "-"}</span>
-                </div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
+                <h3 className={`font-bold text-sm sm:text-base ${darkMode ? "text-white" : "text-gray-900"}`}>Installation Details</h3>
               </div>
-              {store.installation.photos && store.installation.photos.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold mb-2 flex items-center gap-1">
-                    <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4" /> Installation Photos ({store.installation.photos.length})
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {store.installation.photos.slice(0, 6).map((photo: any, idx: number) => (
-                      <a key={idx} href={photo.installationPhoto} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
-                        <img src={photo.installationPhoto} alt={`Installation ${idx + 1}`} className="w-full h-full object-cover" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
+              {!store.workflow?.installationAssignedTo && (!store.installation || !store.installation.submittedDate) && canEdit && (
+                <button
+                  onClick={() => router.push(`/stores?assignInstallation=${store._id}`)}
+                  className="px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-xs flex items-center gap-1"
+                >
+                  <UserPlus className="h-3 w-3" /> Assign
+                </button>
               )}
             </div>
+            {!store.workflow?.installationAssignedTo && (!store.installation || !store.installation.submittedDate) ? (
+              <div className={`text-center py-6 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm font-medium">No installation assigned</p>
+                <p className="text-xs mt-1">Assign an installation user to proceed</p>
+              </div>
+            ) : store.installation?.submittedDate ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <div className={`text-xs sm:text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                    <span>Submitted: {store.installation.submittedDate ? new Date(store.installation.submittedDate).toLocaleDateString() : "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                    <span>By: {store.installation.submittedBy || "-"}</span>
+                  </div>
+                </div>
+                {store.installation.photos && store.installation.photos.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold mb-2 flex items-center gap-1">
+                      <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4" /> Installation Photos ({store.installation.photos.length})
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {store.installation.photos.slice(0, 6).map((photo: any, idx: number) => (
+                        <a key={idx} href={photo.installationPhoto} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
+                          <img src={photo.installationPhoto} alt={`Installation ${idx + 1}`} className="w-full h-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={`text-xs sm:text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                <div className="flex items-center gap-2">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                  <span>Assigned to: {(store.workflow.installationAssignedTo as any)?.name || "-"}</span>
+                </div>
+                <p className={`text-xs mt-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Waiting for installation submission</p>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -18,6 +18,9 @@ import {
   FileSpreadsheet,
   Plus,
   X,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -45,8 +48,14 @@ export default function RecceSubmissionPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [clientElements, setClientElements] = useState<any[]>([]);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const [newStatus, setNewStatus] = useState<"APPROVED" | "REJECTED">("APPROVED");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const isRecceUser = user?.roles?.some((r: any) => r.code === "RECCE" || r.name === "RECCE");
+  const isAdmin = user?.roles?.some((r: any) => r.code === "SUPER_ADMIN" || r.code === "ADMIN");
 
   const [notes, setNotes] = useState("");
   const [initialPhotos, setInitialPhotos] = useState<File[]>([]);
@@ -238,6 +247,55 @@ export default function RecceSubmissionPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleStatusChange = async () => {
+    if (selectedPhotoIndex === null) return;
+    if (newStatus === "REJECTED" && !rejectionReason.trim()) {
+      toast.error("Please provide a rejection reason");
+      return;
+    }
+
+    setUpdatingStatus(true);
+    try {
+      await api.post(`/stores/${id}/recce/photos/${selectedPhotoIndex}/review`, {
+        status: newStatus,
+        rejectionReason: newStatus === "REJECTED" ? rejectionReason : undefined,
+      });
+      toast.success(`Photo ${selectedPhotoIndex + 1} ${newStatus.toLowerCase()}`);
+      setShowStatusModal(false);
+      setSelectedPhotoIndex(null);
+      setRejectionReason("");
+      // Refresh store data
+      const { data } = await api.get(`/stores/${id}`);
+      setStore(data.store);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to update status");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const getStatusBadge = (status?: string) => {
+    if (status === "APPROVED") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+          <CheckCircle className="w-3 h-3" /> Approved
+        </span>
+      );
+    }
+    if (status === "REJECTED") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">
+          <XCircle className="w-3 h-3" /> Rejected
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">
+        <Clock className="w-3 h-3" /> Pending
+      </span>
+    );
   };
 
   if (loading)
@@ -452,19 +510,45 @@ export default function RecceSubmissionPage() {
           {reccePhotos.map((reccePhoto, index) => (
             <div key={index} className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className={`font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-                  <Ruler className="h-5 w-5 text-yellow-500" /> Recce Photo {index + 1}
-                </h3>
-                {reccePhotos.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeReccePhoto(index)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                )}
+                <div className="flex items-center gap-3">
+                  <h3 className={`font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
+                    <Ruler className="h-5 w-5 text-yellow-500" /> Recce Photo {index + 1}
+                  </h3>
+                  {store?.recce?.reccePhotos?.[index]?.approvalStatus && (
+                    <div>{getStatusBadge(store.recce.reccePhotos[index].approvalStatus)}</div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {isAdmin && store?.recce?.submittedDate && (
+                    <button
+                      onClick={() => {
+                        setSelectedPhotoIndex(index);
+                        setNewStatus("APPROVED");
+                        setShowStatusModal(true);
+                      }}
+                      className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                      Change Status
+                    </button>
+                  )}
+                  {reccePhotos.length > 1 && !store?.recce?.submittedDate && (
+                    <button
+                      type="button"
+                      onClick={() => removeReccePhoto(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {store?.recce?.reccePhotos?.[index]?.rejectionReason && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <div className="text-xs font-medium text-red-800 dark:text-red-400">Rejection Reason:</div>
+                  <div className="text-sm text-red-700 dark:text-red-300 mt-1">{store.recce.reccePhotos[index].rejectionReason}</div>
+                </div>
+              )}
 
               {/* Element Selection */}
               {clientElements.length > 0 && (
@@ -627,6 +711,65 @@ export default function RecceSubmissionPage() {
           </button>
         </form>
       </div>
+
+      {/* Status Change Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className={`max-w-md w-full rounded-xl p-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+            <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
+              Change Status - Photo {selectedPhotoIndex !== null ? selectedPhotoIndex + 1 : ""}
+            </h3>
+            
+            <div className="mb-4">
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                New Status
+              </label>
+              <select
+                value={newStatus}
+                onChange={(e) => setNewStatus(e.target.value as "APPROVED" | "REJECTED")}
+                className={`w-full p-3 border rounded-lg text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-300"}`}
+              >
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+
+            {newStatus === "REJECTED" && (
+              <div className="mb-4">
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                  Rejection Reason *
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Enter rejection reason..."
+                  className={`w-full p-3 border rounded-lg text-sm min-h-[100px] ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-300"}`}
+                />
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowStatusModal(false);
+                  setSelectedPhotoIndex(null);
+                  setRejectionReason("");
+                }}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-700"}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStatusChange}
+                disabled={updatingStatus || (newStatus === "REJECTED" && !rejectionReason.trim())}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium text-white ${newStatus === "APPROVED" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"} disabled:opacity-50`}
+              >
+                {updatingStatus ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Update"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
