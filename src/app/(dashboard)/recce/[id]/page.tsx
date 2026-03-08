@@ -26,6 +26,7 @@ import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { Skeleton, CardSkeleton } from "@/src/components/ui/Skeleton";
+import { useImageService } from "@/src/hooks/useImageService";
 
 interface ReccePhoto {
   file: File | null;
@@ -43,6 +44,8 @@ export default function RecceSubmissionPage() {
   const { user } = useAuth();
   const params = useParams();
   const id = params?.id as string;
+
+  const { getFullImageUrl, processStoreImages } = useImageService();
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,13 +91,12 @@ export default function RecceSubmissionPage() {
         if (s.recce && s.recce.submittedDate) {
           if (s.recce.notes) setNotes(s.recce.notes);
           if (s.recce.initialPhotos && s.recce.initialPhotos.length > 0) {
-            // Images are stored as relative paths, prepend CDN URL
-            setInitialPreviews(s.recce.initialPhotos.map((p: string) => `https://storage.enamorimpex.com/${p}`));
+            setInitialPreviews(s.recce.initialPhotos.map((p: string) => getFullImageUrl(p)));
           }
           if (s.recce.reccePhotos && s.recce.reccePhotos.length > 0) {
             const loaded = s.recce.reccePhotos.map((rp: any) => ({
               file: null,
-              preview: `https://storage.enamorimpex.com/${rp.photo}`,
+              preview: getFullImageUrl(rp.photo),
               width: String(rp.measurements.width || ""),
               height: String(rp.measurements.height || ""),
               unit: rp.measurements.unit || "in",
@@ -221,7 +223,7 @@ export default function RecceSubmissionPage() {
       const existingReccePhotos = reccePhotos
         .filter(rp => !rp.file && rp.preview)
         .map((rp) => ({
-          photo: rp.preview?.replace('https://storage.enamorimpex.com/', ""),
+          photo: rp.preview?.replace(getFullImageUrl(''), ""),
           width: rp.width,
           height: rp.height,
           unit: rp.unit,
@@ -231,7 +233,7 @@ export default function RecceSubmissionPage() {
       
       const existingInitialPhotos = initialPreviews
         .filter(preview => !initialPhotos.some(file => URL.createObjectURL(file) === preview))
-        .map(preview => preview.replace('https://storage.enamorimpex.com/', ""));
+        .map(preview => preview.replace(getFullImageUrl(''), ""));
       formData.append("existingInitialPhotos", JSON.stringify(existingInitialPhotos));
     }
 

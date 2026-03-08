@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { Skeleton, CardSkeleton } from "@/src/components/ui/Skeleton";
+import { useImageService } from "@/src/hooks/useImageService";
 
 export default function InstallationSubmissionPage() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function InstallationSubmissionPage() {
   const params = useParams();
   const id = params?.id as string;
   const API_BASE_URL = "http://localhost:5000";
+
+  const { getFullImageUrl, processStoreImages } = useImageService();
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,12 +30,6 @@ export default function InstallationSubmissionPage() {
   const photosPerPage = 10;
 
   const isInstallationRole = user?.roles?.some(r => r.name === "INSTALLATION");
-
-  const getPhotoUrl = (path: string | undefined) => {
-    if (!path) return null;
-    const cleanPath = path.startsWith("/") || path.startsWith("\\") ? path.slice(1) : path;
-    return `${API_BASE_URL}/${cleanPath.replace(/\\/g, "/")}`;
-  };
 
   useEffect(() => {
     if (!id) return;
@@ -47,7 +44,7 @@ export default function InstallationSubmissionPage() {
         if (s.installation?.photos) {
           const newPreviews: { [key: number]: string | null } = {};
           s.installation.photos.forEach((p: any) => {
-            newPreviews[p.reccePhotoIndex] = getPhotoUrl(p.installationPhoto);
+            newPreviews[p.reccePhotoIndex] = getFullImageUrl(p.installationPhoto);
           });
           setPreviews(newPreviews);
         }
@@ -217,7 +214,7 @@ export default function InstallationSubmissionPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {store.recce.initialPhotos.map((photo, idx) => (
                 <div key={idx} className="aspect-square rounded-lg overflow-hidden border-2 border-blue-300 dark:border-blue-700">
-                  <img src={getPhotoUrl(photo) || ''} alt={`Initial ${idx + 1}`} className="h-full w-full object-cover" />
+                  <img src={getFullImageUrl(photo)} alt={`Initial ${idx + 1}`} className="h-full w-full object-cover" />
                 </div>
               ))}
             </div>
@@ -245,7 +242,7 @@ export default function InstallationSubmissionPage() {
                       <div>
                         <h4 className={`font-bold mb-2 ${darkMode ? "text-blue-400" : "text-blue-600"}`}>Recce Photo {originalIndex + 1}</h4>
                         <div className="aspect-video rounded-lg overflow-hidden border-2 border-blue-500 mb-3">
-                          <img src={getPhotoUrl(reccePhoto.photo) || ''} alt={`Recce ${originalIndex + 1}`} className="h-full w-full object-cover" />
+                          <img src={getFullImageUrl(reccePhoto.photo)} alt={`Recce ${originalIndex + 1}`} className="h-full w-full object-cover" />
                         </div>
                         <div className={`p-3 rounded-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
                           <div className="flex items-center gap-2 mb-2">
