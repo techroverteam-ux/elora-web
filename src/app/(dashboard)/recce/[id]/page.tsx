@@ -54,6 +54,8 @@ export default function RecceSubmissionPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  const [showValidationError, setShowValidationError] = useState(false);
+
   const isRecceUser = user?.roles?.some((r: any) => r.code === "RECCE" || r.name === "RECCE");
   const isAdmin = user?.roles?.some((r: any) => r.code === "SUPER_ADMIN" || r.code === "ADMIN");
 
@@ -158,6 +160,13 @@ export default function RecceSubmissionPage() {
   };
 
   const addReccePhoto = () => {
+    // Check if the last recce photo has width and height filled
+    const lastPhoto = reccePhotos[reccePhotos.length - 1];
+    if (!lastPhoto.width || !lastPhoto.height) {
+      setShowValidationError(true);
+      return;
+    }
+    setShowValidationError(false);
     setReccePhotos([...reccePhotos, { file: null, preview: null, width: "", height: "", unit: "in", elementId: "", elementName: "" }]);
   };
 
@@ -622,9 +631,17 @@ export default function RecceSubmissionPage() {
                     step="0.1"
                     className={`w-full p-2.5 border rounded-lg text-base font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                     value={reccePhoto.width}
-                    onChange={(e) => updateReccePhoto(index, "width", e.target.value)}
+                    onChange={(e) => {
+                      updateReccePhoto(index, "width", e.target.value);
+                      if (index === reccePhotos.length - 1 && showValidationError) {
+                        setShowValidationError(false);
+                      }
+                    }}
                     placeholder="0.0"
                   />
+                  {index === reccePhotos.length - 1 && showValidationError && !reccePhoto.width && (
+                    <p className="text-xs text-red-500 mt-1">Required</p>
+                  )}
                 </div>
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
@@ -635,9 +652,17 @@ export default function RecceSubmissionPage() {
                     step="0.1"
                     className={`w-full p-2.5 border rounded-lg text-base font-bold outline-none focus:ring-2 focus:ring-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                     value={reccePhoto.height}
-                    onChange={(e) => updateReccePhoto(index, "height", e.target.value)}
+                    onChange={(e) => {
+                      updateReccePhoto(index, "height", e.target.value);
+                      if (index === reccePhotos.length - 1 && showValidationError) {
+                        setShowValidationError(false);
+                      }
+                    }}
                     placeholder="0.0"
                   />
+                  {index === reccePhotos.length - 1 && showValidationError && !reccePhoto.height && (
+                    <p className="text-xs text-red-500 mt-1">Required</p>
+                  )}
                 </div>
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>

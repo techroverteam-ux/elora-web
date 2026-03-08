@@ -35,6 +35,7 @@ import {
 import { exportToExcel } from "@/src/utils/excelExport";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
+import { usePermissions } from "@/src/hooks/usePermissions";
 import Modal from "@/src/components/ui/Modal";
 import { TableSkeleton } from "@/src/components/ui/Skeleton";
 import toast from "react-hot-toast";
@@ -43,7 +44,16 @@ import { useRouter } from "next/navigation";
 export default function StoresPage() {
   const { darkMode } = useTheme();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const router = useRouter();
+
+  // Debug: Log user permissions
+  React.useEffect(() => {
+    if (user) {
+      console.log('User:', user);
+      console.log('Has edit permission on stores:', hasPermission('stores', 'edit'));
+    }
+  }, [user]);
 
   // Check if user has RECCE or INSTALLATION role
   const isRecceOrInstallUser = React.useMemo(() => {
@@ -865,24 +875,28 @@ export default function StoresPage() {
             <Download className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Export Stores</span>
           </button>
-          <button
-            onClick={() => {
-              setUploadStats(null);
-              setSelectedFiles([]);
-              setIsUploadOpen(true);
-            }}
-            className="inline-flex items-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm bg-yellow-500 hover:bg-yellow-600 text-white"
-          >
-            <Upload className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Bulk Upload</span>
-          </button>
-          <button
-            onClick={() => setIsAddStoreOpen(true)}
-            className="inline-flex items-center px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm shadow-md shadow-yellow-500/20"
-          >
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Add Store</span>
-          </button>
+          {hasPermission('stores', 'create') && (
+            <>
+              <button
+                onClick={() => {
+                  setUploadStats(null);
+                  setSelectedFiles([]);
+                  setIsUploadOpen(true);
+                }}
+                className="inline-flex items-center px-3 sm:px-4 py-2 rounded-lg font-medium text-sm bg-yellow-500 hover:bg-yellow-600 text-white"
+              >
+                <Upload className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Bulk Upload</span>
+              </button>
+              <button
+                onClick={() => setIsAddStoreOpen(true)}
+                className="inline-flex items-center px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-sm shadow-md shadow-yellow-500/20"
+              >
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Store</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -959,14 +973,16 @@ export default function StoresPage() {
           {/* Bulk Actions */}
           {selectedStoreIds.size > 0 && (
             <div className="flex gap-2 animate-in fade-in slide-in-from-right-4">
-              <button
-                onClick={() => openAssignModal("RECCE")}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-              >
-                <UserPlus className="h-4 w-4 mr-2" /> Assign Recce (
-                {selectedStoreIds.size})
-              </button>
-              {!isRecceOrInstallUser && (
+              {hasPermission('stores', 'edit') && (
+                <button
+                  onClick={() => openAssignModal("RECCE")}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" /> Assign Recce (
+                  {selectedStoreIds.size})
+                </button>
+              )}
+              {hasPermission('stores', 'delete') && (
                 <button
                   onClick={handleBulkDelete}
                   className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm"
@@ -1636,12 +1652,12 @@ export default function StoresPage() {
                                           const elementId = rp.elements[0].elementId;
                                           const clientElement = client.elements.find((el: any) => el.elementId === elementId);
                                           if (clientElement) {
-                                            const elementCost = boardSize * clientElement.customRate * (rp.elements[0].quantity || 1);
+                                            const elementCost = Math.round(boardSize * clientElement.customRate * (rp.elements[0].quantity || 1) * 100) / 100;
                                             totalBoardCost += elementCost;
                                           }
                                         }
                                       });
-                                      return totalBoardCost.toLocaleString();
+                                      return totalBoardCost.toFixed(2);
                                     }
                                   }
                                   return store.costDetails?.totalBoardCost?.toLocaleString() || "0";
@@ -1715,7 +1731,7 @@ export default function StoresPage() {
                                           const elementId = rp.elements[0].elementId;
                                           const clientElement = client.elements.find((el: any) => el.elementId === elementId);
                                           if (clientElement) {
-                                            const elementCost = boardSize * clientElement.customRate * (rp.elements[0].quantity || 1);
+                                            const elementCost = Math.round(boardSize * clientElement.customRate * (rp.elements[0].quantity || 1) * 100) / 100;
                                             totalBoardCost += elementCost;
                                           }
                                         }
@@ -1728,7 +1744,7 @@ export default function StoresPage() {
                                       const oneWayVision = store.costDetails?.oneWayVision || 0;
                                       const sunboard = store.costDetails?.sunboard || 0;
                                       const totalCost = totalBoardCost + angleCharges + scaffoldingCharges + transportation + flanges + lollipop + oneWayVision + sunboard;
-                                      return totalCost.toLocaleString();
+                                      return totalCost.toFixed(2);
                                     }
                                   }
                                   return store.commercials?.totalCost?.toLocaleString() || "0";
@@ -1781,7 +1797,7 @@ export default function StoresPage() {
                                 >
                                   {(store.workflow.recceAssignedTo as any).name}
                                 </span>
-                                {!isRecceOrInstallUser && (
+                                {hasPermission('stores', 'edit') && (
                                   <button
                                     onClick={() =>
                                       handleUnassign(store._id, "RECCE")
@@ -1819,7 +1835,7 @@ export default function StoresPage() {
                                     ).name
                                   }
                                 </span>
-                                {!isRecceOrInstallUser && (
+                                {hasPermission('stores', 'edit') && (
                                   <button
                                     onClick={() =>
                                       handleUnassign(store._id, "INSTALLATION")
@@ -1843,7 +1859,7 @@ export default function StoresPage() {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            {!isRecceOrInstallUser && (
+                            {hasPermission('stores', 'delete') && (
                               <button
                                 onClick={() => handleDelete(store._id)}
                                 className="p-1.5 rounded hover:bg-gray-100/50 dark:hover:bg-gray-700/50 text-red-600"
@@ -1853,7 +1869,7 @@ export default function StoresPage() {
                               </button>
                             )}
 
-                            {store.currentStatus === StoreStatus.UPLOADED && (
+                            {hasPermission('stores', 'edit') && store.currentStatus === StoreStatus.UPLOADED && (
                               <button
                                 onClick={() => openAssignModal("RECCE", store)}
                                 className="p-1.5 rounded hover:bg-blue-50/50 dark:hover:bg-blue-900/20 text-blue-600"
@@ -1863,7 +1879,7 @@ export default function StoresPage() {
                               </button>
                             )}
 
-                            {store.currentStatus ===
+                            {hasPermission('recce', 'edit') && store.currentStatus ===
                               StoreStatus.RECCE_SUBMITTED && (
                               <>
                                 <button
@@ -1943,7 +1959,7 @@ export default function StoresPage() {
                               </>
                             )}
 
-                            {store.currentStatus ===
+                            {hasPermission('stores', 'edit') && store.currentStatus ===
                               StoreStatus.RECCE_APPROVED && (
                               <>
                                 <button
@@ -2382,7 +2398,7 @@ export default function StoresPage() {
                       >
                         <Eye className="w-3.5 h-3.5" /> View
                       </button>
-                      {!isRecceOrInstallUser && (
+                      {hasPermission('stores', 'delete') && (
                         <button
                           onClick={() => handleDelete(store._id)}
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 text-red-600 text-xs font-medium"
@@ -2390,7 +2406,7 @@ export default function StoresPage() {
                           <Trash2 className="w-3.5 h-3.5" /> Delete
                         </button>
                       )}
-                      {store.currentStatus === StoreStatus.UPLOADED && (
+                      {hasPermission('stores', 'edit') && store.currentStatus === StoreStatus.UPLOADED && (
                         <button
                           onClick={() => openAssignModal("RECCE", store)}
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium"
@@ -2398,7 +2414,7 @@ export default function StoresPage() {
                           <UserPlus className="w-3.5 h-3.5" /> Assign Recce
                         </button>
                       )}
-                      {store.currentStatus === StoreStatus.RECCE_SUBMITTED && (
+                      {hasPermission('recce', 'edit') && store.currentStatus === StoreStatus.RECCE_SUBMITTED && (
                         <>
                           <button
                             onClick={() => handleApproveRecce(store._id)}
@@ -2473,7 +2489,7 @@ export default function StoresPage() {
                           </div>
                         </>
                       )}
-                      {store.currentStatus === StoreStatus.RECCE_APPROVED && (
+                      {hasPermission('stores', 'edit') && store.currentStatus === StoreStatus.RECCE_APPROVED && (
                         <>
                           <button
                             onClick={() =>
@@ -3065,9 +3081,9 @@ export default function StoresPage() {
         onClose={() => setIsAssignModalOpen(false)}
         title={`Assign ${assignStage === "RECCE" ? "Recce" : "Installation"}`}
       >
-        <div className="space-y-4">
+        <div className="flex flex-col h-full max-h-[70vh]">
           <div
-            className={`p-3 rounded-lg ${darkMode ? "bg-yellow-900/20 border border-yellow-500/30" : "bg-yellow-50 border border-yellow-200"}`}
+            className={`p-3 rounded-lg mb-4 flex-shrink-0 ${darkMode ? "bg-yellow-900/20 border border-yellow-500/30" : "bg-yellow-50 border border-yellow-200"}`}
           >
             <p
               className={`text-sm font-medium ${darkMode ? "text-yellow-400" : "text-yellow-700"}`}
@@ -3083,7 +3099,7 @@ export default function StoresPage() {
           </div>
 
           {/* Search Bar */}
-          <div className="relative">
+          <div className="relative mb-4 flex-shrink-0">
             <Search
               className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
             />
@@ -3097,62 +3113,64 @@ export default function StoresPage() {
           </div>
 
           {/* User List */}
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-yellow-500 scrollbar-track-gray-200">
-            {filteredUsers.map((user) => (
-              <div
-                key={user._id}
-                onClick={() => setSelectedUserId(user._id)}
-                className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${
-                  selectedUserId === user._id
-                    ? darkMode
-                      ? "border-yellow-500 bg-yellow-900/20 shadow-md"
-                      : "border-yellow-500 bg-yellow-50 shadow-md"
-                    : darkMode
-                      ? "border-gray-700 hover:border-gray-600 hover:bg-gray-800"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                }`}
-              >
+          <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-yellow-500 scrollbar-track-gray-200 mb-4">
+            <div className="space-y-2">
+              {filteredUsers.map((user) => (
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm mr-3 ${
+                  key={user._id}
+                  onClick={() => setSelectedUserId(user._id)}
+                  className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${
                     selectedUserId === user._id
-                      ? "bg-yellow-500 text-white"
+                      ? darkMode
+                        ? "border-yellow-500 bg-yellow-900/20 shadow-md"
+                        : "border-yellow-500 bg-yellow-50 shadow-md"
                       : darkMode
-                        ? "bg-gray-700 text-gray-200"
-                        : "bg-gray-200 text-gray-700"
+                        ? "border-gray-700 hover:border-gray-600 hover:bg-gray-800"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1">
                   <div
-                    className={`font-medium text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm mr-3 ${
+                      selectedUserId === user._id
+                        ? "bg-yellow-500 text-white"
+                        : darkMode
+                          ? "bg-gray-700 text-gray-200"
+                          : "bg-gray-200 text-gray-700"
+                    }`}
                   >
-                    {user.name}
+                    {user.name.charAt(0).toUpperCase()}
                   </div>
-                  <div
-                    className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                  >
-                    {user.email}
+                  <div className="flex-1">
+                    <div
+                      className={`font-medium text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
+                    >
+                      {user.name}
+                    </div>
+                    <div
+                      className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      {user.email}
+                    </div>
                   </div>
+                  {selectedUserId === user._id && (
+                    <CheckSquare className="w-5 h-5 text-yellow-500" />
+                  )}
                 </div>
-                {selectedUserId === user._id && (
-                  <CheckSquare className="w-5 h-5 text-yellow-500" />
-                )}
-              </div>
-            ))}
-            {filteredUsers.length === 0 && (
-              <div
-                className={`text-center py-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-              >
-                <User className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm font-medium">No users found</p>
-                <p className="text-xs mt-1">Try adjusting your search</p>
-              </div>
-            )}
+              ))}
+              {filteredUsers.length === 0 && (
+                <div
+                  className={`text-center py-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                >
+                  <User className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm font-medium">No users found</p>
+                  <p className="text-xs mt-1">Try adjusting your search</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 flex-shrink-0">
             <button
               onClick={() => setIsAssignModalOpen(false)}
               className={`flex-1 py-2 rounded-lg font-medium text-sm transition-colors ${
