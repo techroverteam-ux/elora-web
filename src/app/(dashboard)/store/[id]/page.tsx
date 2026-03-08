@@ -25,6 +25,7 @@ import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { Skeleton, CardSkeleton } from "@/src/components/ui/Skeleton";
+import { useImageService } from "@/src/hooks/useImageService";
 
 export default function StoreDetailsPage() {
   const router = useRouter();
@@ -32,6 +33,8 @@ export default function StoreDetailsPage() {
   const { user } = useAuth();
   const params = useParams();
   const id = params?.id as string;
+
+  const { getFullImageUrl, processStoreImages } = useImageService();
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
@@ -357,8 +360,8 @@ export default function StoreDetailsPage() {
                 <h4 className={`font-semibold text-sm mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>Initial Photos ({store.recce.initialPhotos.length})</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {store.recce.initialPhotos.map((photo: string, idx: number) => (
-                    <a key={idx} href={photo} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
-                      <img src={photo} alt={`Initial ${idx + 1}`} className="w-full h-full object-cover" />
+                    <a key={idx} href={getFullImageUrl(photo)} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
+                      <img src={getFullImageUrl(photo)} alt={`Initial ${idx + 1}`} className="w-full h-full object-cover" />
                     </a>
                   ))}
                 </div>
@@ -377,8 +380,8 @@ export default function StoreDetailsPage() {
                     return (
                       <div key={idx} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
                         <div className="flex gap-3">
-                          <a href={photo.photo} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                            <img src={photo.photo} alt={`Photo ${idx + 1}`} className="w-40 h-40 object-cover rounded border border-gray-300 dark:border-gray-600" />
+                          <a href={getFullImageUrl(photo.photo)} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                            <img src={getFullImageUrl(photo.photo)} alt={`Photo ${idx + 1}`} className="w-40 h-40 object-cover rounded border border-gray-300 dark:border-gray-600" />
                           </a>
                           <div className="flex-1 min-w-0">
                             <div className={`text-xs font-semibold mb-2 ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>Photo {idx + 1}</div>
@@ -450,8 +453,8 @@ export default function StoreDetailsPage() {
                     </p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {store.installation.photos.slice(0, 6).map((photo: any, idx: number) => (
-                        <a key={idx} href={photo.installationPhoto} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
-                          <img src={photo.installationPhoto} alt={`Installation ${idx + 1}`} className="w-full h-full object-cover" />
+                        <a key={idx} href={getFullImageUrl(photo.installationPhoto)} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
+                          <img src={getFullImageUrl(photo.installationPhoto)} alt={`Installation ${idx + 1}`} className="w-full h-full object-cover" />
                         </a>
                       ))}
                     </div>
