@@ -2347,8 +2347,37 @@ export default function StoresPage() {
                           className={`font-bold ${darkMode ? "text-green-400" : "text-green-600"}`}
                         >
                           ₹
-                          {store.commercials?.totalCost?.toLocaleString() ||
-                            "0"}
+                          {(() => {
+                            if (store.recce?.reccePhotos && store.recce.reccePhotos.length > 0 && store.clientCode) {
+                              const client = clientsMap.get(store.clientCode);
+                              if (client && client.elements) {
+                                let totalBoardCost = 0;
+                                store.recce.reccePhotos.forEach((rp: any) => {
+                                  const width = rp.measurements?.unit === "in" ? rp.measurements.width / 12 : rp.measurements.width;
+                                  const height = rp.measurements?.unit === "in" ? rp.measurements.height / 12 : rp.measurements.height;
+                                  const boardSize = width * height;
+                                  if (rp.elements && rp.elements.length > 0) {
+                                    const elementId = rp.elements[0].elementId;
+                                    const clientElement = client.elements.find((el: any) => el.elementId === elementId);
+                                    if (clientElement) {
+                                      const elementCost = Math.round(boardSize * clientElement.customRate * (rp.elements[0].quantity || 1) * 100) / 100;
+                                      totalBoardCost += elementCost;
+                                    }
+                                  }
+                                });
+                                const angleCharges = store.costDetails?.angleCharges || 0;
+                                const scaffoldingCharges = store.costDetails?.scaffoldingCharges || 0;
+                                const transportation = store.costDetails?.transportation || 0;
+                                const flanges = store.costDetails?.flanges || 0;
+                                const lollipop = store.costDetails?.lollipop || 0;
+                                const oneWayVision = store.costDetails?.oneWayVision || 0;
+                                const sunboard = store.costDetails?.sunboard || 0;
+                                const totalCost = totalBoardCost + angleCharges + scaffoldingCharges + transportation + flanges + lollipop + oneWayVision + sunboard;
+                                return totalCost.toFixed(2);
+                              }
+                            }
+                            return store.commercials?.totalCost?.toLocaleString() || "0";
+                          })()}
                         </span>
                       </div>
                       {store.workflow.recceAssignedTo && (
