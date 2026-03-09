@@ -77,12 +77,12 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Dashboard</h1>
+          <h1 className={`text-xl sm:text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Dashboard</h1>
           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Overview & Analytics</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
@@ -110,7 +110,7 @@ export default function DashboardPage() {
       {/* Filters */}
       {showFilters && (
         <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <div className="relative">
               <input
                 type="date"
@@ -210,7 +210,7 @@ export default function DashboardPage() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         <StatCard title={stats?.isAdmin ? "Total Stores" : "Assigned to Me"} value={stats?.kpi?.totalStores || 0} icon={<MapPin className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.newStoresToday || 0} today`} />
         {stats?.isAdmin && stats?.kpi?.totalClients !== undefined && (
           <StatCard title="Total Clients" value={stats?.kpi?.totalClients || 0} icon={<Users className="h-4 w-4" />} darkMode={darkMode} color="purple" />
@@ -280,9 +280,9 @@ export default function DashboardPage() {
       {/* Recent Stores - Full Width */}
       <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
         <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Recent Stores</h3>
-        <div className="flex gap-3 overflow-x-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {stats?.recentStores && stats.recentStores.length > 0 ? stats.recentStores.map((store: any) => (
-            <div key={store._id} className={`p-3 rounded-lg border flex-shrink-0 w-48 ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
+            <div key={store._id} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
               <div className="flex items-center gap-2 mb-2">
                 <MapPin className="w-4 h-4 text-yellow-500 flex-shrink-0" />
                 <h4 className={`text-sm font-bold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName || "Unnamed"}</h4>
@@ -332,7 +332,7 @@ export default function DashboardPage() {
       <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
         <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Top 10 States</h3>
         {stats?.stateDistribution && stats.stateDistribution.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {stats.stateDistribution.map((item: any) => (
             <div key={item._id} className={`p-4 rounded-lg border text-center ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
               <div className={`text-2xl font-black ${darkMode ? "text-white" : "text-gray-900"}`}>{item.count}</div>
@@ -357,15 +357,15 @@ function StatCard({ title, value, icon, darkMode, trend, color = "yellow", subti
   const c = colors[color] || colors.yellow;
 
   return (
-    <div className={`p-3 rounded-xl border transition-all hover:scale-105 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+    <div className={`p-3 sm:p-4 rounded-xl border transition-all hover:scale-105 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
       <div className="flex items-start justify-between">
-        <div>
-          <p className={`text-[10px] font-medium uppercase ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{title}</p>
-          <h3 className={`text-xl font-black mt-1 ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</h3>
-          {subtitle && <p className={`text-[9px] mt-0.5 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{subtitle}</p>}
-          {trend && <p className="text-[10px] text-green-500 font-medium mt-0.5">{trend}</p>}
+        <div className="min-w-0 flex-1">
+          <p className={`text-[10px] sm:text-xs font-medium uppercase ${darkMode ? "text-gray-400" : "text-gray-500"} truncate`}>{title}</p>
+          <h3 className={`text-lg sm:text-xl lg:text-2xl font-black mt-1 ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</h3>
+          {subtitle && <p className={`text-[9px] sm:text-[10px] mt-0.5 ${darkMode ? "text-gray-500" : "text-gray-400"} truncate`}>{subtitle}</p>}
+          {trend && <p className="text-[10px] sm:text-xs text-green-500 font-medium mt-0.5 truncate">{trend}</p>}
         </div>
-        <div className={`p-1.5 rounded-lg ${c.bg} ${c.text}`}>{icon}</div>
+        <div className={`p-1.5 sm:p-2 rounded-lg ${c.bg} ${c.text} flex-shrink-0`}>{icon}</div>
       </div>
     </div>
   );
