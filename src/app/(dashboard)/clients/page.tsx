@@ -25,7 +25,6 @@ interface Client {
   clientCode: string;
   clientName: string;
   branchName: string;
-  amount: number;
   gstNumber: string;
   elements: ClientElement[];
   createdAt: string;
@@ -52,7 +51,6 @@ export default function ClientsPage() {
   const [formData, setFormData] = useState({
     clientName: "",
     branchName: "",
-    amount: "",
     gstNumber: "",
     elements: [] as ClientElement[],
   });
@@ -60,7 +58,6 @@ export default function ClientsPage() {
   const [errors, setErrors] = useState({
     clientName: "",
     branchName: "",
-    amount: "",
     gstNumber: "",
     elements: "",
     submit: "",
@@ -120,14 +117,12 @@ export default function ClientsPage() {
     setFormData({
       clientName: "",
       branchName: "",
-      amount: "",
       gstNumber: "",
       elements: [],
     });
     setErrors({
       clientName: "",
       branchName: "",
-      amount: "",
       gstNumber: "",
       elements: "",
       submit: "",
@@ -141,14 +136,12 @@ export default function ClientsPage() {
     setFormData({
       clientName: client.clientName,
       branchName: client.branchName,
-      amount: client.amount.toString(),
       gstNumber: client.gstNumber,
       elements: client.elements,
     });
     setErrors({
       clientName: "",
       branchName: "",
-      amount: "",
       gstNumber: "",
       elements: "",
       submit: "",
@@ -216,7 +209,6 @@ export default function ClientsPage() {
     const newErrors = {
       clientName: "",
       branchName: "",
-      amount: "",
       gstNumber: "",
       elements: "",
       submit: "",
@@ -236,14 +228,6 @@ export default function ClientsPage() {
       newErrors.branchName = "Branch name must be at least 2 characters";
     } else if (/\d/.test(formData.branchName)) {
       newErrors.branchName = "Branch name cannot contain numbers";
-    }
-
-    if (!formData.amount) {
-      newErrors.amount = "Amount is required";
-    } else if (Number(formData.amount) <= 0) {
-      newErrors.amount = "Amount must be greater than 0";
-    } else if (!/^\d{1,10}(\.\d{1,2})?$/.test(formData.amount)) {
-      newErrors.amount = "Invalid amount format (max 10 digits, 2 decimals)";
     }
 
     if (!formData.gstNumber.trim()) {
@@ -275,7 +259,6 @@ export default function ClientsPage() {
       const payload = {
         clientName: formData.clientName,
         branchName: formData.branchName,
-        amount: Number(formData.amount),
         gstNumber: formData.gstNumber,
         elements: formData.elements,
       };
@@ -433,9 +416,6 @@ export default function ClientsPage() {
                   Branch
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                  Amount
-                </th>
-                <th className={`px-4 py-3 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                   GST Number
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
@@ -462,11 +442,6 @@ export default function ClientsPage() {
                   <td className="px-4 py-3">
                     <span className={darkMode ? "text-gray-200" : "text-gray-900"}>
                       {client.branchName}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={darkMode ? "text-gray-200" : "text-gray-900"}>
-                      ₹{client.amount.toLocaleString()}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -520,10 +495,6 @@ export default function ClientsPage() {
                 <div className="flex justify-between">
                   <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Branch:</span>
                   <span className={darkMode ? "text-gray-200" : "text-gray-900"}>{client.branchName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Amount:</span>
-                  <span className={`font-semibold ${darkMode ? "text-green-400" : "text-green-600"}`}>₹{client.amount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className={darkMode ? "text-gray-400" : "text-gray-600"}>GST:</span>
@@ -640,30 +611,6 @@ export default function ClientsPage() {
               />
               {errors.branchName && (
                 <p className="text-red-500 text-xs mt-1">{errors.branchName}</p>
-              )}
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                Amount *
-              </label>
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="e.g., 1234567890.99"
-                required
-                className={`w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none ${errors.amount ? "border-red-500 focus:ring-red-500" : "focus:ring-yellow-500"} ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"}`}
-                value={formData.amount}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === '' || /^\d{0,10}(\.\d{0,2})?$/.test(value)) {
-                    setFormData({ ...formData, amount: value });
-                    if (errors.amount) setErrors({ ...errors, amount: "" });
-                  }
-                }}
-              />
-              {errors.amount && (
-                <p className="text-red-500 text-xs mt-1">{errors.amount}</p>
               )}
             </div>
 
