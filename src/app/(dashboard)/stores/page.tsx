@@ -485,10 +485,15 @@ export default function StoresPage() {
   };
 
   const toggleAllSelection = () => {
-    if (selectedStoreIds.size === stores.length) {
+    // When filtering by RECCE_APPROVED status, only select approved recce stores
+    const selectableStores = filterStatus === StoreStatus.RECCE_APPROVED 
+      ? stores.filter(s => s.currentStatus === StoreStatus.RECCE_APPROVED)
+      : stores;
+    
+    if (selectedStoreIds.size === selectableStores.length && selectableStores.length > 0) {
       setSelectedStoreIds(new Set());
     } else {
-      const allIds = stores.map((s) => s._id);
+      const allIds = selectableStores.map((s) => s._id);
       setSelectedStoreIds(new Set(allIds));
     }
   };
@@ -974,13 +979,25 @@ export default function StoresPage() {
           {selectedStoreIds.size > 0 && (
             <div className="flex gap-2 animate-in fade-in slide-in-from-right-4">
               {hasPermission('stores', 'edit') && (
-                <button
-                  onClick={() => openAssignModal("RECCE")}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" /> Assign Recce (
-                  {selectedStoreIds.size})
-                </button>
+                <>
+                  <button
+                    onClick={() => openAssignModal("RECCE")}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" /> Assign Recce (
+                    {selectedStoreIds.size})
+                  </button>
+                  {/* Installation Assignment for Approved Recce */}
+                  {stores.filter(s => selectedStoreIds.has(s._id) && s.currentStatus === StoreStatus.RECCE_APPROVED).length > 0 && (
+                    <button
+                      onClick={() => openAssignModal("INSTALLATION")}
+                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" /> Assign Installation (
+                      {stores.filter(s => selectedStoreIds.has(s._id) && s.currentStatus === StoreStatus.RECCE_APPROVED).length})
+                    </button>
+                  )}
+                </>
               )}
               {hasPermission('stores', 'delete') && (
                 <button
@@ -1245,14 +1262,18 @@ export default function StoresPage() {
                   <tr>
                     <th className="px-4 py-4 text-left w-12">
                       <button onClick={toggleAllSelection}>
-                        {selectedStoreIds.size === stores.length &&
-                        stores.length > 0 ? (
-                          <CheckSquare className="h-5 w-5 text-yellow-500" />
-                        ) : (
-                          <Square
-                            className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                          />
-                        )}
+                        {(() => {
+                          const selectableStores = filterStatus === StoreStatus.RECCE_APPROVED 
+                            ? stores.filter(s => s.currentStatus === StoreStatus.RECCE_APPROVED)
+                            : stores;
+                          return selectedStoreIds.size === selectableStores.length && selectableStores.length > 0 ? (
+                            <CheckSquare className="h-5 w-5 text-yellow-500" />
+                          ) : (
+                            <Square
+                              className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                            />
+                          );
+                        })()}
                       </button>
                     </th>
                     <th

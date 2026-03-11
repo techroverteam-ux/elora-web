@@ -23,7 +23,8 @@ import {
   FileText,
   ClipboardCheck,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  UserPlus
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -69,6 +70,12 @@ export default function RecceListPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isAssigningInstallation, setIsAssigningInstallation] = useState(false);
+  const [availableInstallUsers, setAvailableInstallUsers] = useState<any[]>([]);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [selectedInstallUserId, setSelectedInstallUserId] = useState("");
+  const [installUserSearchTerm, setInstallUserSearchTerm] = useState("");
+  const [filteredInstallUsers, setFilteredInstallUsers] = useState<any[]>([]);
 
   // Debounce Search
   useEffect(() => {
@@ -89,6 +96,20 @@ export default function RecceListPage() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Filter install users based on search term
+  useEffect(() => {
+    if (!installUserSearchTerm) {
+      setFilteredInstallUsers(availableInstallUsers);
+    } else {
+      const filtered = availableInstallUsers.filter(
+        (user) =>
+          user.name.toLowerCase().includes(installUserSearchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(installUserSearchTerm.toLowerCase()),
+      );
+      setFilteredInstallUsers(filtered);
+    }
+  }, [installUserSearchTerm, availableInstallUsers]);
 
   const fetchStores = async () => {
     try {
@@ -169,18 +190,22 @@ export default function RecceListPage() {
   };
 
   const toggleStoreSelection = (id: string) => {
-    const newSet = new Set(selectedStoreIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedStoreIds(newSet);
+    const store = stores.find(s => s._id === id);
+    // Only allow selection of approved recce stores for installation assignment
+    if (store && store.currentStatus === StoreStatus.RECCE_APPROVED) {
+      const newSet = new Set(selectedStoreIds);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      setSelectedStoreIds(newSet);
+    }
   };
 
   const toggleAllSelection = () => {
-    const submittedStores = stores.filter(s => s.currentStatus === StoreStatus.RECCE_SUBMITTED || s.currentStatus === StoreStatus.RECCE_APPROVED);
-    if (selectedStoreIds.size === submittedStores.length && submittedStores.length > 0) {
+    const approvedStores = stores.filter(s => s.currentStatus === StoreStatus.RECCE_APPROVED);
+    if (selectedStoreIds.size === approvedStores.length && approvedStores.length > 0) {
       setSelectedStoreIds(new Set());
     } else {
-      setSelectedStoreIds(new Set(submittedStores.map(s => s._id)));
+      setSelectedStoreIds(new Set(approvedStores.map(s => s._id)));
     }
   };
 
@@ -298,6 +323,43 @@ export default function RecceListPage() {
     } finally {
       setIsImporting(false);
       e.target.value = '';
+    }
+  };
+
+  const handleBulkInstallationAssignment = async () => {
+    if (selectedStoreIds.size === 0) {
+      toast.error("Please select approved recce stores");
+      return;
+    }
+    setIsInstallModalOpen(true);
+    try {
+      const { data } = await api.get(`/users/role/INSTALLATION`);
+      setAvailableInstallUsers(data.users);
+      setFilteredInstallUsers(data.users);
+    } catch (error) {
+      toast.error("Failed to fetch installation users");
+      setAvailableInstallUsers([]);
+      setFilteredInstallUsers([]);
+    }
+  };
+
+  const handleInstallationAssign = async () => {
+    if (!selectedInstallUserId) return toast.error("Please select a user");
+    setIsAssigningInstallation(true);
+    try {
+      await api.post("/stores/assign", {
+        storeIds: Array.from(selectedStoreIds),
+        userId: selectedInstallUserId,
+        stage: "INSTALLATION",
+      });
+      toast.success("Installation Assignment Successful!");
+      setIsInstallModalOpen(false);
+      setSelectedStoreIds(new Set());
+      fetchStores();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Assignment Failed");
+    } finally {
+      setIsAssigningInstallation(false);
     }
   };
 
@@ -427,6 +489,12 @@ export default function RecceListPage() {
                    <span className="hidden sm:inline">Excel ({selectedStoreIds.size})</span>
                    <span className="sm:hidden">Excel</span>
                  </button>
+                 {/* Installation Assignment for Approved Recce */}
+                 <button onClick={handleBulkInstallationAssignment} disabled={isAssigningInstallation} className="flex items-center px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                   <UserPlus className="w-4 h-4 sm:mr-2"/>
+                   <span className="hidden sm:inline">Assign Installation ({selectedStoreIds.size})</span>
+                   <span className="sm:hidden">Install</span>
+                 </button>
                </>
              )}
              {isAdmin && (
@@ -530,7 +598,7 @@ export default function RecceListPage() {
                     <div className="p-4">
                         <div className="flex justify-between items-start mb-3">
                             <div className="flex items-start gap-3 flex-1">
-                                {isAdmin && canSelect && (
+                                {isAdmin && store.currentStatus === StoreStatus.RECCE_APPROVED && (
                                   <button onClick={() => toggleStoreSelection(store._id)} className="mt-1">
                                     {isSelected ? <CheckSquare className="h-5 w-5 text-blue-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} />}
                                   </button>
@@ -587,10 +655,12 @@ export default function RecceListPage() {
                               {isAdmin && (
                                 <th className="px-6 py-3 text-left w-12">
                                   <button onClick={toggleAllSelection}>
-                                    {selectedStoreIds.size > 0 && selectedStoreIds.size === stores.filter(s => s.currentStatus === StoreStatus.RECCE_SUBMITTED || s.currentStatus === StoreStatus.RECCE_APPROVED).length ? 
-                                      <CheckSquare className="h-5 w-5 text-yellow-500" /> : 
-                                      <Square className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
-                                    }
+                                    {(() => {
+                                      const approvedStores = stores.filter(s => s.currentStatus === StoreStatus.RECCE_APPROVED);
+                                      return selectedStoreIds.size > 0 && selectedStoreIds.size === approvedStores.length && approvedStores.length > 0 ? 
+                                        <CheckSquare className="h-5 w-5 text-yellow-500" /> : 
+                                        <Square className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+                                    })()}
                                   </button>
                                 </th>
                               )}
@@ -610,7 +680,7 @@ export default function RecceListPage() {
                                    <tr key={store._id} className={`transition-colors border-b ${isSelected ? (darkMode ? "bg-blue-900/30" : "bg-blue-50") : darkMode ? "hover:bg-gray-800/50" : "hover:bg-gray-50"}`}>
                                        {isAdmin && (
                                          <td className="px-6 py-4 whitespace-nowrap">
-                                           {canSelect && (
+                                           {store.currentStatus === StoreStatus.RECCE_APPROVED && (
                                              <button onClick={() => toggleStoreSelection(store._id)}>
                                                {isSelected ? <CheckSquare className="h-5 w-5 text-blue-500" /> : <Square className={`h-5 w-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} />}
                                              </button>
@@ -688,6 +758,84 @@ export default function RecceListPage() {
                 </div>
           </div>
         </>
+      )}
+
+      {/* Installation Assignment Modal */}
+      {isInstallModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-xl shadow-2xl max-w-md w-full mx-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+            <div className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+              <h3 className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                Assign Installation
+              </h3>
+              <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                Assigning {selectedStoreIds.size} approved recce stores
+              </p>
+            </div>
+            <div className="p-6">
+              <div className="relative mb-4">
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={installUserSearchTerm}
+                  onChange={(e) => setInstallUserSearchTerm(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-blue-500`}
+                />
+              </div>
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {filteredInstallUsers.map((user) => (
+                  <div
+                    key={user._id}
+                    onClick={() => setSelectedInstallUserId(user._id)}
+                    className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${
+                      selectedInstallUserId === user._id
+                        ? darkMode ? "border-blue-500 bg-blue-900/20" : "border-blue-500 bg-blue-50"
+                        : darkMode ? "border-gray-600 hover:bg-gray-700" : "border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mr-3 ${
+                      selectedInstallUserId === user._id ? "bg-blue-500 text-white" : darkMode ? "bg-gray-600 text-gray-200" : "bg-gray-200 text-gray-700"
+                    }`}>
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <div className={`font-medium text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
+                        {user.name}
+                      </div>
+                      <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        {user.email}
+                      </div>
+                    </div>
+                    {selectedInstallUserId === user._id && (
+                      <CheckSquare className="w-5 h-5 text-blue-500" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={`px-6 py-4 flex gap-3 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+              <button
+                onClick={() => setIsInstallModalOpen(false)}
+                className={`flex-1 py-2 rounded-lg font-medium text-sm ${darkMode ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleInstallationAssign}
+                disabled={isAssigningInstallation || !selectedInstallUserId}
+                className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex justify-center items-center gap-2"
+              >
+                {isAssigningInstallation ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <UserPlus className="w-4 h-4" />
+                )}
+                {isAssigningInstallation ? "Assigning..." : "Assign"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
