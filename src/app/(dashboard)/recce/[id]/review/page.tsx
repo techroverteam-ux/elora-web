@@ -89,7 +89,40 @@ export default function RecceReviewPage() {
   };
 
   const handleApproveAll = async () => {
-    if (!confirm("Approve all pending photos?")) return;
+    toast(
+      (t) => (
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <p className="font-medium">Approve all pending photos?</p>
+            <p className="text-sm text-gray-500">This action cannot be undone.</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                confirmApproveAll();
+              }}
+              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm font-medium hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: 10000,
+        position: 'top-center',
+      }
+    );
+  };
+
+  const confirmApproveAll = async () => {
     setProcessing(true);
     try {
       await api.post(`/stores/${id}/recce/approve-all`);
