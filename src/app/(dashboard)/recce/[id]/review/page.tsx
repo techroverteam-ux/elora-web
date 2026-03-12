@@ -30,6 +30,7 @@ export default function RecceReviewPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectPhotoIndex, setRejectPhotoIndex] = useState<number | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [approveAllConfirmOpen, setApproveAllConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -89,6 +90,11 @@ export default function RecceReviewPage() {
   };
 
   const handleApproveAll = async () => {
+    // Prevent multiple confirmation dialogs
+    if (approveAllConfirmOpen) return;
+
+    setApproveAllConfirmOpen(true);
+
     toast(
       (t) => (
         <div
@@ -117,6 +123,7 @@ export default function RecceReviewPage() {
             <button
               onClick={() => {
                 toast.dismiss(t.id);
+                setApproveAllConfirmOpen(false);
               }}
               className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all border-2 ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"}`}
             >
@@ -125,6 +132,7 @@ export default function RecceReviewPage() {
             <button
               onClick={() => {
                 toast.dismiss(t.id);
+                setApproveAllConfirmOpen(false);
                 confirmApproveAll();
               }}
               className="px-4 py-2 text-sm font-semibold text-white bg-green-600 border-2 border-green-600 rounded-lg hover:bg-green-700 hover:border-green-700 transition-all shadow-lg shadow-green-500/20"
