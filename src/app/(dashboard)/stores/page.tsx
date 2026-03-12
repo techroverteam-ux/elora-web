@@ -355,7 +355,10 @@ export default function StoresPage() {
   ) => {
     try {
       toast.loading(`Generating ${type} PPT...`);
-      const response = await api.get(`/stores/${storeId}/ppt/${type}`, {
+      const response = await api.post(`/stores/ppt/bulk`, {
+        storeIds: [storeId],
+        type
+      }, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -389,7 +392,10 @@ export default function StoresPage() {
   ) => {
     try {
       toast.loading(`Generating ${type} PDF...`);
-      const response = await api.get(`/stores/${storeId}/pdf/${type}`, {
+      const response = await api.post(`/stores/pdf/bulk`, {
+        storeIds: [storeId],
+        type
+      }, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -424,7 +430,7 @@ export default function StoresPage() {
     
     try {
       toast.loading(`Generating bulk ${type} PDF...`);
-      const response = await api.post(`/stores/bulk/pdf`, {
+      const response = await api.post(`/stores/pdf/bulk`, {
         storeIds: Array.from(selectedStoreIds),
         type
       }, {
@@ -465,7 +471,7 @@ export default function StoresPage() {
     
     try {
       toast.loading(`Generating bulk ${type} PPT...`);
-      const response = await api.post(`/stores/bulk/ppt`, {
+      const response = await api.post(`/stores/ppt/bulk`, {
         storeIds: Array.from(selectedStoreIds),
         type
       }, {
