@@ -355,6 +355,12 @@ export default function StoresPage() {
   ) => {
     try {
       toast.loading(`Generating ${type} PPT...`);
+      console.log('Sending individual PPT request:', {
+        storeIds: [storeId],
+        type,
+        endpoint: '/stores/ppt/bulk'
+      });
+      
       const response = await api.post(`/stores/ppt/bulk`, {
         storeIds: [storeId],
         type
@@ -379,9 +385,14 @@ export default function StoresPage() {
       link.remove();
       toast.dismiss();
       toast.success("PPT Downloaded!");
-    } catch (error) {
+    } catch (error: any) {
       toast.dismiss();
-      toast.error("Failed to download. Ensure data exists.");
+      console.error('Individual PPT Error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      const errorMessage = error.response?.data?.message || "Failed to download PPT. Ensure data exists.";
+      toast.error(errorMessage);
     }
   };
 
@@ -392,6 +403,12 @@ export default function StoresPage() {
   ) => {
     try {
       toast.loading(`Generating ${type} PDF...`);
+      console.log('Sending individual PDF request:', {
+        storeIds: [storeId],
+        type,
+        endpoint: '/stores/pdf/bulk'
+      });
+      
       const response = await api.post(`/stores/pdf/bulk`, {
         storeIds: [storeId],
         type
@@ -416,9 +433,14 @@ export default function StoresPage() {
       link.remove();
       toast.dismiss();
       toast.success("PDF Downloaded!");
-    } catch (error) {
+    } catch (error: any) {
       toast.dismiss();
-      toast.error("Failed to download PDF. Ensure data exists.");
+      console.error('Individual PDF Error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      const errorMessage = error.response?.data?.message || "Failed to download PDF. Ensure data exists.";
+      toast.error(errorMessage);
     }
   };
 
@@ -430,6 +452,12 @@ export default function StoresPage() {
     
     try {
       toast.loading(`Generating bulk ${type} PDF...`);
+      console.log('Sending bulk PDF request:', {
+        storeIds: Array.from(selectedStoreIds),
+        type,
+        endpoint: '/stores/pdf/bulk'
+      });
+      
       const response = await api.post(`/stores/pdf/bulk`, {
         storeIds: Array.from(selectedStoreIds),
         type
@@ -457,9 +485,14 @@ export default function StoresPage() {
       toast.dismiss();
       toast.success(`Bulk ${type} PDF downloaded! (${selectedStoreIds.size} stores)`);
       setSelectedStoreIds(new Set());
-    } catch (error) {
+    } catch (error: any) {
       toast.dismiss();
-      toast.error(`Failed to download bulk ${type} PDF`);
+      console.error('Bulk PDF Error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      const errorMessage = error.response?.data?.message || `Failed to download bulk ${type} PDF`;
+      toast.error(errorMessage);
     }
   };
 
@@ -471,6 +504,12 @@ export default function StoresPage() {
     
     try {
       toast.loading(`Generating bulk ${type} PPT...`);
+      console.log('Sending bulk PPT request:', {
+        storeIds: Array.from(selectedStoreIds),
+        type,
+        endpoint: '/stores/ppt/bulk'
+      });
+      
       const response = await api.post(`/stores/ppt/bulk`, {
         storeIds: Array.from(selectedStoreIds),
         type
@@ -498,9 +537,14 @@ export default function StoresPage() {
       toast.dismiss();
       toast.success(`Bulk ${type} PPT downloaded! (${selectedStoreIds.size} stores)`);
       setSelectedStoreIds(new Set());
-    } catch (error) {
+    } catch (error: any) {
       toast.dismiss();
-      toast.error(`Failed to download bulk ${type} PPT`);
+      console.error('Bulk PPT Error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      const errorMessage = error.response?.data?.message || `Failed to download bulk ${type} PPT`;
+      toast.error(errorMessage);
     }
   };
 
