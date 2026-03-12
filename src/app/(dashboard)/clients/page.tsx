@@ -27,6 +27,7 @@ interface Client {
   branchName: string;
   gstNumber: string;
   elements: ClientElement[];
+  enableLocationMapping: boolean;
   createdAt: string;
 }
 
@@ -53,6 +54,7 @@ export default function ClientsPage() {
     branchName: "",
     gstNumber: "",
     elements: [] as ClientElement[],
+    enableLocationMapping: false,
   });
 
   const [errors, setErrors] = useState({
@@ -119,6 +121,7 @@ export default function ClientsPage() {
       branchName: "",
       gstNumber: "",
       elements: [],
+      enableLocationMapping: false,
     });
     setErrors({
       clientName: "",
@@ -138,6 +141,7 @@ export default function ClientsPage() {
       branchName: client.branchName,
       gstNumber: client.gstNumber,
       elements: client.elements,
+      enableLocationMapping: client.enableLocationMapping || false,
     });
     setErrors({
       clientName: "",
@@ -261,6 +265,7 @@ export default function ClientsPage() {
         branchName: formData.branchName,
         gstNumber: formData.gstNumber,
         elements: formData.elements,
+        enableLocationMapping: formData.enableLocationMapping,
       };
 
       if (editingClient) {
@@ -421,6 +426,9 @@ export default function ClientsPage() {
                 <th className={`px-4 py-3 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                   Elements
                 </th>
+                <th className={`px-4 py-3 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                  Location
+                </th>
                 <th className={`px-4 py-3 text-right text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                   Actions
                 </th>
@@ -452,6 +460,15 @@ export default function ClientsPage() {
                   <td className="px-4 py-3">
                     <span className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
                       {client.elements.length} element(s)
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      client.enableLocationMapping 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                    }`}>
+                      {client.enableLocationMapping ? 'GPS ON' : 'GPS OFF'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -503,6 +520,12 @@ export default function ClientsPage() {
                 <div className="flex justify-between">
                   <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Elements:</span>
                   <span className={darkMode ? "text-gray-300" : "text-gray-700"}>{client.elements.length} element(s)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Location Mapping:</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${client.enableLocationMapping ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                    {client.enableLocationMapping ? 'Enabled' : 'Disabled'}
+                  </span>
                 </div>
               </div>
 
@@ -637,6 +660,34 @@ export default function ClientsPage() {
             </div>
           </div>
 
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              Location Mapping
+            </label>
+            <div className="flex items-center space-x-3">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.enableLocationMapping}
+                  onChange={(e) => setFormData({ ...formData, enableLocationMapping: e.target.checked })}
+                  className="sr-only"
+                />
+                <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 ${
+                  formData.enableLocationMapping ? 'bg-yellow-500' : darkMode ? 'bg-gray-600' : 'bg-gray-200'
+                }`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    formData.enableLocationMapping ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </div>
+                <span className={`ml-3 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                  {formData.enableLocationMapping ? 'Enabled' : 'Disabled'}
+                </span>
+              </label>
+            </div>
+            <p className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              When enabled, photos will automatically include GPS location and map overlay
+            </p>
+          </div>
           <div>
             <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
               Elements *
