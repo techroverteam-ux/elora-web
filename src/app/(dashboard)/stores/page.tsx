@@ -416,6 +416,88 @@ export default function StoresPage() {
     }
   };
 
+  const downloadBulkPDF = async (type: "recce" | "installation") => {
+    if (selectedStoreIds.size === 0) {
+      toast.error("Please select stores first");
+      return;
+    }
+    
+    try {
+      toast.loading(`Generating bulk ${type} PDF...`);
+      const response = await api.post(`/stores/bulk/pdf`, {
+        storeIds: Array.from(selectedStoreIds),
+        type
+      }, {
+        responseType: "blob",
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      
+      // Extract filename from Content-Disposition header if available
+      const contentDisposition = response.headers["content-disposition"];
+      let filename = `Bulk_${type.charAt(0).toUpperCase() + type.slice(1)}_${selectedStoreIds.size}_Stores.pdf`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+      
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.dismiss();
+      toast.success(`Bulk ${type} PDF downloaded! (${selectedStoreIds.size} stores)`);
+      setSelectedStoreIds(new Set());
+    } catch (error) {
+      toast.dismiss();
+      toast.error(`Failed to download bulk ${type} PDF`);
+    }
+  };
+
+  const downloadBulkPPT = async (type: "recce" | "installation") => {
+    if (selectedStoreIds.size === 0) {
+      toast.error("Please select stores first");
+      return;
+    }
+    
+    try {
+      toast.loading(`Generating bulk ${type} PPT...`);
+      const response = await api.post(`/stores/bulk/ppt`, {
+        storeIds: Array.from(selectedStoreIds),
+        type
+      }, {
+        responseType: "blob",
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      
+      // Extract filename from Content-Disposition header if available
+      const contentDisposition = response.headers["content-disposition"];
+      let filename = `Bulk_${type.charAt(0).toUpperCase() + type.slice(1)}_${selectedStoreIds.size}_Stores.pptx`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+      
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.dismiss();
+      toast.success(`Bulk ${type} PPT downloaded! (${selectedStoreIds.size} stores)`);
+      setSelectedStoreIds(new Set());
+    } catch (error) {
+      toast.dismiss();
+      toast.error(`Failed to download bulk ${type} PPT`);
+    }
+  };
+
   const downloadExcel = async (
     storeId: string,
     dealerCode: string,
@@ -999,6 +1081,23 @@ export default function StoresPage() {
                   )}
                 </>
               )}
+              
+              {/* Bulk Download Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => downloadBulkPDF("recce")}
+                  className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium text-sm"
+                >
+                  <FileText className="h-4 w-4 mr-2" /> Bulk PDF ({selectedStoreIds.size})
+                </button>
+                <button
+                  onClick={() => downloadBulkPPT("recce")}
+                  className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Bulk PPT ({selectedStoreIds.size})
+                </button>
+              </div>
+              
               {hasPermission('stores', 'delete') && (
                 <button
                   onClick={handleBulkDelete}
