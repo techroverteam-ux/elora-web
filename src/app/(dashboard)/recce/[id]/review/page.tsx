@@ -91,33 +91,58 @@ export default function RecceReviewPage() {
   const handleApproveAll = async () => {
     toast(
       (t) => (
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <p className="font-medium">Approve all pending photos?</p>
-            <p className="text-sm text-gray-500">This action cannot be undone.</p>
+        <div
+          className={`rounded-xl shadow-2xl border-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+        >
+          <div
+            className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}
+          >
+            <p
+              className={`font-bold text-base ${darkMode ? "text-white" : "text-gray-900"}`}
+            >
+              Approve all pending photos?
+            </p>
           </div>
-          <div className="flex gap-2">
+          <div className="px-6 py-4">
+            <p
+              className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+            >
+              This action cannot be undone. All pending photos will be
+              approved and marked as ready.
+            </p>
+          </div>
+          <div
+            className={`px-6 py-4 flex gap-3 justify-end border-t ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-gray-50"}`}
+          >
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+              }}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all border-2 ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"}`}
+            >
+              Cancel
+            </button>
             <button
               onClick={() => {
                 toast.dismiss(t.id);
                 confirmApproveAll();
               }}
-              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700"
+              className="px-4 py-2 text-sm font-semibold text-white bg-green-600 border-2 border-green-600 rounded-lg hover:bg-green-700 hover:border-green-700 transition-all shadow-lg shadow-green-500/20"
             >
-              Approve
-            </button>
-            <button
-              onClick={() => toast.dismiss(t.id)}
-              className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm font-medium hover:bg-gray-400"
-            >
-              Cancel
+              Approve All
             </button>
           </div>
         </div>
       ),
       {
-        duration: 10000,
-        position: 'top-center',
+        duration: Infinity,
+        position: "bottom-center",
+        style: {
+          background: "transparent",
+          boxShadow: "none",
+          padding: 0,
+          maxWidth: "420px",
+        },
       }
     );
   };
