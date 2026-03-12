@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
+import { useImageService } from "@/src/hooks/useImageService";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -21,6 +22,7 @@ export default function RecceReviewPage() {
   const { darkMode } = useTheme();
   const params = useParams();
   const id = params?.id as string;
+  const { getFullImageUrl } = useImageService();
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,7 @@ export default function RecceReviewPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectPhotoIndex, setRejectPhotoIndex] = useState<number | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [approveAllConfirmOpen, setApproveAllConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -87,7 +90,72 @@ export default function RecceReviewPage() {
   };
 
   const handleApproveAll = async () => {
-    if (!confirm("Approve all pending photos?")) return;
+    // Prevent multiple confirmation dialogs
+    if (approveAllConfirmOpen) return;
+
+    setApproveAllConfirmOpen(true);
+
+    toast(
+      (t) => (
+        <div
+          className={`rounded-xl shadow-2xl border-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+        >
+          <div
+            className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}
+          >
+            <p
+              className={`font-bold text-base ${darkMode ? "text-white" : "text-gray-900"}`}
+            >
+              Approve all pending photos?
+            </p>
+          </div>
+          <div className="px-6 py-4">
+            <p
+              className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+            >
+              This action cannot be undone. All pending photos will be
+              approved and marked as ready.
+            </p>
+          </div>
+          <div
+            className={`px-6 py-4 flex gap-3 justify-end border-t ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-gray-50"}`}
+          >
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                setApproveAllConfirmOpen(false);
+              }}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all border-2 ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"}`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                setApproveAllConfirmOpen(false);
+                confirmApproveAll();
+              }}
+              className="px-4 py-2 text-sm font-semibold text-white bg-green-600 border-2 border-green-600 rounded-lg hover:bg-green-700 hover:border-green-700 transition-all shadow-lg shadow-green-500/20"
+            >
+              Approve All
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: Infinity,
+        position: "bottom-center",
+        style: {
+          background: "transparent",
+          boxShadow: "none",
+          padding: 0,
+          maxWidth: "420px",
+        },
+      }
+    );
+  };
+
+  const confirmApproveAll = async () => {
     setProcessing(true);
     try {
       await api.post(`/stores/${id}/recce/approve-all`);
@@ -196,7 +264,7 @@ export default function RecceReviewPage() {
           {store.recce.reccePhotos.map((photo: any, index: number) => (
             <div key={index} className={`rounded-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
               <div className="relative">
-                <img src={photo.photo} alt={`Recce ${index + 1}`} className="w-full h-48 object-cover" />
+                <img src={getFullImageUrl(photo.photo)} alt={`Recce ${index + 1}`} className="w-full h-48 object-cover" />
                 <div className="absolute top-2 right-2">{getStatusBadge(photo.approvalStatus)}</div>
               </div>
               <div className="p-4 space-y-3">
