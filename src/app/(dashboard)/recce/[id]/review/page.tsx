@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
+import { useImageService } from "@/src/hooks/useImageService";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -21,6 +22,7 @@ export default function RecceReviewPage() {
   const { darkMode } = useTheme();
   const params = useParams();
   const id = params?.id as string;
+  const { getFullImageUrl } = useImageService();
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
@@ -196,7 +198,7 @@ export default function RecceReviewPage() {
           {store.recce.reccePhotos.map((photo: any, index: number) => (
             <div key={index} className={`rounded-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
               <div className="relative">
-                <img src={photo.photo} alt={`Recce ${index + 1}`} className="w-full h-48 object-cover" />
+                <img src={getFullImageUrl(photo.photo)} alt={`Recce ${index + 1}`} className="w-full h-48 object-cover" />
                 <div className="absolute top-2 right-2">{getStatusBadge(photo.approvalStatus)}</div>
               </div>
               <div className="p-4 space-y-3">
