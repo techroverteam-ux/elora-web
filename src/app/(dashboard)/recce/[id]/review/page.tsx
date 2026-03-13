@@ -211,7 +211,11 @@ export default function RecceReviewPage() {
 
   const approved = store.recce.approvedPhotosCount || 0;
   const rejected = store.recce.rejectedPhotosCount || 0;
-  const pending = store.recce.pendingPhotosCount || store.recce.reccePhotos.length;
+  
+  // Calculate pending count dynamically from actual photo statuses
+  const pending = store.recce.reccePhotos.filter(
+    (photo: any) => !photo.approvalStatus || photo.approvalStatus === "PENDING"
+  ).length;
 
   return (
     <div className={`min-h-screen pb-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>

@@ -628,7 +628,11 @@ export default function RecceListPage() {
                           <div className={`text-xs mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
                             <span className="text-green-600 font-medium">{store.recce.approvedPhotosCount || 0}</span> approved, 
                             <span className="text-red-600 font-medium ml-1">{store.recce.rejectedPhotosCount || 0}</span> rejected, 
-                            <span className="text-yellow-600 font-medium ml-1">{store.recce.pendingPhotosCount || store.recce.reccePhotos.length}</span> pending
+                            <span className="text-yellow-600 font-medium ml-1">{
+                              store.recce.reccePhotos.filter(
+                                (photo: any) => !photo.approvalStatus || photo.approvalStatus === "PENDING"
+                              ).length
+                            }</span> pending
                           </div>
                         )}
                         {isAdmin && store.currentStatus === "RECCE_SUBMITTED" ? (
@@ -703,7 +707,11 @@ export default function RecceListPage() {
                                                  <div className="text-xs mt-1">
                                                    <span className="text-green-600">{store.recce.approvedPhotosCount || 0}</span> / 
                                                    <span className="text-red-600">{store.recce.rejectedPhotosCount || 0}</span> / 
-                                                   <span className="text-yellow-600">{store.recce.pendingPhotosCount || store.recce.reccePhotos.length}</span>
+                                                   <span className="text-yellow-600">{
+                                                     store.recce.reccePhotos.filter(
+                                                       (photo: any) => !photo.approvalStatus || photo.approvalStatus === "PENDING"
+                                                     ).length
+                                                   }</span>
                                                  </div>
                                                )}
                                              </div>
