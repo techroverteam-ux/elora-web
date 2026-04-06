@@ -79,10 +79,12 @@ export default function StoresPage() {
   // Filter State
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterCity, setFilterCity] = useState("");
+  const [filterCity, setFilterCity] = useState<string[]>([]);
   const [filterClientCode, setFilterClientCode] = useState("");
   const [filterClientName, setFilterClientName] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
 
   // Upload State
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -143,18 +145,11 @@ export default function StoresPage() {
     dealerName: "",
     dealerAddress: "",
     clientCode: "",
-    poNumber: "",
-    invoiceRemarks: "",
-    poMonth: "",
     invoiceNo: "",
     boardRate: "",
     angleCharges: "",
     scaffoldingCharges: "",
     transportation: "",
-    flanges: "",
-    lollipop: "",
-    oneWayVision: "",
-    sunboard: "",
     totalCost: "",
     latitude: "",
     longitude: "",
@@ -171,6 +166,11 @@ export default function StoresPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filterCity, filterStatus, filterClientCode, filterClientName]);
+
   const fetchStores = async () => {
     const startTime = Date.now();
     try {
@@ -180,11 +180,17 @@ export default function StoresPage() {
       params.append("limit", limit.toString());
       if (filterStatus !== "ALL") params.append("status", filterStatus);
       if (debouncedSearch) params.append("search", debouncedSearch);
-      if (filterCity) params.append("city", filterCity);
+      if (filterCity.length > 0) {
+        const cityParam = filterCity.join(",");
+        console.log('Sending city filter:', cityParam);
+        params.append("city", cityParam);
+      }
       if (filterClientCode) params.append("clientCode", filterClientCode);
       if (filterClientName) params.append("clientName", filterClientName);
 
+      console.log('Fetching stores with params:', params.toString());
       const { data } = await api.get(`/stores?${params.toString()}`);
+      console.log('Stores response:', data);
       setStores(data.stores);
       if (data.pagination) {
         setTotalPages(data.pagination.pages);
@@ -213,6 +219,47 @@ export default function StoresPage() {
     filterClientCode,
     filterClientName,
   ]);
+
+  // Fetch cities - with fallback to extract from stores
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const response = await api.get("/stores/cities");
+        console.log('Cities API response:', response.data);
+        
+        if (response.data && response.data.cities && Array.isArray(response.data.cities)) {
+          console.log('Setting cities from API:', response.data.cities);
+          setAvailableCities(response.data.cities);
+        } else {
+          console.warn('Invalid cities response format:', response.data);
+          setAvailableCities([]);
+        }
+      } catch (error: any) {
+        console.error("Failed to fetch cities from API", error);
+        console.error("Error details:", error.response?.data);
+        console.log('Falling back to extracting cities from stores data');
+        // Fallback: We'll extract cities when stores are loaded
+        setAvailableCities([]);
+      }
+    };
+    fetchCities();
+  }, []);
+
+  // Fallback: Extract cities from loaded stores if API failed
+  useEffect(() => {
+    if (availableCities.length === 0 && stores.length > 0) {
+      console.log('Extracting cities from stores as fallback');
+      const citiesFromStores = [...new Set(
+        stores
+          .map(s => s.location?.city?.trim())
+          .filter(city => city && city !== "")
+      )].sort();
+      console.log('Cities extracted from stores:', citiesFromStores);
+      if (citiesFromStores.length > 0) {
+        setAvailableCities(citiesFromStores as string[]);
+      }
+    }
+  }, [stores, availableCities.length]);
 
   useEffect(() => {
     fetchClients();
@@ -327,7 +374,7 @@ export default function StoresPage() {
       const params = new URLSearchParams();
       if (filterStatus !== "ALL") params.append("status", filterStatus);
       if (debouncedSearch) params.append("search", debouncedSearch);
-      if (filterCity) params.append("city", filterCity);
+      if (filterCity.length > 0) params.append("city", filterCity.join(","));
       if (filterClientCode) params.append("clientCode", filterClientCode);
       if (filterClientName) params.append("clientName", filterClientName);
 
@@ -1072,17 +1119,87 @@ export default function StoresPage() {
                 </option>
               ))}
             </select>
-            {/* City Filter */}
-            <input
-              type="text"
-              placeholder="Filter by City"
-              value={filterCity}
-              onChange={(e) => {
-                setFilterCity(e.target.value);
-                setPage(1);
-              }}
-              className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}
-            />
+            {/* City Filter - Multi-select */}
+            <div className="relative sm:w-[200px]">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Opening city dropdown. Available cities:', availableCities);
+                  setCityDropdownOpen(!cityDropdownOpen);
+                }}
+                className={`w-full px-3 py-2 rounded-lg border text-sm font-medium text-left flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}
+              >
+                <span className="truncate">
+                  {filterCity.length === 0
+                    ? "Filter by City"
+                    : `${filterCity.length} selected`}
+                </span>
+                <Filter className="w-4 h-4 ml-2 flex-shrink-0" />
+              </button>
+              {cityDropdownOpen && (
+                <>
+                  {/* Backdrop to close dropdown when clicking outside */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCityDropdownOpen(false);
+                    }}
+                  />
+                  <div
+                    className={`absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg shadow-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="p-2">
+                      {filterCity.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFilterCity([]);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm rounded mb-1 font-medium ${darkMode ? "hover:bg-red-900/30 text-red-400" : "hover:bg-red-50 text-red-600"}`}
+                        >
+                          Clear All ({filterCity.length})
+                        </button>
+                      )}
+                      {availableCities.length === 0 && (
+                        <div className={`px-3 py-4 text-center text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                          No cities available
+                        </div>
+                      )}
+                      {availableCities.map((city) => (
+                        <div
+                          key={city}
+                          className={`flex items-center px-3 py-2 text-sm rounded cursor-pointer ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFilterCity(prev => {
+                              if (prev.includes(city)) {
+                                return prev.filter((c) => c !== city);
+                              } else {
+                                return [...prev, city];
+                              }
+                            });
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filterCity.includes(city)}
+                            onChange={() => {}} // Controlled by parent div onClick
+                            className="mr-2 pointer-events-none"
+                          />
+                          <span className={darkMode ? "text-gray-200" : "text-gray-700"}>
+                            {city}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             {/* Client Code Filter */}
             <input
               type="text"
@@ -1478,21 +1595,6 @@ export default function StoresPage() {
                     <th
                       className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                     >
-                      PO Number
-                    </th>
-                    <th
-                      className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                    >
-                      Invoice Remarks
-                    </th>
-                    <th
-                      className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                    >
-                      PO Month
-                    </th>
-                    <th
-                      className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                    >
                       Board Type
                     </th>
                     <th
@@ -1541,26 +1643,6 @@ export default function StoresPage() {
                           className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                         >
                           Transportation
-                        </th>
-                        <th
-                          className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                        >
-                          Flanges
-                        </th>
-                        <th
-                          className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                        >
-                          Lollipop
-                        </th>
-                        <th
-                          className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                        >
-                          One Way Vision
-                        </th>
-                        <th
-                          className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                        >
-                          Sunboard
                         </th>
                         <th
                           className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
@@ -1693,28 +1775,6 @@ export default function StoresPage() {
                             title={store.location.address}
                           >
                             {store.location.address || "-"}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <div
-                            className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
-                          >
-                            {store.commercials?.poNumber || "-"}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div
-                            className={`text-sm max-w-[150px] truncate ${darkMode ? "text-gray-200" : "text-gray-900"}`}
-                            title={store.commercials?.invoiceRemarks}
-                          >
-                            {store.commercials?.invoiceRemarks || "-"}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <div
-                            className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
-                          >
-                            {store.commercials?.poMonth || "-"}
                           </div>
                         </td>
                         <td className="px-4 py-4">
@@ -1857,34 +1917,6 @@ export default function StoresPage() {
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
                               <div
-                                className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
-                              >
-                                ₹{store.costDetails?.flanges || 0}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div
-                                className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
-                              >
-                                ₹{store.costDetails?.lollipop || 0}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div
-                                className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
-                              >
-                                ₹{store.costDetails?.oneWayVision || 0}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div
-                                className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
-                              >
-                                ₹{store.costDetails?.sunboard || 0}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div
                                 className={`text-sm font-bold ${darkMode ? "text-green-400" : "text-green-600"}`}
                               >
                                 ₹
@@ -1909,11 +1941,7 @@ export default function StoresPage() {
                                       const angleCharges = store.costDetails?.angleCharges || 0;
                                       const scaffoldingCharges = store.costDetails?.scaffoldingCharges || 0;
                                       const transportation = store.costDetails?.transportation || 0;
-                                      const flanges = store.costDetails?.flanges || 0;
-                                      const lollipop = store.costDetails?.lollipop || 0;
-                                      const oneWayVision = store.costDetails?.oneWayVision || 0;
-                                      const sunboard = store.costDetails?.sunboard || 0;
-                                      const totalCost = totalBoardCost + angleCharges + scaffoldingCharges + transportation + flanges + lollipop + oneWayVision + sunboard;
+                                      const totalCost = totalBoardCost + angleCharges + scaffoldingCharges + transportation;
                                       return totalCost.toFixed(2);
                                     }
                                   }
@@ -2538,11 +2566,7 @@ export default function StoresPage() {
                                 const angleCharges = store.costDetails?.angleCharges || 0;
                                 const scaffoldingCharges = store.costDetails?.scaffoldingCharges || 0;
                                 const transportation = store.costDetails?.transportation || 0;
-                                const flanges = store.costDetails?.flanges || 0;
-                                const lollipop = store.costDetails?.lollipop || 0;
-                                const oneWayVision = store.costDetails?.oneWayVision || 0;
-                                const sunboard = store.costDetails?.sunboard || 0;
-                                const totalCost = totalBoardCost + angleCharges + scaffoldingCharges + transportation + flanges + lollipop + oneWayVision + sunboard;
+                                const totalCost = totalBoardCost + angleCharges + scaffoldingCharges + transportation;
                                 return totalCost.toFixed(2);
                               }
                             }
