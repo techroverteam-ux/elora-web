@@ -1450,7 +1450,7 @@ export default function StoresPage() {
                     <th className="px-4 py-4 text-left w-12">
                       <button onClick={toggleAllSelection}>
                         {(() => {
-                          const selectableStores = filterStatus === StoreStatus.RECCE_APPROVED 
+                          const selectableStores = filterStatus.includes(StoreStatus.RECCE_APPROVED) 
                             ? stores.filter(s => s.currentStatus === StoreStatus.RECCE_APPROVED)
                             : stores;
                           return selectedStoreIds.size === selectableStores.length && selectableStores.length > 0 ? (
