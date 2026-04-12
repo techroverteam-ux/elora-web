@@ -13,11 +13,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useRouter } from "next/navigation";
 import api from "@/src/lib/api";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading } = useAuth();
   const { darkMode } = useTheme();
+  const router = useRouter();
 
   // Form State
   const [email, setEmail] = useState("");
@@ -30,7 +32,14 @@ export default function LoginPage() {
 
   // UI State
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   // Generate random captcha on mount
   useEffect(() => {
@@ -62,23 +71,20 @@ export default function LoginPage() {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
       const response = await api.post("/auth/login", { email, password });
-      console.log("Login successful! User:", response.data.user);
-      
-      // Call login function which will fetch user data and redirect
-      await login();
+      const { user: userData, accessToken } = response.data;
+      login(userData, accessToken);
     } catch (err: any) {
-      console.error("Login error:", err);
       if (err?.response?.data?.message) {
         setError(err.response.data.message);
       } else {
         setError("Something went wrong. Please check your connection.");
       }
       generateCaptcha();
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -111,7 +117,7 @@ export default function LoginPage() {
             src={darkMode ? "/logo.svg" : "/logo-dark.svg"}
             alt="Logo"
             width={300}
-            height={150}
+            height={74}
             className="mb-8"
             priority
           />
@@ -145,7 +151,7 @@ export default function LoginPage() {
               src={darkMode ? "/logo.svg" : "/logo-dark.svg"}
               alt="Logo"
               width={180}
-              height={90}
+              height={44}
               className="mx-auto mb-4"
               priority
             />
@@ -298,11 +304,11 @@ export default function LoginPage() {
               {/* Submit */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isSubmitting}
                 className="w-full flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 py-4 text-lg font-bold text-white hover:from-yellow-600 hover:to-orange-600 focus:outline-none focus:ring-4 focus:ring-yellow-500/30 disabled:opacity-60 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
               >
-                {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
-                {isLoading ? "Signing in..." : "Sign In to Dashboard"}
+                {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
+                {isSubmitting ? "Signing in..." : "Sign In to Dashboard"}
               </button>
             </form>
 
