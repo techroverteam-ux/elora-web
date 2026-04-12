@@ -115,8 +115,8 @@ export default function UsersPage() {
         page: String(page),
         limit: String(limit),
         ...(searchTerm && { search: searchTerm }),
-        ...(roleFilter.length > 0 && { role: roleFilter[0] }),
       });
+      if (roleFilter.length > 0) roleFilter.forEach(id => params.append("role", id));
       const { data } = await api.get(`/users?${params}`);
       setUsers(data.users);
       setTotalPages(data.pagination.pages);

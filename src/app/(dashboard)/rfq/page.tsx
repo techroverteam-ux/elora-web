@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import api from "@/src/lib/api";
 import { Store, StoreStatus } from "@/src/types/store";
-import { Search, Loader2, FileSpreadsheet, Eye, ChevronLeft, ChevronRight, Filter, CheckSquare, Square } from "lucide-react";
+import { Search, Loader2, FileSpreadsheet, Eye, ChevronLeft, ChevronRight, CheckSquare, Square } from "lucide-react";
 import { useTheme } from "@/src/context/ThemeContext";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -26,16 +26,8 @@ export default function RFQGenerationPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
-  const [filterZone, setFilterZone] = useState("");
-  const [filterState, setFilterState] = useState("");
-  const [filterDistrict, setFilterDistrict] = useState("");
-  const [filterVendorCode, setFilterVendorCode] = useState("");
-  const [filterDealerCode, setFilterDealerCode] = useState("");
-  const [filterPONumber, setFilterPONumber] = useState("");
-  const [filterInvoiceNo, setFilterInvoiceNo] = useState("");
   const [filterClientCode, setFilterClientCode] = useState<string[]>([]);
   const [filterCity, setFilterCity] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [availableClientCodes, setAvailableClientCodes] = useState<string[]>([]);
 
@@ -64,7 +56,7 @@ export default function RFQGenerationPage() {
 
   useEffect(() => {
     fetchStores();
-  }, [page, limit, debouncedSearch, filterStatus, filterZone, filterState, filterDistrict, filterVendorCode, filterDealerCode, filterPONumber, filterInvoiceNo, filterClientCode, filterCity]);
+  }, [page, limit, debouncedSearch, filterStatus, filterClientCode, filterCity]);
 
   const fetchStores = async () => {
     const startTime = Date.now();
@@ -76,19 +68,10 @@ export default function RFQGenerationPage() {
       if (filterStatus.length > 0) params.append("status", filterStatus.join(","));
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filterCity.length > 0) params.append("city", filterCity.join(","));
+      if (filterClientCode.length > 0) filterClientCode.forEach(c => params.append("clientCode", c));
 
       const { data } = await api.get(`/stores?${params.toString()}`);
-      
-      let filteredStores = data.stores || [];
-      
-      if (filterZone) filteredStores = filteredStores.filter((s: Store) => s.location.zone?.toLowerCase().includes(filterZone.toLowerCase()));
-      if (filterState) filteredStores = filteredStores.filter((s: Store) => s.location.state?.toLowerCase().includes(filterState.toLowerCase()));
-      if (filterDistrict) filteredStores = filteredStores.filter((s: Store) => s.location.district?.toLowerCase().includes(filterDistrict.toLowerCase()));
-      if (filterVendorCode) filteredStores = filteredStores.filter((s: Store) => s.vendorCode?.toLowerCase().includes(filterVendorCode.toLowerCase()));
-      if (filterDealerCode) filteredStores = filteredStores.filter((s: Store) => s.dealerCode?.toLowerCase().includes(filterDealerCode.toLowerCase()));
-      if (filterPONumber) filteredStores = filteredStores.filter((s: Store) => s.commercials?.poNumber?.toLowerCase().includes(filterPONumber.toLowerCase()));
-      if (filterInvoiceNo) filteredStores = filteredStores.filter((s: Store) => s.commercials?.invoiceNumber?.toLowerCase().includes(filterInvoiceNo.toLowerCase()));
-      if (filterClientCode.length > 0) filteredStores = filteredStores.filter((s: Store) => filterClientCode.includes(s.clientCode || ""));
+      const filteredStores = data.stores || [];
 
       setStores(filteredStores);
       if (data.pagination) {
@@ -202,13 +185,6 @@ export default function RFQGenerationPage() {
           <p className={`text-xs sm:text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Create Request for Quotation for selected stores</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border transition-all text-sm ${darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"} ${showFilters ? "border-yellow-500" : ""}`}
-          >
-            <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">Filters</span>
-          </button>
           {selectedStoreIds.size > 0 && (
             <button onClick={handleGenerateRFQ} disabled={isGenerating} className="inline-flex items-center px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-xs sm:text-sm disabled:opacity-50 whitespace-nowrap">
               {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
@@ -218,26 +194,18 @@ export default function RFQGenerationPage() {
         </div>
       </div>
 
-      {showFilters && (
-        <div className={`p-3 sm:p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            <div className="relative">
-              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
-              <input type="text" placeholder="Search stores..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pl-10 ${inputClass}`} />
-            </div>
-            <FilterDropdown label="All Status" allLabel="All Status" options={Object.values(StoreStatus).map(s => s.replace(/_/g, " "))} selected={filterStatus.map(s => s.replace(/_/g, " "))} onChange={(vals) => setFilterStatus(vals.map(v => v.replace(/ /g, "_")))} />
-            <FilterDropdown label="City" allLabel="All Cities" options={availableCities} selected={filterCity} onChange={setFilterCity} />
-            <FilterDropdown label="Client Code" allLabel="All Codes" options={availableClientCodes} selected={filterClientCode} onChange={setFilterClientCode} />
-            <input type="text" placeholder="Zone" value={filterZone} onChange={(e) => setFilterZone(e.target.value)} className={inputClass} />
-            <input type="text" placeholder="State" value={filterState} onChange={(e) => setFilterState(e.target.value)} className={inputClass} />
-            <input type="text" placeholder="District" value={filterDistrict} onChange={(e) => setFilterDistrict(e.target.value)} className={inputClass} />
-            <input type="text" placeholder="Vendor Code" value={filterVendorCode} onChange={(e) => setFilterVendorCode(e.target.value)} className={inputClass} />
-            <input type="text" placeholder="Dealer Code" value={filterDealerCode} onChange={(e) => setFilterDealerCode(e.target.value)} className={inputClass} />
-            <input type="text" placeholder="PO Number" value={filterPONumber} onChange={(e) => setFilterPONumber(e.target.value)} className={inputClass} />
-            <input type="text" placeholder="Invoice No" value={filterInvoiceNo} onChange={(e) => setFilterInvoiceNo(e.target.value)} className={inputClass} />
+      <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+            <input type="text" placeholder="Search stores, dealers..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
           </div>
+          <FilterDropdown label="All Status" allLabel="All Status" options={Object.values(StoreStatus).map(s => s.replace(/_/g, " "))} selected={filterStatus.map(s => s.replace(/_/g, " "))} onChange={(vals) => { setFilterStatus(vals.map(v => v.replace(/ /g, "_"))); setPage(1); }} className="sm:w-[160px]" />
+          <FilterDropdown label="City" allLabel="All Cities" options={availableCities} selected={filterCity} onChange={(vals) => { setFilterCity(vals); setPage(1); }} className="sm:w-[150px]" />
+          <FilterDropdown label="Client Code" allLabel="All Codes" options={availableClientCodes} selected={filterClientCode} onChange={(vals) => { setFilterClientCode(vals); setPage(1); }} className="sm:w-[150px]" />
         </div>
-      )}
+      </div>
 
       <div className={`rounded-xl border overflow-hidden shadow-sm ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
         {isLoading ? (

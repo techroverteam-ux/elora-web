@@ -63,15 +63,8 @@ export default function RecceListPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStoreName, setFilterStoreName] = useState("");
   const [filterStoreCode, setFilterStoreCode] = useState("");
-  const [filterClientName, setFilterClientName] = useState<string[]>([]);
-  const [filterClientCode, setFilterClientCode] = useState<string[]>([]);
   const [filterCity, setFilterCity] = useState<string[]>([]);
-  const [filterDistrict, setFilterDistrict] = useState("");
-  const [filterState, setFilterState] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [availableClientCodes, setAvailableClientCodes] = useState<string[]>([]);
-  const [availableClientNames, setAvailableClientNames] = useState<string[]>([]);
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isAssigningInstallation, setIsAssigningInstallation] = useState(false);
@@ -124,11 +117,7 @@ export default function RecceListPage() {
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filterStoreName) params.append("storeName", filterStoreName);
       if (filterStoreCode) params.append("storeCode", filterStoreCode);
-      if (filterClientName.length > 0) filterClientName.forEach(n => params.append("clientName", n));
-      if (filterClientCode.length > 0) filterClientCode.forEach(c => params.append("clientCode", c));
       if (filterCity.length > 0) params.append("city", filterCity.join(","));
-      if (filterDistrict) params.append("district", filterDistrict);
-      if (filterState) params.append("state", filterState);
       
       // Filter by recce-related statuses only
       if (filterStatus.length > 0) {
@@ -202,20 +191,14 @@ export default function RecceListPage() {
 
   useEffect(() => {
     fetchStores();
-  }, [page, limit, debouncedSearch, filterStatus, filterStoreName, filterStoreCode, filterClientName, filterClientCode, filterCity, filterDistrict, filterState]);
+  }, [page, limit, debouncedSearch, filterStatus, filterStoreName, filterStoreCode, filterCity]);
 
   // Fetch available filter options
   useEffect(() => {
     const fetchFilterOptions = async () => {
       try {
-        const [citiesRes, clientsRes] = await Promise.all([
-          api.get("/stores/cities").catch(() => ({ data: { cities: [] } })),
-          api.get("/clients").catch(() => ({ data: { clients: [] } })),
-        ]);
+        const citiesRes = await api.get("/stores/cities").catch(() => ({ data: { cities: [] } }));
         if (citiesRes.data?.cities) setAvailableCities(citiesRes.data.cities);
-        const clientsList = clientsRes.data?.clients || [];
-        setAvailableClientCodes(clientsList.map((c: any) => c.clientCode).filter(Boolean));
-        setAvailableClientNames(clientsList.map((c: any) => c.clientName).filter(Boolean));
       } catch {}
     };
     fetchFilterOptions();
@@ -590,46 +573,7 @@ export default function RecceListPage() {
                 onChange={(vals) => { setFilterCity(vals); setPage(1); }}
                 className="w-[150px]"
               />
-              <FilterDropdown
-                label="Client Code"
-                allLabel="All Codes"
-                options={availableClientCodes}
-                selected={filterClientCode}
-                onChange={(vals) => { setFilterClientCode(vals); setPage(1); }}
-                className="w-[150px]"
-              />
-              <FilterDropdown
-                label="Client Name"
-                allLabel="All Clients"
-                options={availableClientNames}
-                selected={filterClientName}
-                onChange={(vals) => { setFilterClientName(vals); setPage(1); }}
-                className="w-[150px]"
-              />
-              {isAdmin && (
-                <button onClick={() => setShowFilters(!showFilters)} className={`px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2 ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`}>
-                  <Filter className="w-4 h-4" />
-                  {showFilters ? 'Hide' : 'More'}
-                </button>
-              )}
             </div>
-            {isAdmin && showFilters && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-gray-700">
-                <input type="text" placeholder="Store Name" value={filterStoreName} onChange={(e) => {setFilterStoreName(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
-                <input type="text" placeholder="Store Code" value={filterStoreCode} onChange={(e) => {setFilterStoreCode(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
-                <input type="text" placeholder="District" value={filterDistrict} onChange={(e) => {setFilterDistrict(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
-                <input type="text" placeholder="State" value={filterState} onChange={(e) => {setFilterState(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
-                <button onClick={() => {
-                  setFilterStoreName('');
-                  setFilterStoreCode('');
-                  setFilterDistrict('');
-                  setFilterState('');
-                  setPage(1);
-                }} className={`px-3 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-red-900/30 border-red-700 text-red-400" : "bg-red-50 border-red-300 text-red-700"}`}>
-                  Clear More Filters
-                </button>
-              </div>
-            )}
          </div>
       </div>
 

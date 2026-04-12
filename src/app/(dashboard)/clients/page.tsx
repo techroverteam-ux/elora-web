@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import api from "@/src/lib/api";
-import { Plus, Trash2, Loader2, Edit2, Search, ChevronLeft, ChevronRight, X, FileText } from "lucide-react";
+import { Plus, Trash2, Loader2, Edit2, Search, ChevronLeft, ChevronRight, X, FileText, MapPin, MapPinOff } from "lucide-react";
 import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
@@ -463,13 +463,16 @@ export default function ClientsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      client.enableLocationMapping 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+                      client.enableLocationMapping
+                        ? darkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'
+                        : darkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-500'
                     }`}>
+                      {client.enableLocationMapping
+                        ? <MapPin className="w-3 h-3" />
+                        : <MapPinOff className="w-3 h-3" />}
                       {client.enableLocationMapping ? 'GPS ON' : 'GPS OFF'}
-                    </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">

@@ -15,9 +15,6 @@ import {
   MapPin,
   Activity,
   Loader2,
-  Filter,
-  Calendar,
-  User,
   FileText,
   Eye,
   Download,
@@ -26,22 +23,29 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import DatePicker from "@/src/components/ui/DatePicker";
 
 export default function ReportsPage() {
   const { user } = useAuth();
   const { darkMode } = useTheme();
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" });
-  const [internalFilters, setInternalFilters] = useState({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" });
+  const [filters, setFilters] = useState({ startDate: "", endDate: "", zone: "", state: "", city: "" });
+  const [startDateInput, setStartDateInput] = useState("");
+  const [endDateInput, setEndDateInput] = useState("");
+  const [filterCities, setFilterCities] = useState<string[]>([]);
+  const [filterZones, setFilterZones] = useState<string[]>([]);
+  const [filterStates, setFilterStates] = useState<string[]>([]);
   const [assignmentsPage, setAssignmentsPage] = useState(1);
   const assignmentsPerPage = 10;
   const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [filterCities, setFilterCities] = useState<string[]>([]);
+  const [availableZones, setAvailableZones] = useState<string[]>([]);
+  const [availableStates, setAvailableStates] = useState<string[]>([]);
 
   useEffect(() => {
     api.get("/stores/cities").then(r => { if (r.data?.cities) setAvailableCities(r.data.cities); }).catch(() => {});
+    api.get("/stores/zones").then(r => { if (r.data?.zones) setAvailableZones(r.data.zones); }).catch(() => {});
+    api.get("/stores/states").then(r => { if (r.data?.states) setAvailableStates(r.data.states); }).catch(() => {});
   }, []);
 
   const formatDate = (dateStr: string) => {
@@ -62,10 +66,16 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [filters]);
 
   const applyFilters = () => {
-    setFilters(internalFilters);
+    setFilters({
+      startDate: startDateInput,
+      endDate: endDateInput,
+      zone: filterZones.join(","),
+      state: filterStates.join(","),
+      city: filterCities.join(","),
+    });
   };
 
   const exportAssignments = async () => {
@@ -129,9 +139,7 @@ export default function ReportsPage() {
   };
 
   useEffect(() => {
-    if (filters.startDate || filters.endDate || filters.zone || filters.state || filters.city) {
-      fetchAnalytics();
-    }
+    fetchAnalytics();
   }, [filters]);
 
   const fetchAnalytics = async () => {
@@ -141,10 +149,7 @@ export default function ReportsPage() {
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);
       });
-      // Add cache buster
-      params.append('_t', Date.now().toString());
       const { data } = await api.get(`/analytics/dashboard?${params.toString()}`);
-      console.log('Analytics data:', data);
       setAnalytics(data.analytics || {});
     } catch (error) {
       console.error('Analytics error:', error);
@@ -189,69 +194,34 @@ export default function ReportsPage() {
             {isAdmin ? "Complete project overview and insights" : "Your performance metrics and tasks"}
           </p>
         </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
-            darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"
-          }`}
-        >
-          <Filter className="w-4 h-4" />
-          Filters
-        </button>
       </div>
 
       {/* Filters */}
-      {showFilters && (
-        <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            <input
-              type="date"
-              value={internalFilters.startDate}
-              onChange={(e) => setInternalFilters({ ...internalFilters, startDate: e.target.value })}
-              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-gray-50 border-gray-300 text-gray-900"}`}
-            />
-            <input
-              type="date"
-              value={internalFilters.endDate}
-              onChange={(e) => setInternalFilters({ ...internalFilters, endDate: e.target.value })}
-              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-gray-50 border-gray-300 text-gray-900"}`}
-            />
-            <input
-              type="text"
-              placeholder="Zone"
-              value={internalFilters.zone}
-              onChange={(e) => setInternalFilters({ ...internalFilters, zone: e.target.value })}
-              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500"}`}
-            />
-            <input
-              type="text"
-              placeholder="State"
-              value={internalFilters.state}
-              onChange={(e) => setInternalFilters({ ...internalFilters, state: e.target.value })}
-              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500"}`}
-            />
-            <FilterDropdown
-              label="City"
-              allLabel="All Cities"
-              options={availableCities}
-              selected={filterCities}
-              onChange={(vals) => { setFilterCities(vals); setInternalFilters({ ...internalFilters, city: vals.join(",") }); }}
-            />
-            <button
-              onClick={applyFilters}
-              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
-            >
-              Apply
-            </button>
-            <button
-              onClick={() => { setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" }); setInternalFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" }); setFilterCities([]); }}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}
-            >
-              Reset
-            </button>
-          </div>
+      <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
+        <div className="flex flex-wrap gap-3">
+          {/* Start Date */}
+          <DatePicker value={startDateInput} onChange={setStartDateInput} placeholder="Start Date" className="w-[150px]" />
+          {/* End Date */}
+          <DatePicker value={endDateInput} onChange={setEndDateInput} placeholder="End Date" className="w-[150px]" />
+          <FilterDropdown label="Zone" allLabel="All Zones" options={availableZones} selected={filterZones}
+            onChange={setFilterZones} className="w-[140px]" />
+          <FilterDropdown label="State" allLabel="All States" options={availableStates} selected={filterStates}
+            onChange={setFilterStates} className="w-[140px]" />
+          <FilterDropdown label="City" allLabel="All Cities" options={availableCities} selected={filterCities}
+            onChange={setFilterCities} className="w-[140px]" />
+          <button onClick={applyFilters}
+            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold text-sm">
+            Apply
+          </button>
+          <button onClick={() => {
+            setStartDateInput(""); setEndDateInput("");
+            setFilterZones([]); setFilterStates([]); setFilterCities([]);
+            setFilters({ startDate: "", endDate: "", zone: "", state: "", city: "" });
+          }} className={`px-4 py-2 rounded-lg font-semibold text-sm ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}>
+            Reset
+          </button>
         </div>
-      )}
+      </div>
 
       {isAdmin ? (
         /* ADMIN DASHBOARD */
