@@ -25,6 +25,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import toast from "react-hot-toast";
+import FilterDropdown from "@/src/components/ui/FilterDropdown";
 
 export default function ReportsPage() {
   const { user } = useAuth();
@@ -36,6 +37,12 @@ export default function ReportsPage() {
   const [internalFilters, setInternalFilters] = useState({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" });
   const [assignmentsPage, setAssignmentsPage] = useState(1);
   const assignmentsPerPage = 10;
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [filterCities, setFilterCities] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.get("/stores/cities").then(r => { if (r.data?.cities) setAvailableCities(r.data.cities); }).catch(() => {});
+  }, []);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
@@ -196,17 +203,15 @@ export default function ReportsPage() {
       {/* Filters */}
       {showFilters && (
         <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             <input
               type="date"
-              placeholder="Start Date"
               value={internalFilters.startDate}
               onChange={(e) => setInternalFilters({ ...internalFilters, startDate: e.target.value })}
               className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-gray-50 border-gray-300 text-gray-900"}`}
             />
             <input
               type="date"
-              placeholder="End Date"
               value={internalFilters.endDate}
               onChange={(e) => setInternalFilters({ ...internalFilters, endDate: e.target.value })}
               className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-gray-50 border-gray-300 text-gray-900"}`}
@@ -225,12 +230,12 @@ export default function ReportsPage() {
               onChange={(e) => setInternalFilters({ ...internalFilters, state: e.target.value })}
               className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500"}`}
             />
-            <input
-              type="text"
-              placeholder="City"
-              value={internalFilters.city}
-              onChange={(e) => setInternalFilters({ ...internalFilters, city: e.target.value })}
-              className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500"}`}
+            <FilterDropdown
+              label="City"
+              allLabel="All Cities"
+              options={availableCities}
+              selected={filterCities}
+              onChange={(vals) => { setFilterCities(vals); setInternalFilters({ ...internalFilters, city: vals.join(",") }); }}
             />
             <button
               onClick={applyFilters}
@@ -239,7 +244,7 @@ export default function ReportsPage() {
               Apply
             </button>
             <button
-              onClick={() => { setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" }); setInternalFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" }); }}
+              onClick={() => { setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" }); setInternalFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", city: "" }); setFilterCities([]); }}
               className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}
             >
               Reset

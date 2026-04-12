@@ -7,6 +7,7 @@ import { Search, Loader2, FileSpreadsheet, Eye, ChevronLeft, ChevronRight, Filte
 import { useTheme } from "@/src/context/ThemeContext";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import FilterDropdown from "@/src/components/ui/FilterDropdown";
 
 export default function RFQGenerationPage() {
   const { darkMode } = useTheme();
@@ -24,7 +25,7 @@ export default function RFQGenerationPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterZone, setFilterZone] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterDistrict, setFilterDistrict] = useState("");
@@ -32,9 +33,26 @@ export default function RFQGenerationPage() {
   const [filterDealerCode, setFilterDealerCode] = useState("");
   const [filterPONumber, setFilterPONumber] = useState("");
   const [filterInvoiceNo, setFilterInvoiceNo] = useState("");
-  const [filterClientCode, setFilterClientCode] = useState("");
-  const [filterCity, setFilterCity] = useState("");
+  const [filterClientCode, setFilterClientCode] = useState<string[]>([]);
+  const [filterCity, setFilterCity] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [availableClientCodes, setAvailableClientCodes] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [citiesRes, clientsRes] = await Promise.all([
+          api.get("/stores/cities").catch(() => ({ data: { cities: [] } })),
+          api.get("/clients").catch(() => ({ data: { clients: [] } })),
+        ]);
+        if (citiesRes.data?.cities) setAvailableCities(citiesRes.data.cities);
+        const clientsList = clientsRes.data?.clients || [];
+        setAvailableClientCodes(clientsList.map((c: any) => c.clientCode).filter(Boolean));
+      } catch {}
+    };
+    fetchOptions();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -55,9 +73,9 @@ export default function RFQGenerationPage() {
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", limit.toString());
-      if (filterStatus !== "ALL") params.append("status", filterStatus);
+      if (filterStatus.length > 0) params.append("status", filterStatus.join(","));
       if (debouncedSearch) params.append("search", debouncedSearch);
-      if (filterCity) params.append("city", filterCity);
+      if (filterCity.length > 0) params.append("city", filterCity.join(","));
 
       const { data } = await api.get(`/stores?${params.toString()}`);
       
@@ -70,7 +88,7 @@ export default function RFQGenerationPage() {
       if (filterDealerCode) filteredStores = filteredStores.filter((s: Store) => s.dealerCode?.toLowerCase().includes(filterDealerCode.toLowerCase()));
       if (filterPONumber) filteredStores = filteredStores.filter((s: Store) => s.commercials?.poNumber?.toLowerCase().includes(filterPONumber.toLowerCase()));
       if (filterInvoiceNo) filteredStores = filteredStores.filter((s: Store) => s.commercials?.invoiceNumber?.toLowerCase().includes(filterInvoiceNo.toLowerCase()));
-      if (filterClientCode) filteredStores = filteredStores.filter((s: Store) => s.clientCode?.toLowerCase().includes(filterClientCode.toLowerCase()));
+      if (filterClientCode.length > 0) filteredStores = filteredStores.filter((s: Store) => filterClientCode.includes(s.clientCode || ""));
 
       setStores(filteredStores);
       if (data.pagination) {
@@ -186,7 +204,7 @@ export default function RFQGenerationPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border transition-all text-sm ${darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"}`}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border transition-all text-sm ${darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"} ${showFilters ? "border-yellow-500" : ""}`}
           >
             <Filter className="w-4 h-4" />
             <span className="hidden sm:inline">Filters</span>
@@ -207,19 +225,16 @@ export default function RFQGenerationPage() {
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
               <input type="text" placeholder="Search stores..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pl-10 ${inputClass}`} />
             </div>
+            <FilterDropdown label="All Status" allLabel="All Status" options={Object.values(StoreStatus).map(s => s.replace(/_/g, " "))} selected={filterStatus.map(s => s.replace(/_/g, " "))} onChange={(vals) => setFilterStatus(vals.map(v => v.replace(/ /g, "_")))} />
+            <FilterDropdown label="City" allLabel="All Cities" options={availableCities} selected={filterCity} onChange={setFilterCity} />
+            <FilterDropdown label="Client Code" allLabel="All Codes" options={availableClientCodes} selected={filterClientCode} onChange={setFilterClientCode} />
             <input type="text" placeholder="Zone" value={filterZone} onChange={(e) => setFilterZone(e.target.value)} className={inputClass} />
             <input type="text" placeholder="State" value={filterState} onChange={(e) => setFilterState(e.target.value)} className={inputClass} />
             <input type="text" placeholder="District" value={filterDistrict} onChange={(e) => setFilterDistrict(e.target.value)} className={inputClass} />
-            <input type="text" placeholder="City" value={filterCity} onChange={(e) => setFilterCity(e.target.value)} className={inputClass} />
             <input type="text" placeholder="Vendor Code" value={filterVendorCode} onChange={(e) => setFilterVendorCode(e.target.value)} className={inputClass} />
             <input type="text" placeholder="Dealer Code" value={filterDealerCode} onChange={(e) => setFilterDealerCode(e.target.value)} className={inputClass} />
-            <input type="text" placeholder="Client Code" value={filterClientCode} onChange={(e) => setFilterClientCode(e.target.value)} className={inputClass} />
             <input type="text" placeholder="PO Number" value={filterPONumber} onChange={(e) => setFilterPONumber(e.target.value)} className={inputClass} />
             <input type="text" placeholder="Invoice No" value={filterInvoiceNo} onChange={(e) => setFilterInvoiceNo(e.target.value)} className={inputClass} />
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass}>
-              <option value="ALL">All Status</option>
-              {Object.values(StoreStatus).map(s => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
-            </select>
           </div>
         </div>
       )}

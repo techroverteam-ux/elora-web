@@ -32,6 +32,7 @@ import Modal from "@/src/components/ui/Modal";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { exportUsersToExcel } from "@/src/utils/excelExport";
+import FilterDropdown from "@/src/components/ui/FilterDropdown";
 
 export default function UsersPage() {
   const { darkMode } = useTheme();
@@ -57,7 +58,7 @@ export default function UsersPage() {
   // Filters & Pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
@@ -114,7 +115,7 @@ export default function UsersPage() {
         page: String(page),
         limit: String(limit),
         ...(searchTerm && { search: searchTerm }),
-        ...(roleFilter && { role: roleFilter }),
+        ...(roleFilter.length > 0 && { role: roleFilter[0] }),
       });
       const { data } = await api.get(`/users?${params}`);
       setUsers(data.users);
@@ -434,14 +435,14 @@ export default function UsersPage() {
               } focus:outline-none focus:ring-2 focus:ring-yellow-500/20`}
             />
           </div>
-          <select
-            value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-            className={`px-3 py-2.5 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}
-          >
-            <option value="">All Roles</option>
-            {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
-          </select>
+          <FilterDropdown
+            label="All Roles"
+            allLabel="All Roles"
+            options={roles.map(r => r.name)}
+            selected={roleFilter.map(id => roles.find(r => r._id === id)?.name || id)}
+            onChange={(vals) => { setRoleFilter(vals.map(name => roles.find(r => r.name === name)?._id || name)); setPage(1); }}
+            className="sm:w-[180px]"
+          />
         </div>
       </div>
 

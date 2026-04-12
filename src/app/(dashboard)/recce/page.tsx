@@ -30,6 +30,7 @@ import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import * as XLSX from "xlsx";
+import FilterDropdown from "@/src/components/ui/FilterDropdown";
 
 export default function RecceListPage() {
   const router = useRouter();
@@ -58,16 +59,19 @@ export default function RecceListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalStores, setTotalStores] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStoreName, setFilterStoreName] = useState("");
   const [filterStoreCode, setFilterStoreCode] = useState("");
-  const [filterClientName, setFilterClientName] = useState("");
-  const [filterClientCode, setFilterClientCode] = useState("");
-  const [filterCity, setFilterCity] = useState("");
+  const [filterClientName, setFilterClientName] = useState<string[]>([]);
+  const [filterClientCode, setFilterClientCode] = useState<string[]>([]);
+  const [filterCity, setFilterCity] = useState<string[]>([]);
   const [filterDistrict, setFilterDistrict] = useState("");
   const [filterState, setFilterState] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [availableClientCodes, setAvailableClientCodes] = useState<string[]>([]);
+  const [availableClientNames, setAvailableClientNames] = useState<string[]>([]);
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isAssigningInstallation, setIsAssigningInstallation] = useState(false);
@@ -120,15 +124,15 @@ export default function RecceListPage() {
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filterStoreName) params.append("storeName", filterStoreName);
       if (filterStoreCode) params.append("storeCode", filterStoreCode);
-      if (filterClientName) params.append("clientName", filterClientName);
-      if (filterClientCode) params.append("clientCode", filterClientCode);
-      if (filterCity) params.append("city", filterCity);
+      if (filterClientName.length > 0) filterClientName.forEach(n => params.append("clientName", n));
+      if (filterClientCode.length > 0) filterClientCode.forEach(c => params.append("clientCode", c));
+      if (filterCity.length > 0) params.append("city", filterCity.join(","));
       if (filterDistrict) params.append("district", filterDistrict);
       if (filterState) params.append("state", filterState);
       
       // Filter by recce-related statuses only
-      if (filterStatus !== "ALL") {
-        params.append("status", filterStatus);
+      if (filterStatus.length > 0) {
+        params.append("status", filterStatus.join(","));
       } else {
         // Show all recce-related stores (including completed for admins)
         const statuses = isAdmin 
@@ -139,17 +143,19 @@ export default function RecceListPage() {
 
       const { data } = await api.get(`/stores?${params.toString()}`);
       
-      // Additional client-side filter
-      const recceStores = isAdmin 
-        ? data.stores.filter((store: Store) => 
-            store.recce?.submittedDate // Only show stores that have recce data
-          )
-        : data.stores.filter((store: Store) => 
-            store.currentStatus === StoreStatus.RECCE_ASSIGNED ||
-            store.currentStatus === StoreStatus.RECCE_SUBMITTED ||
-            store.currentStatus === StoreStatus.RECCE_APPROVED ||
-            store.currentStatus === StoreStatus.RECCE_REJECTED
-          );
+      // Client-side filter: when no status filter, apply recce-specific logic
+      // When status filter is active, trust the API result directly
+      let recceStores = data.stores || [];
+      if (filterStatus.length === 0) {
+        recceStores = isAdmin 
+          ? recceStores.filter((store: Store) => store.recce?.submittedDate)
+          : recceStores.filter((store: Store) => 
+              store.currentStatus === StoreStatus.RECCE_ASSIGNED ||
+              store.currentStatus === StoreStatus.RECCE_SUBMITTED ||
+              store.currentStatus === StoreStatus.RECCE_APPROVED ||
+              store.currentStatus === StoreStatus.RECCE_REJECTED
+            );
+      }
       setStores(recceStores);
       if (data.pagination) {
           setTotalPages(data.pagination.pages);
@@ -163,9 +169,57 @@ export default function RecceListPage() {
     }
   };
 
+  // Map display label -> StoreStatus for recce
+  const recceStatusLabelToValue = (label: string): StoreStatus => {
+    switch (label) {
+      case "Recce Assigned": return StoreStatus.RECCE_ASSIGNED;
+      case "Recce Submitted": return StoreStatus.RECCE_SUBMITTED;
+      case "Recce Approved": return StoreStatus.RECCE_APPROVED;
+      case "Recce Rejected": return StoreStatus.RECCE_REJECTED;
+      case "Install Assigned": return StoreStatus.INSTALLATION_ASSIGNED;
+      case "Install Submitted": return StoreStatus.INSTALLATION_SUBMITTED;
+      case "Completed": return StoreStatus.COMPLETED;
+      default: return label as StoreStatus;
+    }
+  };
+
+  const recceStatusValueToLabel = (val: string): string => {
+    switch (val) {
+      case StoreStatus.RECCE_ASSIGNED: return "Recce Assigned";
+      case StoreStatus.RECCE_SUBMITTED: return "Recce Submitted";
+      case StoreStatus.RECCE_APPROVED: return "Recce Approved";
+      case StoreStatus.RECCE_REJECTED: return "Recce Rejected";
+      case StoreStatus.INSTALLATION_ASSIGNED: return "Install Assigned";
+      case StoreStatus.INSTALLATION_SUBMITTED: return "Install Submitted";
+      case StoreStatus.COMPLETED: return "Completed";
+      default: return val;
+    }
+  };
+
+  const recceStatusOptions = isAdmin
+    ? ["Recce Assigned", "Recce Submitted", "Recce Approved", "Recce Rejected", "Install Assigned", "Install Submitted", "Completed"]
+    : ["Recce Assigned", "Recce Submitted", "Recce Approved", "Recce Rejected"];
+
   useEffect(() => {
     fetchStores();
   }, [page, limit, debouncedSearch, filterStatus, filterStoreName, filterStoreCode, filterClientName, filterClientCode, filterCity, filterDistrict, filterState]);
+
+  // Fetch available filter options
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        const [citiesRes, clientsRes] = await Promise.all([
+          api.get("/stores/cities").catch(() => ({ data: { cities: [] } })),
+          api.get("/clients").catch(() => ({ data: { clients: [] } })),
+        ]);
+        if (citiesRes.data?.cities) setAvailableCities(citiesRes.data.cities);
+        const clientsList = clientsRes.data?.clients || [];
+        setAvailableClientCodes(clientsList.map((c: any) => c.clientCode).filter(Boolean));
+        setAvailableClientNames(clientsList.map((c: any) => c.clientName).filter(Boolean));
+      } catch {}
+    };
+    fetchFilterOptions();
+  }, []);
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -514,19 +568,44 @@ export default function RecceListPage() {
       {/* FILTERS */}
       <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
          <div className="flex flex-col gap-3">
-            <div className="flex gap-3">
-              <div className="relative flex-1">
+            <div className="flex gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
                   <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                   <input type="text" placeholder="Search store name, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                       className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
               </div>
-              <select value={filterStatus} onChange={(e) => {setFilterStatus(e.target.value); setPage(1);}}
-                  className={`px-3 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}>
-                  <option value="ALL">All Status</option>
-                  <option value={StoreStatus.RECCE_ASSIGNED}>Pending</option>
-                  <option value={StoreStatus.RECCE_SUBMITTED}>Submitted</option>
-                  <option value={StoreStatus.RECCE_APPROVED}>Approved</option>
-              </select>
+              <FilterDropdown
+                label="All Status"
+                allLabel="All Status"
+                options={recceStatusOptions}
+                selected={filterStatus.map(recceStatusValueToLabel)}
+                onChange={(vals) => { setFilterStatus(vals.map(recceStatusLabelToValue)); setPage(1); }}
+                className="w-[160px]"
+              />
+              <FilterDropdown
+                label="City"
+                allLabel="All Cities"
+                options={availableCities}
+                selected={filterCity}
+                onChange={(vals) => { setFilterCity(vals); setPage(1); }}
+                className="w-[150px]"
+              />
+              <FilterDropdown
+                label="Client Code"
+                allLabel="All Codes"
+                options={availableClientCodes}
+                selected={filterClientCode}
+                onChange={(vals) => { setFilterClientCode(vals); setPage(1); }}
+                className="w-[150px]"
+              />
+              <FilterDropdown
+                label="Client Name"
+                allLabel="All Clients"
+                options={availableClientNames}
+                selected={filterClientName}
+                onChange={(vals) => { setFilterClientName(vals); setPage(1); }}
+                className="w-[150px]"
+              />
               {isAdmin && (
                 <button onClick={() => setShowFilters(!showFilters)} className={`px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2 ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`}>
                   <Filter className="w-4 h-4" />
@@ -538,22 +617,16 @@ export default function RecceListPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-gray-700">
                 <input type="text" placeholder="Store Name" value={filterStoreName} onChange={(e) => {setFilterStoreName(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
                 <input type="text" placeholder="Store Code" value={filterStoreCode} onChange={(e) => {setFilterStoreCode(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
-                <input type="text" placeholder="Client Name" value={filterClientName} onChange={(e) => {setFilterClientName(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
-                <input type="text" placeholder="Client Code" value={filterClientCode} onChange={(e) => {setFilterClientCode(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
-                <input type="text" placeholder="City" value={filterCity} onChange={(e) => {setFilterCity(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
                 <input type="text" placeholder="District" value={filterDistrict} onChange={(e) => {setFilterDistrict(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
                 <input type="text" placeholder="State" value={filterState} onChange={(e) => {setFilterState(e.target.value); setPage(1);}} className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"}`} />
                 <button onClick={() => {
                   setFilterStoreName('');
                   setFilterStoreCode('');
-                  setFilterClientName('');
-                  setFilterClientCode('');
-                  setFilterCity('');
                   setFilterDistrict('');
                   setFilterState('');
                   setPage(1);
                 }} className={`px-3 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-red-900/30 border-red-700 text-red-400" : "bg-red-50 border-red-300 text-red-700"}`}>
-                  Clear Filters
+                  Clear More Filters
                 </button>
               </div>
             )}
@@ -565,18 +638,18 @@ export default function RecceListPage() {
         <div className={`rounded-xl border p-12 text-center ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
           <Search className={`w-16 h-16 mx-auto mb-4 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
           <h3 className={`text-lg font-semibold mb-2 ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
-            {debouncedSearch ? "No stores found" : filterStatus !== "ALL" ? "No stores with this status" : "No recce tasks available"}
+            {debouncedSearch ? "No stores found" : filterStatus.length > 0 ? "No stores with this status" : "No recce tasks available"}
           </h3>
           <p className={`text-sm mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
             {debouncedSearch 
               ? `No stores match "${debouncedSearch}". Try a different search term.`
-              : filterStatus !== "ALL"
-                ? `No stores found with status "${filterStatus.replace(/_/g, " ")}". Try selecting a different status.`
+              : filterStatus.length > 0
+                ? `No stores found with selected status. Try selecting a different status.`
                 : "There are no recce tasks assigned yet."}
           </p>
-          {(debouncedSearch || filterStatus !== "ALL") && (
+          {(debouncedSearch || filterStatus.length > 0) && (
             <button 
-              onClick={() => { setSearchTerm(""); setFilterStatus("ALL"); }}
+              onClick={() => { setSearchTerm(""); setFilterStatus([]); }}
               className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600"
             >
               Clear Filters

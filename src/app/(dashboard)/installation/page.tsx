@@ -27,6 +27,7 @@ import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import * as XLSX from "xlsx";
+import FilterDropdown from "@/src/components/ui/FilterDropdown";
 
 export default function InstallationListPage() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function InstallationListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalStores, setTotalStores] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
@@ -75,6 +76,24 @@ export default function InstallationListPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const installStatusLabelToValue = (label: string): StoreStatus => {
+    switch (label) {
+      case "Assigned": return StoreStatus.INSTALLATION_ASSIGNED;
+      case "Submitted": return StoreStatus.INSTALLATION_SUBMITTED;
+      case "Completed": return StoreStatus.COMPLETED;
+      default: return label as StoreStatus;
+    }
+  };
+
+  const installStatusValueToLabel = (val: string): string => {
+    switch (val) {
+      case StoreStatus.INSTALLATION_ASSIGNED: return "Assigned";
+      case StoreStatus.INSTALLATION_SUBMITTED: return "Submitted";
+      case StoreStatus.COMPLETED: return "Completed";
+      default: return val;
+    }
+  };
+
   const fetchStores = async () => {
     try {
       setLoading(true);
@@ -84,8 +103,8 @@ export default function InstallationListPage() {
       if (debouncedSearch) params.append("search", debouncedSearch);
       
       // Filter by installation-related statuses only
-      if (filterStatus !== "ALL") {
-        params.append("status", filterStatus);
+      if (filterStatus.length > 0) {
+        params.append("status", filterStatus.join(","));
       } else {
         // Show only stores that have been assigned to installation
         params.append("status", `${StoreStatus.INSTALLATION_ASSIGNED},${StoreStatus.INSTALLATION_SUBMITTED},${StoreStatus.COMPLETED}`);
@@ -93,12 +112,15 @@ export default function InstallationListPage() {
 
       const { data } = await api.get(`/stores?${params.toString()}`);
       
-      // Additional client-side filter to ensure only installation-assigned stores appear
-      const installationStores = data.stores.filter((store: Store) => 
-        store.currentStatus === StoreStatus.INSTALLATION_ASSIGNED ||
-        store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ||
-        store.currentStatus === StoreStatus.COMPLETED
-      );
+      // When status filter active, trust API; otherwise enforce installation-only client-side
+      let installationStores = data.stores || [];
+      if (filterStatus.length === 0) {
+        installationStores = installationStores.filter((store: Store) => 
+          store.currentStatus === StoreStatus.INSTALLATION_ASSIGNED ||
+          store.currentStatus === StoreStatus.INSTALLATION_SUBMITTED ||
+          store.currentStatus === StoreStatus.COMPLETED
+        );
+      }
       setStores(installationStores);
       if (data.pagination) {
           setTotalPages(data.pagination.pages);
@@ -223,6 +245,8 @@ export default function InstallationListPage() {
       }
   };
 
+  const statusLabel = (status: string) => installStatusValueToLabel(status);
+
   if (initialLoad && loading)
     return (
       <div className="max-w-7xl mx-auto pb-20 space-y-4">
@@ -345,13 +369,14 @@ export default function InstallationListPage() {
                 <input type="text" placeholder="Search store name, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                     className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
             </div>
-            <select value={filterStatus} onChange={(e) => {setFilterStatus(e.target.value); setPage(1);}}
-                className={`px-3 py-2 rounded-lg border text-sm font-medium w-full md:w-48 ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}>
-                <option value="ALL">All Status</option>
-                <option value={StoreStatus.INSTALLATION_ASSIGNED}>Pending</option>
-                <option value={StoreStatus.INSTALLATION_SUBMITTED}>Submitted</option>
-                <option value={StoreStatus.COMPLETED}>Completed</option>
-            </select>
+            <FilterDropdown
+              label="All Status"
+              allLabel="All Status"
+              options={["Assigned", "Submitted", "Completed"]}
+              selected={filterStatus.map(installStatusValueToLabel)}
+              onChange={(vals) => { setFilterStatus(vals.map(installStatusLabelToValue)); setPage(1); }}
+              className="md:w-[180px]"
+            />
          </div>
       </div>
 
@@ -360,18 +385,18 @@ export default function InstallationListPage() {
         <div className={`rounded-xl border p-12 text-center ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
           <Wrench className={`w-16 h-16 mx-auto mb-4 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
           <h3 className={`text-lg font-semibold mb-2 ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
-            {debouncedSearch ? "No stores found" : filterStatus !== "ALL" ? "No stores with this status" : "No installation tasks available"}
+            {debouncedSearch ? "No stores found" : filterStatus.length > 0 ? "No stores with this status" : "No installation tasks available"}
           </h3>
           <p className={`text-sm mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
             {debouncedSearch 
               ? `No stores match "${debouncedSearch}". Try a different search term.`
-              : filterStatus !== "ALL"
-                ? `No stores found with status "${filterStatus.replace(/_/g, " ")}". Try selecting a different status.`
+              : filterStatus.length > 0
+                ? `No stores found with selected status. Try selecting a different status.`
                 : "There are no installation tasks assigned yet."}
           </p>
-          {(debouncedSearch || filterStatus !== "ALL") && (
+          {(debouncedSearch || filterStatus.length > 0) && (
             <button 
-              onClick={() => { setSearchTerm(""); setFilterStatus("ALL"); }}
+              onClick={() => { setSearchTerm(""); setFilterStatus([]); }}
               className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600"
             >
               Clear Filters
@@ -405,7 +430,7 @@ export default function InstallationListPage() {
                                     </div>
                                 </div>
                                 <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide whitespace-nowrap ${statusColors(store.currentStatus)}`}>
-                                    {store.currentStatus.replace(/_/g, " ").replace("INSTALLATION", "")}
+                                    {statusLabel(store.currentStatus)}
                                 </span>
                             </div>
                             <div className={`flex items-start gap-2 text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
@@ -481,7 +506,7 @@ export default function InstallationListPage() {
                                        </td>
                                        <td className="px-6 py-4">
                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors(store.currentStatus)}`}>
-                                               {store.currentStatus.replace(/_/g, " ").replace("INSTALLATION", "")}
+                                               {statusLabel(store.currentStatus)}
                                            </span>
                                        </td>
                                        <td className="px-6 py-4 text-right">

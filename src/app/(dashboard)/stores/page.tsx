@@ -38,6 +38,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { usePermissions } from "@/src/hooks/usePermissions";
 import Modal from "@/src/components/ui/Modal";
 import { TableSkeleton } from "@/src/components/ui/Skeleton";
+import FilterDropdown from "@/src/components/ui/FilterDropdown";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -77,14 +78,15 @@ export default function StoresPage() {
   const [totalStores, setTotalStores] = useState(0);
 
   // Filter State
-  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCity, setFilterCity] = useState<string[]>([]);
-  const [filterClientCode, setFilterClientCode] = useState("");
-  const [filterClientName, setFilterClientName] = useState("");
+  const [filterClientCode, setFilterClientCode] = useState<string[]>([]);
+  const [filterClientName, setFilterClientName] = useState<string[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const [availableClientCodes, setAvailableClientCodes] = useState<string[]>([]);
+  const [availableClientNames, setAvailableClientNames] = useState<string[]>([]);
 
   // Upload State
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -178,15 +180,11 @@ export default function StoresPage() {
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", limit.toString());
-      if (filterStatus !== "ALL") params.append("status", filterStatus);
+      if (filterStatus.length > 0) params.append("status", filterStatus.join(","));
       if (debouncedSearch) params.append("search", debouncedSearch);
-      if (filterCity.length > 0) {
-        const cityParam = filterCity.join(",");
-        console.log('Sending city filter:', cityParam);
-        params.append("city", cityParam);
-      }
-      if (filterClientCode) params.append("clientCode", filterClientCode);
-      if (filterClientName) params.append("clientName", filterClientName);
+      if (filterCity.length > 0) params.append("city", filterCity.join(","));
+      if (filterClientCode.length > 0) filterClientCode.forEach(c => params.append("clientCode", c));
+      if (filterClientName.length > 0) filterClientName.forEach(n => params.append("clientName", n));
 
       console.log('Fetching stores with params:', params.toString());
       const { data } = await api.get(`/stores?${params.toString()}`);
@@ -271,12 +269,18 @@ export default function StoresPage() {
       const clientsList = data.clients || data || [];
       setClients(clientsList);
       const map = new Map();
+      const codes: string[] = [];
+      const names: string[] = [];
       clientsList.forEach((client: any) => {
         if (client.clientCode) {
           map.set(client.clientCode, client);
+          codes.push(client.clientCode);
         }
+        if (client.clientName) names.push(client.clientName);
       });
       setClientsMap(map);
+      setAvailableClientCodes(codes);
+      setAvailableClientNames(names);
     } catch (error) {
       console.error("Failed to fetch clients", error);
       toast.error("Failed to load clients");
@@ -372,11 +376,11 @@ export default function StoresPage() {
     try {
       toast.dismiss();
       const params = new URLSearchParams();
-      if (filterStatus !== "ALL") params.append("status", filterStatus);
+      if (filterStatus.length > 0) params.append("status", filterStatus.join(","));
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filterCity.length > 0) params.append("city", filterCity.join(","));
-      if (filterClientCode) params.append("clientCode", filterClientCode);
-      if (filterClientName) params.append("clientName", filterClientName);
+      if (filterClientCode.length > 0) filterClientCode.forEach(c => params.append("clientCode", c));
+      if (filterClientName.length > 0) filterClientName.forEach(n => params.append("clientName", n));
 
       const response = await api.get(`/stores/export?${params.toString()}`, {
         responseType: "blob",
@@ -665,7 +669,7 @@ export default function StoresPage() {
 
   const toggleAllSelection = () => {
     // When filtering by RECCE_APPROVED status, only select approved recce stores
-    const selectableStores = filterStatus === StoreStatus.RECCE_APPROVED 
+    const selectableStores = filterStatus.includes(StoreStatus.RECCE_APPROVED) 
       ? stores.filter(s => s.currentStatus === StoreStatus.RECCE_APPROVED)
       : stores;
     
@@ -1104,123 +1108,40 @@ export default function StoresPage() {
               />
             </div>
             {/* Status Filter */}
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setPage(1);
-              }}
-              className={`px-3 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}
-            >
-              <option value="ALL">All Status</option>
-              {Object.values(StoreStatus).map((s) => (
-                <option key={s} value={s}>
-                  {s.replace(/_/g, " ")}
-                </option>
-              ))}
-            </select>
-            {/* City Filter - Multi-select */}
-            <div className="relative sm:w-[200px]">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('Opening city dropdown. Available cities:', availableCities);
-                  setCityDropdownOpen(!cityDropdownOpen);
-                }}
-                className={`w-full px-3 py-2 rounded-lg border text-sm font-medium text-left flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}
-              >
-                <span className="truncate">
-                  {filterCity.length === 0
-                    ? "Filter by City"
-                    : `${filterCity.length} selected`}
-                </span>
-                <Filter className="w-4 h-4 ml-2 flex-shrink-0" />
-              </button>
-              {cityDropdownOpen && (
-                <>
-                  {/* Backdrop to close dropdown when clicking outside */}
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCityDropdownOpen(false);
-                    }}
-                  />
-                  <div
-                    className={`absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg shadow-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="p-2">
-                      {filterCity.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFilterCity([]);
-                          }}
-                          className={`w-full px-3 py-2 text-left text-sm rounded mb-1 font-medium ${darkMode ? "hover:bg-red-900/30 text-red-400" : "hover:bg-red-50 text-red-600"}`}
-                        >
-                          Clear All ({filterCity.length})
-                        </button>
-                      )}
-                      {availableCities.length === 0 && (
-                        <div className={`px-3 py-4 text-center text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                          No cities available
-                        </div>
-                      )}
-                      {availableCities.map((city) => (
-                        <div
-                          key={city}
-                          className={`flex items-center px-3 py-2 text-sm rounded cursor-pointer ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFilterCity(prev => {
-                              if (prev.includes(city)) {
-                                return prev.filter((c) => c !== city);
-                              } else {
-                                return [...prev, city];
-                              }
-                            });
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={filterCity.includes(city)}
-                            onChange={() => {}} // Controlled by parent div onClick
-                            className="mr-2 pointer-events-none"
-                          />
-                          <span className={darkMode ? "text-gray-200" : "text-gray-700"}>
-                            {city}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            <FilterDropdown
+              label="All Status"
+              allLabel="All Status"
+              options={Object.values(StoreStatus).map((s) => s.replace(/_/g, " "))}
+              selected={filterStatus.map((s) => s.replace(/_/g, " "))}
+              onChange={(vals) => { setFilterStatus(vals.map((v) => v.replace(/ /g, "_"))); setPage(1); }}
+              className="sm:w-[160px]"
+            />
+            {/* City Filter */}
+            <FilterDropdown
+              label="Filter by City"
+              allLabel="All Cities"
+              options={availableCities}
+              selected={filterCity}
+              onChange={(vals) => { setFilterCity(vals); setPage(1); }}
+              className="sm:w-[180px]"
+            />
             {/* Client Code Filter */}
-            <input
-              type="text"
-              placeholder="Client Code"
-              value={filterClientCode}
-              onChange={(e) => {
-                setFilterClientCode(e.target.value);
-                setPage(1);
-              }}
-              className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}
+            <FilterDropdown
+              label="Client Code"
+              allLabel="All Codes"
+              options={availableClientCodes}
+              selected={filterClientCode}
+              onChange={(vals) => { setFilterClientCode(vals); setPage(1); }}
+              className="sm:w-[150px]"
             />
             {/* Client Name Filter */}
-            <input
-              type="text"
-              placeholder="Client Name"
-              value={filterClientName}
-              onChange={(e) => {
-                setFilterClientName(e.target.value);
-                setPage(1);
-              }}
-              className={`px-3 py-2 rounded-lg border text-sm font-medium sm:w-[150px] ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}
+            <FilterDropdown
+              label="Client Name"
+              allLabel="All Clients"
+              options={availableClientNames}
+              selected={filterClientName}
+              onChange={(vals) => { setFilterClientName(vals); setPage(1); }}
+              className="sm:w-[150px]"
             />
           </div>
 
@@ -2067,7 +1988,7 @@ export default function StoresPage() {
                               </button>
                             )}
 
-                            {hasPermission('stores', 'edit') && store.currentStatus === StoreStatus.UPLOADED && (
+                            {hasPermission('stores', 'edit') && !store.workflow.recceAssignedTo && (
                               <button
                                 onClick={() => openAssignModal("RECCE", store)}
                                 className="p-1.5 rounded hover:bg-blue-50/50 dark:hover:bg-blue-900/20 text-blue-600"
@@ -2629,7 +2550,7 @@ export default function StoresPage() {
                           <Trash2 className="w-3.5 h-3.5" /> Delete
                         </button>
                       )}
-                      {hasPermission('stores', 'edit') && store.currentStatus === StoreStatus.UPLOADED && (
+                      {hasPermission('stores', 'edit') && !store.workflow.recceAssignedTo && (
                         <button
                           onClick={() => openAssignModal("RECCE", store)}
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium"
