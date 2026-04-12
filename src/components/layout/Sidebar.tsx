@@ -32,42 +32,16 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { user, logout } = useAuth();
   const { darkMode } = useTheme();
 
-  // --- HELPER: CHECK PERMISSIONS DYNAMICALLY ---
   const canView = (moduleName: string) => {
-    // Debug logging
-    console.log("Checking permissions for module:", moduleName);
-    console.log("User data:", user);
+    if (!user || !user.roles || !Array.isArray(user.roles)) return false;
 
-    // 1. If no user or roles, deny
-    if (!user || !user.roles || !Array.isArray(user.roles)) {
-      console.log("No user or roles found");
-      return false;
-    }
+    if (user.roles.some((r: any) => r.code === "SUPER_ADMIN")) return true;
 
-    console.log("User roles:", user.roles);
-
-    // 2. SUPER_ADMIN bypass: They see everything
-    if (user.roles.some((r: any) => r.code === "SUPER_ADMIN")) {
-      console.log("User is SUPER_ADMIN, allowing access");
-      return true;
-    }
-
-    // 3. Check if ANY assigned role has 'view' permission for this module
-    const hasPermission = user.roles.some((role: any) => {
+    return user.roles.some((role: any) => {
       const perms = role.permissions;
-      console.log(`Role ${role.name} permissions:`, perms);
-
-      // Safety check: ensure permissions exist
       if (!perms) return false;
-
-      // Check standard object access (e.g., perms['recce'].view)
-      const modulePermission = perms[moduleName]?.view === true;
-      console.log(`Module ${moduleName} permission:`, modulePermission);
-      return modulePermission;
+      return perms[moduleName]?.view === true;
     });
-
-    console.log(`Final permission for ${moduleName}:`, hasPermission);
-    return hasPermission;
   };
 
   const navigation = [
