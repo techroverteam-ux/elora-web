@@ -541,9 +541,20 @@ export default function StoresPage() {
       console.error('Bulk PDF Error:', error);
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
-      
-      const errorMessage = error.response?.data?.message || `Failed to download bulk ${type} PDF`;
-      toast.error(errorMessage);
+
+      let errorMessage = `The server failed to generate the bulk ${type} PDF. This store may not have recce data submitted yet.`;
+      if (error.response?.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const parsed = JSON.parse(text);
+          if (parsed.message) errorMessage = parsed.message;
+        } catch {
+          // blob was not JSON (e.g. corrupted PDF), keep default message
+        }
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      toast.error(errorMessage, { duration: 5000 });
     }
   };
 
@@ -1215,7 +1226,7 @@ export default function StoresPage() {
                         className={`h-5 w-5 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-300"}`}
                       />
                     </th>
-                    {[...Array(33)].map((_, i) => (
+                    {[...Array(32)].map((_, i) => (
                       <th key={i} className="px-4 py-4">
                         <div
                           className={`h-3 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-300"}`}
@@ -1580,11 +1591,6 @@ export default function StoresPage() {
                         >
                           Images Attached
                         </th>
-                        <th
-                          className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                        >
-                          Invoice No
-                        </th>
                       </>
                     )}
                     <th
@@ -1884,13 +1890,6 @@ export default function StoresPage() {
                               >
                                 {(store.recce?.reccePhotos && store.recce.reccePhotos.length > 0) || store.imagesAttached ? "Yes" : "No"}
                               </span>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div
-                                className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
-                              >
-                                {store.commercials?.invoiceNumber || "-"}
-                              </div>
                             </td>
                           </>
                         )}

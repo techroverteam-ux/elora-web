@@ -9,6 +9,7 @@ export default function DashboardPage() {
   const { darkMode } = useTheme();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState({ startDate: "", endDate: "", status: "", zone: "", state: "", store: "", client: "", city: "", district: "" });
   const [showFilters, setShowFilters] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -21,13 +22,14 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetchStats();
+      fetchStats(true);
     }, 30000);
     return () => clearInterval(interval);
   }, [autoRefresh, filters]);
 
-  const fetchStats = async () => {
-    setLoading(true);
+  const fetchStats = async (background = false) => {
+    if (background) setRefreshing(true);
+    else setLoading(true);
     try {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
@@ -38,7 +40,8 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Failed to fetch dashboard stats", error);
     } finally {
-      setLoading(false);
+      if (background) setRefreshing(false);
+      else setLoading(false);
     }
   };
 
@@ -76,6 +79,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pb-20">
+      {refreshing && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 border border-green-300 text-green-700 text-xs font-medium shadow">
+          <Loader2 className="w-3 h-3 animate-spin" /> Refreshing...
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
