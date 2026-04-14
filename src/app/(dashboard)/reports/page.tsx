@@ -41,6 +41,7 @@ export default function ReportsPage() {
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [availableZones, setAvailableZones] = useState<string[]>([]);
   const [availableStates, setAvailableStates] = useState<string[]>([]);
+  const [activeFilters, setActiveFilters] = useState({ startDate: "", endDate: "", zone: "", state: "", city: "" });
 
   useEffect(() => {
     api.get("/stores/cities").then(r => { if (r.data?.cities) setAvailableCities(r.data.cities); }).catch(() => {});
@@ -69,13 +70,16 @@ export default function ReportsPage() {
   }, [filters]);
 
   const applyFilters = () => {
-    setFilters({
+    const applied = {
       startDate: startDateInput,
       endDate: endDateInput,
       zone: filterZones.join(","),
       state: filterStates.join(","),
       city: filterCities.join(","),
-    });
+    };
+    setActiveFilters(applied);
+    setFilters(applied);
+    setAssignmentsPage(1);
   };
 
   const exportAssignments = async () => {
@@ -138,9 +142,16 @@ export default function ReportsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [filters]);
+  const getFilterLabel = () => {
+    const parts: string[] = [];
+    if (activeFilters.startDate && activeFilters.endDate) parts.push(`${activeFilters.startDate} – ${activeFilters.endDate}`);
+    else if (activeFilters.startDate) parts.push(`From ${activeFilters.startDate}`);
+    else if (activeFilters.endDate) parts.push(`Until ${activeFilters.endDate}`);
+    if (activeFilters.zone) parts.push(activeFilters.zone.split(",").join(", "));
+    if (activeFilters.state) parts.push(activeFilters.state.split(",").join(", "));
+    if (activeFilters.city) parts.push(activeFilters.city.split(",").join(", "));
+    return parts.length > 0 ? parts.join(" · ") : "All";
+  };
 
   const fetchAnalytics = async () => {
     try {
@@ -210,17 +221,28 @@ export default function ReportsPage() {
           <FilterDropdown label="City" allLabel="All Cities" options={availableCities} selected={filterCities}
             onChange={setFilterCities} className="w-[140px]" />
           <button onClick={applyFilters}
-            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold text-sm">
+            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold text-sm cursor-pointer">
             Apply
           </button>
           <button onClick={() => {
             setStartDateInput(""); setEndDateInput("");
             setFilterZones([]); setFilterStates([]); setFilterCities([]);
-            setFilters({ startDate: "", endDate: "", zone: "", state: "", city: "" });
-          }} className={`px-4 py-2 rounded-lg font-semibold text-sm ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}>
+            const empty = { startDate: "", endDate: "", zone: "", state: "", city: "" };
+            setFilters(empty);
+            setActiveFilters(empty);
+            setAssignmentsPage(1);
+          }} className={`px-4 py-2 rounded-lg font-semibold text-sm cursor-pointer ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}>
             Reset
           </button>
         </div>
+        {getFilterLabel() !== "All" && (
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
+            <span className={`text-xs font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Active filters:</span>
+            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${darkMode ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/50" : "bg-yellow-50 text-yellow-700 border border-yellow-200"}`}>
+              {getFilterLabel()}
+            </span>
+          </div>
+        )}
       </div>
 
       {isAdmin ? (
@@ -272,7 +294,9 @@ export default function ReportsPage() {
           {/* Recent Activity */}
           <div className={`p-6 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-              <Activity className="h-5 w-5 text-yellow-500" /> Recent Activity (Last 7 Days)
+              <Activity className="h-5 w-5 text-yellow-500" />
+              Recent Activity
+              <span className={`text-sm font-normal ${darkMode ? "text-gray-400" : "text-gray-500"}`}>({getFilterLabel()})</span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className={`p-4 rounded-lg ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
@@ -342,7 +366,9 @@ export default function ReportsPage() {
           <div className={`p-6 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <div className="flex items-center justify-between mb-4">
               <h3 className={`text-lg font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-                <FileText className="h-5 w-5 text-yellow-500" /> Recent Assignments
+                <FileText className="h-5 w-5 text-yellow-500" />
+                Recent Assignments
+                <span className={`text-sm font-normal ${darkMode ? "text-gray-400" : "text-gray-500"}`}>({getFilterLabel()})</span>
               </h3>
               <button
                 onClick={exportAssignments}
@@ -471,7 +497,9 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className={`p-6 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
               <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-                <Activity className="h-5 w-5 text-yellow-500" /> Recent Activity
+                <Activity className="h-5 w-5 text-yellow-500" />
+                Recent Activity
+                <span className={`text-sm font-normal ${darkMode ? "text-gray-400" : "text-gray-500"}`}>({getFilterLabel()})</span>
               </h3>
               <div className={`p-4 rounded-lg ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
                 <div className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Submissions (Last 7 Days)</div>
@@ -497,7 +525,9 @@ export default function ReportsPage() {
           {/* My Tasks Detail */}
           <div className={`p-6 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-              <FileText className="h-5 w-5 text-yellow-500" /> My Tasks
+              <FileText className="h-5 w-5 text-yellow-500" />
+              My Tasks
+              <span className={`text-sm font-normal ${darkMode ? "text-gray-400" : "text-gray-500"}`}>({getFilterLabel()})</span>
             </h3>
             <div className="space-y-3">
               {analytics.myTasks && analytics.myTasks.length > 0 ? analytics.myTasks.map((task: any, idx: number) => {
