@@ -23,30 +23,30 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
-import DatePicker from "@/src/components/ui/DatePicker";
 
 export default function ReportsPage() {
   const { user } = useAuth();
   const { darkMode } = useTheme();
-  const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ startDate: "", endDate: "", zone: "", state: "", city: "" });
-  const [startDateInput, setStartDateInput] = useState("");
-  const [endDateInput, setEndDateInput] = useState("");
+  // Applied filters (used for API + client filtering)
+  const [appliedFilters, setAppliedFilters] = useState({ city: "", assignedTo: "", role: "", status: "" });
   const [filterCities, setFilterCities] = useState<string[]>([]);
-  const [filterZones, setFilterZones] = useState<string[]>([]);
-  const [filterStates, setFilterStates] = useState<string[]>([]);
+  const [filterAssignedTo, setFilterAssignedTo] = useState<string[]>([]);
+  const [filterRole, setFilterRole] = useState<string[]>([]);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [assignmentsPage, setAssignmentsPage] = useState(1);
   const assignmentsPerPage = 10;
   const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [availableZones, setAvailableZones] = useState<string[]>([]);
-  const [availableStates, setAvailableStates] = useState<string[]>([]);
-  const [activeFilters, setActiveFilters] = useState({ startDate: "", endDate: "", zone: "", state: "", city: "" });
+  const [availableUsers, setAvailableUsers] = useState<string[]>([]);
+  // Raw analytics from API (unfiltered by assignedTo/role/status)
+  const [rawAnalytics, setRawAnalytics] = useState<any>(null);
 
   useEffect(() => {
     api.get("/stores/cities").then(r => { if (r.data?.cities) setAvailableCities(r.data.cities); }).catch(() => {});
-    api.get("/stores/zones").then(r => { if (r.data?.zones) setAvailableZones(r.data.zones); }).catch(() => {});
-    api.get("/stores/states").then(r => { if (r.data?.states) setAvailableStates(r.data.states); }).catch(() => {});
+    api.get("/users").then(r => {
+      const users = r.data?.users || r.data || [];
+      setAvailableUsers([...new Set(users.map((u: any) => u.name).filter(Boolean))] as string[]);
+    }).catch(() => {});
   }, []);
 
   const formatDate = (dateStr: string) => {
@@ -67,18 +67,75 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [filters]);
+  }, [appliedFilters]);
+
+  // Client-side filter assignments based on all filters
+  const filteredAssignments = React.useMemo(() => {
+    if (!rawAnalytics?.assignments) return [];
+    return rawAnalytics.assignments.filter((a: any) => {
+      if (appliedFilters.city) {
+        const cities = appliedFilters.city.split(",").map(s => s.trim().toLowerCase());
+        if (!cities.some(c => a.city?.toLowerCase() === c)) return false;
+      }
+      if (appliedFilters.assignedTo) {
+        const names = appliedFilters.assignedTo.split(",").map(s => s.trim().toLowerCase());
+        if (!names.some(n => a.assignedTo?.toLowerCase() === n)) return false;
+      }
+      if (appliedFilters.role) {
+        const roles = appliedFilters.role.split(",").map(s => s.trim().toUpperCase());
+        if (!roles.includes(a.role?.toUpperCase())) return false;
+      }
+      if (appliedFilters.status) {
+        const statuses = appliedFilters.status.split(",").map(s => s.trim().replace(/ /g, "_").toUpperCase());
+        if (!statuses.includes(a.status?.toUpperCase())) return false;
+      }
+      return true;
+    });
+  }, [rawAnalytics, appliedFilters]);
+
+  // Build analytics object with client-filtered assignments merged in
+  const analytics = React.useMemo(() => {
+    if (!rawAnalytics) return null;
+    const recceAssignments = filteredAssignments.filter((a: any) => a.role === "RECCE");
+    const installAssignments = filteredAssignments.filter((a: any) => a.role === "INSTALLATION");
+    const recceAssigned = recceAssignments.length;
+    const recceSubmitted = recceAssignments.filter((a: any) => ["RECCE_SUBMITTED","RECCE SUBMITTED"].includes(a.status?.toUpperCase())).length;
+    const recceApproved = recceAssignments.filter((a: any) => ["RECCE_APPROVED","RECCE APPROVED"].includes(a.status?.toUpperCase())).length;
+    const recceRejected = recceAssignments.filter((a: any) => ["RECCE_REJECTED","RECCE REJECTED"].includes(a.status?.toUpperCase())).length;
+    const installAssigned = installAssignments.length;
+    const installSubmitted = installAssignments.filter((a: any) => ["INSTALLATION_SUBMITTED","INSTALLATION SUBMITTED"].includes(a.status?.toUpperCase())).length;
+    const installCompleted = installAssignments.filter((a: any) => ["COMPLETED"].includes(a.status?.toUpperCase())).length;
+    const hasAnyFilter = appliedFilters.city || appliedFilters.assignedTo || appliedFilters.role || appliedFilters.status;
+    return {
+      ...rawAnalytics,
+      assignments: filteredAssignments,
+      recce: hasAnyFilter ? {
+        ...rawAnalytics.recce,
+        assigned: recceAssigned,
+        submitted: recceSubmitted,
+        approved: recceApproved,
+        rejected: recceRejected,
+        total: recceAssigned,
+        completionRate: recceAssigned > 0 ? ((recceApproved / recceAssigned) * 100).toFixed(2) : "0.00",
+      } : rawAnalytics.recce,
+      installation: hasAnyFilter ? {
+        ...rawAnalytics.installation,
+        assigned: installAssigned,
+        submitted: installSubmitted,
+        completed: installCompleted,
+        total: installAssigned,
+        completionRate: installAssigned > 0 ? ((installCompleted / installAssigned) * 100).toFixed(2) : "0.00",
+      } : rawAnalytics.installation,
+    };
+  }, [rawAnalytics, filteredAssignments, appliedFilters]);
 
   const applyFilters = () => {
-    const applied = {
-      startDate: startDateInput,
-      endDate: endDateInput,
-      zone: filterZones.join(","),
-      state: filterStates.join(","),
+    setAppliedFilters({
       city: filterCities.join(","),
-    };
-    setActiveFilters(applied);
-    setFilters(applied);
+      assignedTo: filterAssignedTo.join(","),
+      role: filterRole.join(","),
+      status: filterStatus.join(","),
+    });
     setAssignmentsPage(1);
   };
 
@@ -133,7 +190,7 @@ export default function ReportsPage() {
       XLSX.utils.book_append_sheet(wb, ws, 'Assignments');
       
       const today = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `Elora_Assignment_Details_${today}.xlsx`);
+      XLSX.writeFile(wb, `Elora_Assignments_All_Time_${today}.xlsx`);
       
       toast.success("Exported successfully!");
     } catch (error) {
@@ -144,33 +201,31 @@ export default function ReportsPage() {
 
   const getFilterLabel = () => {
     const parts: string[] = [];
-    if (activeFilters.startDate && activeFilters.endDate) parts.push(`${activeFilters.startDate} – ${activeFilters.endDate}`);
-    else if (activeFilters.startDate) parts.push(`From ${activeFilters.startDate}`);
-    else if (activeFilters.endDate) parts.push(`Until ${activeFilters.endDate}`);
-    if (activeFilters.zone) parts.push(activeFilters.zone.split(",").join(", "));
-    if (activeFilters.state) parts.push(activeFilters.state.split(",").join(", "));
-    if (activeFilters.city) parts.push(activeFilters.city.split(",").join(", "));
+    if (appliedFilters.city) parts.push(appliedFilters.city.split(",").join(", "));
+    if (appliedFilters.assignedTo) parts.push(appliedFilters.assignedTo.split(",").join(", "));
+    if (appliedFilters.role) parts.push(appliedFilters.role.split(",").join(", "));
+    if (appliedFilters.status) parts.push(appliedFilters.status.split(",").join(", "));
     return parts.length > 0 ? parts.join(" · ") : "All";
   };
+
+  const getAssignmentTitle = () => "All Time Assignments";
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
-      });
+      // All filters handled client-side
       const { data } = await api.get(`/analytics/dashboard?${params.toString()}`);
-      setAnalytics(data.analytics || {});
+      setRawAnalytics(data.analytics || {});
     } catch (error) {
       console.error('Analytics error:', error);
       toast.error("Failed to load analytics");
-      // Set empty analytics to prevent crashes
-      setAnalytics({
+      setRawAnalytics({
         overview: { totalAssigned: 0, pending: 0, submitted: 0, approved: 0, completed: 0, completionRate: 0 },
         recentActivity: { submissionsLast7Days: 0 },
         distribution: { byCity: [] },
-        myTasks: []
+        myTasks: [],
+        assignments: [],
       });
     } finally {
       setLoading(false);
@@ -210,26 +265,21 @@ export default function ReportsPage() {
       {/* Filters */}
       <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
         <div className="flex flex-wrap gap-3">
-          {/* Start Date */}
-          <DatePicker value={startDateInput} onChange={setStartDateInput} placeholder="Start Date" className="w-[150px]" />
-          {/* End Date */}
-          <DatePicker value={endDateInput} onChange={setEndDateInput} placeholder="End Date" className="w-[150px]" />
-          <FilterDropdown label="Zone" allLabel="All Zones" options={availableZones} selected={filterZones}
-            onChange={setFilterZones} className="w-[140px]" />
-          <FilterDropdown label="State" allLabel="All States" options={availableStates} selected={filterStates}
-            onChange={setFilterStates} className="w-[140px]" />
-          <FilterDropdown label="City" allLabel="All Cities" options={availableCities} selected={filterCities}
-            onChange={setFilterCities} className="w-[140px]" />
+          <FilterDropdown label="Location" allLabel="All Locations" options={availableCities} selected={filterCities}
+            onChange={setFilterCities} className="w-[150px]" />
+          <FilterDropdown label="Assigned To" allLabel="All Users" options={availableUsers} selected={filterAssignedTo}
+            onChange={setFilterAssignedTo} className="w-[150px]" />
+          <FilterDropdown label="Role" allLabel="All Roles" options={["RECCE", "INSTALLATION"]} selected={filterRole}
+            onChange={setFilterRole} className="w-[130px]" />
+          <FilterDropdown label="Status" allLabel="All Status" options={["RECCE ASSIGNED","RECCE SUBMITTED","RECCE APPROVED","INSTALLATION ASSIGNED","INSTALLATION SUBMITTED","COMPLETED"]} selected={filterStatus}
+            onChange={setFilterStatus} className="w-[150px]" />
           <button onClick={applyFilters}
             className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold text-sm cursor-pointer">
-            Apply
+            Apply Filter
           </button>
           <button onClick={() => {
-            setStartDateInput(""); setEndDateInput("");
-            setFilterZones([]); setFilterStates([]); setFilterCities([]);
-            const empty = { startDate: "", endDate: "", zone: "", state: "", city: "" };
-            setFilters(empty);
-            setActiveFilters(empty);
+            setFilterCities([]); setFilterAssignedTo([]); setFilterRole([]); setFilterStatus([]);
+            setAppliedFilters({ city: "", assignedTo: "", role: "", status: "" });
             setAssignmentsPage(1);
           }} className={`px-4 py-2 rounded-lg font-semibold text-sm cursor-pointer ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}>
             Reset
@@ -367,7 +417,7 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className={`text-lg font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
                 <FileText className="h-5 w-5 text-yellow-500" />
-                Recent Assignments
+                {getAssignmentTitle()}
                 <span className={`text-sm font-normal ${darkMode ? "text-gray-400" : "text-gray-500"}`}>({getFilterLabel()})</span>
               </h3>
               <button
