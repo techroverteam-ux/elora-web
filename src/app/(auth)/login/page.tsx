@@ -319,6 +319,19 @@ export default function LoginPage() {
               }`}>
                 Secure admin access • Protected by encryption
               </p>
+              <p className={`text-xs mt-2 ${
+                darkMode ? "text-gray-500" : "text-gray-400"
+              }`}>
+                Powered by{' '}
+                <a 
+                  href="https://www.techrover.co.in/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-yellow-500 hover:text-yellow-600 font-semibold transition-colors"
+                >
+                  TechRover
+                </a>
+              </p>
             </div>
           </div>
         </div>
