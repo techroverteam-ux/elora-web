@@ -146,6 +146,7 @@ export default function StoresPage() {
     dealerCode: "",
     dealerName: "",
     dealerAddress: "",
+    mobile: "",
     clientCode: "",
     invoiceNo: "",
     boardRate: "",
@@ -338,6 +339,10 @@ export default function StoresPage() {
                 lng: Number(newStoreData.longitude),
               },
             }),
+        },
+        contact: {
+          personName: newStoreData.dealerName,
+          mobile: newStoreData.mobile,
         },
       };
       await api.post("/stores", payload);
@@ -1589,6 +1594,11 @@ export default function StoresPage() {
                     <th
                       className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                     >
+                      Mobile Number
+                    </th>
+                    <th
+                      className={`px-4 py-4 text-left text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                    >
                       Board Type
                     </th>
                     <th
@@ -1764,6 +1774,13 @@ export default function StoresPage() {
                             title={store.location.address}
                           >
                             {store.location.address || "-"}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div
+                            className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}
+                          >
+                            {store.contact?.mobile || "-"}
                           </div>
                         </td>
                         <td className="px-4 py-4">
@@ -2568,6 +2585,22 @@ export default function StoresPage() {
                           </span>
                         </div>
                       )}
+                      <div className="flex justify-between">
+                        <span
+                          className={
+                            darkMode ? "text-gray-400" : "text-gray-600"
+                          }
+                        >
+                          Mobile:
+                        </span>
+                        <span
+                          className={
+                            darkMode ? "text-gray-200" : "text-gray-900"
+                          }
+                        >
+                          {store.contact?.mobile || "-"}
+                        </span>
+                      </div>
                       <div className="flex justify-between">
                         <span
                           className={
@@ -3580,6 +3613,16 @@ export default function StoresPage() {
                   value={newStoreData.dealerAddress}
                   onChange={handleInputChange}
                   className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Mobile Number</label>
+                <input
+                  name="mobile"
+                  value={newStoreData.mobile}
+                  onChange={handleInputChange}
+                  className={inputClass}
+                  placeholder="e.g. 9876543210"
                 />
               </div>
               <div>

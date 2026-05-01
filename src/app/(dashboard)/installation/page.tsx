@@ -437,6 +437,12 @@ export default function InstallationListPage() {
                                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
                                 <span className="line-clamp-2">{store.location.address || store.location.city}</span>
                             </div>
+                            {store.contact?.mobile && (
+                              <div className={`flex items-center gap-2 text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                                <span className="text-xs">📱</span>
+                                <span>{store.contact.mobile}</span>
+                              </div>
+                            )}
                             <button onClick={() => router.push(`/installation/${store._id}`)} className={`w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 text-white ${isDone ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
                                 {isDone ? <><CheckCircle2 className="h-4 w-4" /> View Details</> : <><Camera className="h-4 w-4" /> Upload Proof</>}
                             </button>
@@ -464,6 +470,7 @@ export default function InstallationListPage() {
                               )}
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Store</th>
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Location</th>
+                              <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Mobile</th>
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{isAdmin ? "Assigned To" : "Assigned By"}</th>
                               <th className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Status</th>
                               <th className={`px-6 py-3 text-right text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Action</th>
@@ -492,6 +499,9 @@ export default function InstallationListPage() {
                                        <td className="px-6 py-4">
                                             <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{store.location.city}</div>
                                             <div className={`text-xs truncate max-w-[200px] ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.location.address}</div>
+                                       </td>
+                                       <td className="px-6 py-4">
+                                            <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{store.contact?.mobile || "-"}</div>
                                        </td>
                                        <td className="px-6 py-4">
                                            {isAdmin ? (

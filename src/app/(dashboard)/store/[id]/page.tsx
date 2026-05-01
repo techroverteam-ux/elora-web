@@ -171,6 +171,7 @@ export default function StoreDetailsPage() {
                 <input placeholder="District" value={editData.location?.district || ""} onChange={(e) => setEditData({...editData, location: {...editData.location, district: e.target.value}})} className={inputClass} />
                 <input placeholder="City" value={editData.location?.city || ""} onChange={(e) => setEditData({...editData, location: {...editData.location, city: e.target.value}})} className={inputClass} />
                 <textarea placeholder="Address" value={editData.location?.address || ""} onChange={(e) => setEditData({...editData, location: {...editData.location, address: e.target.value}})} className={inputClass} rows={2} />
+                <input placeholder="Mobile Number" value={editData.contact?.mobile || ""} onChange={(e) => setEditData({...editData, contact: {...editData.contact, mobile: e.target.value}})} className={inputClass} />
               </div>
             ) : (
               <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
@@ -178,6 +179,7 @@ export default function StoreDetailsPage() {
                 <div><span className="text-gray-500">State:</span> {store.location.state || "-"}</div>
                 <div><span className="text-gray-500">District:</span> {store.location.district || "-"}</div>
                 <div><span className="text-gray-500">City:</span> {store.location.city || "-"}</div>
+                <div><span className="text-gray-500">Mobile:</span> {store.contact?.mobile || "-"}</div>
                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
                   <span className="text-gray-500">Address:</span>
                   <p className="mt-1">{store.location.address || "-"}</p>
