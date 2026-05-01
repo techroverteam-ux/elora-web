@@ -31,6 +31,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import * as XLSX from "xlsx";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import { generateReccePDF, generateReccePPT } from "@/src/utils/recceExport";
 
 export default function RecceListPage() {
   const router = useRouter();
@@ -252,25 +253,19 @@ export default function RecceListPage() {
       return;
     }
     setIsDownloadingPPT(true);
+    const toastId = toast.loading("Generating PPT...");
     try {
-      toast.loading("Generating PPTs...");
-      const response = await api.post('/stores/ppt/bulk', {
-        storeIds: Array.from(selectedStoreIds),
-        type: "recce"
-      }, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Recce_Report_${selectedStoreIds.size}_Stores_${new Date().toISOString().split('T')[0]}.pptx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.dismiss();
+      const storeDataList = await Promise.all(
+        Array.from(selectedStoreIds).map(id => api.get(`/stores/${id}`).then(r => r.data.store))
+      );
+      await generateReccePPT(storeDataList);
+      toast.dismiss(toastId);
       toast.success(`Downloaded PPT with ${selectedStoreIds.size} stores`);
       setSelectedStoreIds(new Set());
-    } catch (err) {
-      toast.dismiss();
-      toast.error('Failed to download PPTs');
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      console.error('PPT generation error:', err);
+      toast.error(err?.message || 'Failed to generate PPT');
     } finally {
       setIsDownloadingPPT(false);
     }
@@ -282,25 +277,19 @@ export default function RecceListPage() {
       return;
     }
     setIsDownloadingPDF(true);
+    const toastId = toast.loading("Generating PDF...");
     try {
-      toast.loading("Generating PDFs...");
-      const response = await api.post('/stores/pdf/bulk', {
-        storeIds: Array.from(selectedStoreIds),
-        type: "recce"
-      }, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Recce_Report_${selectedStoreIds.size}_Stores_${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.dismiss();
+      const storeDataList = await Promise.all(
+        Array.from(selectedStoreIds).map(id => api.get(`/stores/${id}`).then(r => r.data.store))
+      );
+      await generateReccePDF(storeDataList);
+      toast.dismiss(toastId);
       toast.success(`Downloaded PDF with ${selectedStoreIds.size} stores`);
       setSelectedStoreIds(new Set());
-    } catch (err) {
-      toast.dismiss();
-      toast.error('Failed to download PDFs');
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      console.error('PDF generation error:', err);
+      toast.error(err?.message || 'Failed to generate PDF');
     } finally {
       setIsDownloadingPDF(false);
     }
