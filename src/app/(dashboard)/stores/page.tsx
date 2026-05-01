@@ -399,6 +399,62 @@ export default function StoresPage() {
     }
   };
 
+  const handleExportSelectedStores = async () => {
+    if (selectedStoreIds.size === 0) {
+      toast.error("Please select stores first");
+      return;
+    }
+    
+    try {
+      toast.dismiss();
+      toast.loading("Exporting selected stores...");
+      
+      // Try the dedicated endpoint first
+      try {
+        const response = await api.post("/stores/export/selected", {
+          storeIds: Array.from(selectedStoreIds)
+        }, {
+          responseType: "blob",
+        });
+        
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `Selected_Stores_Export_${selectedStoreIds.size}_stores.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        
+        toast.dismiss();
+        toast.success(`${selectedStoreIds.size} stores exported successfully!`);
+        setSelectedStoreIds(new Set()); // Clear selection after export
+      } catch (endpointError) {
+        // Fallback: Use regular export with store IDs as query params
+        console.log('Dedicated endpoint not available, using fallback method');
+        const storeIdsParam = Array.from(selectedStoreIds).join(',');
+        const response = await api.get(`/stores/export?storeIds=${storeIdsParam}`, {
+          responseType: "blob",
+        });
+        
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `Selected_Stores_Export_${selectedStoreIds.size}_stores.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        
+        toast.dismiss();
+        toast.success(`${selectedStoreIds.size} stores exported successfully!`);
+        setSelectedStoreIds(new Set()); // Clear selection after export
+      }
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.dismiss();
+      toast.error("Failed to export selected stores");
+    }
+  };
+
   const downloadPPT = async (
     storeId: string,
     dealerCode: string,
@@ -1194,6 +1250,12 @@ export default function StoresPage() {
                   className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm"
                 >
                   <FileSpreadsheet className="h-4 w-4 mr-2" /> Bulk PPT ({selectedStoreIds.size})
+                </button>
+                <button
+                  onClick={handleExportSelectedStores}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
+                >
+                  <Download className="h-4 w-4 mr-2" /> Export Excel ({selectedStoreIds.size})
                 </button>
               </div>
               
@@ -2371,6 +2433,59 @@ export default function StoresPage() {
 
             {/* Mobile Cards */}
             <div className="lg:hidden space-y-3 p-4">
+              {/* Mobile Bulk Actions */}
+              {selectedStoreIds.size > 0 && (
+                <div className={`p-4 rounded-lg border mb-4 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-blue-50 border-blue-200"}`}>
+                  <div className="flex flex-wrap gap-2">
+                    {hasPermission('stores', 'edit') && (
+                      <>
+                        <button
+                          onClick={() => openAssignModal("RECCE")}
+                          className="flex-1 min-w-[120px] inline-flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                        >
+                          <UserPlus className="h-4 w-4 mr-1" /> Recce ({selectedStoreIds.size})
+                        </button>
+                        {/* Installation Assignment for Approved Recce */}
+                        {stores.filter(s => selectedStoreIds.has(s._id) && s.currentStatus === StoreStatus.RECCE_APPROVED).length > 0 && (
+                          <button
+                            onClick={() => openAssignModal("INSTALLATION")}
+                            className="flex-1 min-w-[120px] inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
+                          >
+                            <UserPlus className="h-4 w-4 mr-1" /> Install ({stores.filter(s => selectedStoreIds.has(s._id) && s.currentStatus === StoreStatus.RECCE_APPROVED).length})
+                          </button>
+                        )}
+                      </>
+                    )}
+                    <button
+                      onClick={() => downloadBulkPDF("recce")}
+                      className="flex-1 min-w-[100px] inline-flex items-center justify-center px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium text-sm"
+                    >
+                      <FileText className="h-4 w-4 mr-1" /> PDF ({selectedStoreIds.size})
+                    </button>
+                    <button
+                      onClick={() => downloadBulkPPT("recce")}
+                      className="flex-1 min-w-[100px] inline-flex items-center justify-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-1" /> PPT ({selectedStoreIds.size})
+                    </button>
+                    <button
+                      onClick={handleExportSelectedStores}
+                      className="flex-1 min-w-[100px] inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
+                    >
+                      <Download className="h-4 w-4 mr-1" /> Excel ({selectedStoreIds.size})
+                    </button>
+                    {hasPermission('stores', 'delete') && (
+                      <button
+                        onClick={handleBulkDelete}
+                        className="flex-1 min-w-[100px] inline-flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" /> Delete ({selectedStoreIds.size})
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {stores.map((store) => {
                 const isSelected = selectedStoreIds.has(store._id);
                 return (
