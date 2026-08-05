@@ -79,7 +79,6 @@ export default function RecceListPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
         setDebouncedSearch(searchTerm);
-        setPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -373,17 +372,14 @@ export default function RecceListPage() {
     if (!selectedInstallUserId) return toast.error("Please select a user");
     setIsAssigningInstallation(true);
     try {
-      await api.post("/stores/assign", {
-        storeIds: Array.from(selectedStoreIds),
-        userId: selectedInstallUserId,
-        stage: "INSTALLATION",
-      });
-      toast.success("Installation Assignment Successful!");
+      const payload = { storeIds: Array.from(selectedStoreIds), installUserId: selectedInstallUserId };
+      await api.post("/stores/bulk-assign-installation", payload);
+      toast.success("Installation Assigned Successfully");
       setIsInstallModalOpen(false);
       setSelectedStoreIds(new Set());
       fetchStores();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Assignment Failed");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Assignment Failed");
     } finally {
       setIsAssigningInstallation(false);
     }
@@ -543,8 +539,17 @@ export default function RecceListPage() {
             <div className="flex gap-3 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
                   <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
-                  <input type="text" placeholder="Search store name, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                      className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
+                  <input 
+                    type="text" 
+                    placeholder="Search store name, city..." 
+                    value={searchTerm} 
+                    onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                    className={`w-full sm:w-[250px] pl-9 pr-4 py-2 rounded-lg border focus:outline-none transition-colors text-sm ${
+                      darkMode 
+                        ? "bg-gray-800 border-gray-600 text-gray-200 focus:border-yellow-500 placeholder-gray-500" 
+                        : "bg-white border-gray-300 text-gray-800 focus:border-yellow-500 placeholder-gray-400"
+                    }`}
+                  />
               </div>
               <FilterDropdown
                 label="All Status"
@@ -582,7 +587,7 @@ export default function RecceListPage() {
           </p>
           {(debouncedSearch || filterStatus.length > 0) && (
             <button 
-              onClick={() => { setSearchTerm(""); setFilterStatus([]); }}
+              onClick={() => { setSearchTerm(""); setFilterStatus([]); setPage(1); }}
               className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600"
             >
               Clear Filters

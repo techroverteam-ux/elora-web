@@ -89,7 +89,6 @@ export default function UsersPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-      setPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchInput]);
@@ -427,7 +426,7 @@ export default function UsersPage() {
               type="text"
               placeholder="Search by name or email..."
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={(e) => { setSearchInput(e.target.value); setPage(1); }}
               className={`w-full pl-10 pr-4 py-2.5 rounded-lg border transition-colors ${
                 darkMode
                   ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-yellow-500"

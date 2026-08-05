@@ -49,7 +49,6 @@ export default function RFQGenerationPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-      setPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -198,7 +197,7 @@ export default function RFQGenerationPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
-            <input type="text" placeholder="Search stores, dealers..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+            <input type="text" placeholder="Search stores, dealers..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
               className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
           </div>
           <FilterDropdown label="All Status" allLabel="All Status" options={Object.values(StoreStatus).map(s => s.replace(/_/g, " "))} selected={filterStatus.map(s => s.replace(/_/g, " "))} onChange={(vals) => { setFilterStatus(vals.map(v => v.replace(/ /g, "_"))); setPage(1); }} className="sm:w-[160px]" />

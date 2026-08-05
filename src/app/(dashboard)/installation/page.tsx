@@ -61,7 +61,6 @@ export default function InstallationListPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
         setDebouncedSearch(searchTerm);
-        setPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -366,8 +365,12 @@ export default function InstallationListPage() {
          <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
                 <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
-                <input type="text" placeholder="Search store name, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
+                <input 
+                  type="text" 
+                  placeholder="Search store name, city..." 
+                  value={searchTerm} 
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`} />
             </div>
             <FilterDropdown
               label="All Status"
@@ -396,7 +399,7 @@ export default function InstallationListPage() {
           </p>
           {(debouncedSearch || filterStatus.length > 0) && (
             <button 
-              onClick={() => { setSearchTerm(""); setFilterStatus([]); }}
+              onClick={() => { setSearchTerm(""); setFilterStatus([]); setPage(1); }}
               className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600"
             >
               Clear Filters

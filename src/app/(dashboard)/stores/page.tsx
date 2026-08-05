@@ -98,6 +98,7 @@ export default function StoresPage() {
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(
     new Set(),
   );
+  const [isSelectAllLoading, setIsSelectAllLoading] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignStage, setAssignStage] = useState<"RECCE" | "INSTALLATION">(
     "RECCE",
@@ -156,6 +157,8 @@ export default function StoresPage() {
     totalCost: "",
     latitude: "",
     longitude: "",
+    directInstallation: false,
+    boards: [] as { elementId: string; elementName: string; quantity: number; customRate: number; width: string; height: string; unit: string }[],
   };
 
   const [newStoreData, setNewStoreData] = useState(initialFormState);
@@ -164,15 +167,11 @@ export default function StoresPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-      setPage(1); // Reset to page 1 on new search
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [filterCity, filterStatus, filterClientCode, filterClientName]);
+
 
   const fetchStores = async () => {
     const startTime = Date.now();
@@ -181,7 +180,12 @@ export default function StoresPage() {
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", limit.toString());
-      if (filterStatus.length > 0) params.append("status", filterStatus.join(","));
+      if (filterStatus.length > 0) {
+        params.append("status", filterStatus.join(","));
+      } else {
+        // By default, only show unassigned stores in the operations queue
+        params.append("status", "UPLOADED,MANUALLY_ADDED");
+      }
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filterCity.length > 0) params.append("city", filterCity.join(","));
       if (filterClientCode.length > 0) filterClientCode.forEach(c => params.append("clientCode", c));
@@ -344,6 +348,10 @@ export default function StoresPage() {
           personName: newStoreData.dealerName,
           mobile: newStoreData.mobile,
         },
+        directInstallation: newStoreData.directInstallation,
+        ...(newStoreData.directInstallation && {
+          boards: newStoreData.boards,
+        }),
       };
       await api.post("/stores", payload);
       toast.success("Store Added Successfully");
@@ -739,17 +747,50 @@ export default function StoresPage() {
     setSelectedStoreIds(newSet);
   };
 
-  const toggleAllSelection = () => {
-    // When filtering by RECCE_APPROVED status, only select approved recce stores
+  const toggleAllSelection = async () => {
     const selectableStores = filterStatus.includes(StoreStatus.RECCE_APPROVED) 
       ? stores.filter(s => s.currentStatus === StoreStatus.RECCE_APPROVED)
       : stores;
-    
-    if (selectedStoreIds.size === selectableStores.length && selectableStores.length > 0) {
+
+    if (selectableStores.length === 0) return;
+
+    const allCurrentPageSelected = selectableStores.every(s => selectedStoreIds.has(s._id));
+
+    if (allCurrentPageSelected) {
       setSelectedStoreIds(new Set());
-    } else {
-      const allIds = selectableStores.map((s) => s._id);
+      return;
+    }
+
+    try {
+      setIsSelectAllLoading(true);
+      toast.loading("Selecting all stores...", { id: "selectAll" });
+      const params = new URLSearchParams();
+      if (filterStatus.length > 0) {
+        params.append("status", filterStatus.join(","));
+      } else {
+        params.append("status", "UPLOADED,MANUALLY_ADDED");
+      }
+      if (debouncedSearch) params.append("search", debouncedSearch);
+      if (filterCity.length > 0) params.append("city", filterCity.join(","));
+      if (filterClientCode.length > 0) filterClientCode.forEach(c => params.append("clientCode", c));
+      if (filterClientName.length > 0) filterClientName.forEach(n => params.append("clientName", n));
+      params.append("returnAllIds", "true");
+
+      const { data } = await api.get(`/stores?${params.toString()}`);
+      
+      const allStores = data.stores || [];
+      const selectableAllStores = filterStatus.includes(StoreStatus.RECCE_APPROVED) 
+        ? allStores.filter((s: any) => s.currentStatus === StoreStatus.RECCE_APPROVED)
+        : allStores;
+
+      const allIds = selectableAllStores.map((s: any) => s._id);
       setSelectedStoreIds(new Set(allIds));
+      toast.success(`Selected ${allIds.length} stores`, { id: "selectAll" });
+    } catch (error) {
+      console.error("Failed to select all stores", error);
+      toast.error("Failed to select all stores", { id: "selectAll" });
+    } finally {
+      setIsSelectAllLoading(false);
     }
   };
 
@@ -1167,16 +1208,18 @@ export default function StoresPage() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Search */}
-            <div className="relative flex-1">
-              <Search
-                className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-              />
+            <div className="relative">
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
               <input
                 type="text"
                 placeholder="Search stores, dealers..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm font-medium ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200" : "bg-white border-gray-300 text-gray-700"} focus:outline-none focus:border-yellow-500`}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                className={`w-full sm:w-[250px] pl-9 pr-4 py-2 rounded-lg border focus:outline-none transition-colors text-sm ${
+                  darkMode
+                    ? "bg-gray-800 border-gray-600 text-gray-200 focus:border-yellow-500 placeholder-gray-500"
+                    : "bg-white border-gray-300 text-gray-800 focus:border-yellow-500 placeholder-gray-400"
+                }`}
               />
             </div>
             {/* Status Filter */}
@@ -1526,12 +1569,19 @@ export default function StoresPage() {
                 <thead className={darkMode ? "bg-gray-800/50" : "bg-gray-50"}>
                   <tr>
                     <th className="px-4 py-4 text-left w-12">
-                      <button onClick={toggleAllSelection}>
+                      <button onClick={toggleAllSelection} disabled={isSelectAllLoading}>
                         {(() => {
                           const selectableStores = filterStatus.includes(StoreStatus.RECCE_APPROVED) 
                             ? stores.filter(s => s.currentStatus === StoreStatus.RECCE_APPROVED)
                             : stores;
-                          return selectedStoreIds.size === selectableStores.length && selectableStores.length > 0 ? (
+                          
+                          if (selectableStores.length === 0) {
+                            return <Square className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />;
+                          }
+
+                          const allCurrentPageSelected = selectableStores.every(s => selectedStoreIds.has(s._id));
+                          
+                          return allCurrentPageSelected ? (
                             <CheckSquare className="h-5 w-5 text-yellow-500" />
                           ) : (
                             <Square
@@ -3650,6 +3700,161 @@ export default function StoresPage() {
                 />
               </div>
             </div>
+            
+            <div className={sectionHeaderClass}>DIRECT INSTALLATION</div>
+            <div className={`p-4 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+              <label className="flex items-center gap-2 cursor-pointer mb-4">
+                <input
+                  type="checkbox"
+                  checked={newStoreData.directInstallation}
+                  onChange={(e) => setNewStoreData({ ...newStoreData, directInstallation: e.target.checked })}
+                  className="w-4 h-4 text-yellow-500 rounded border-gray-300 focus:ring-yellow-500"
+                />
+                <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+                  Direct Installation (Skip Recce)
+                </span>
+              </label>
+
+              {newStoreData.directInstallation && (
+                <div className="space-y-4 pt-4 border-t border-dashed border-gray-300">
+                  <div className="flex justify-between items-center">
+                    <label className={labelClass}>Boards (Required)</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewStoreData({
+                          ...newStoreData,
+                          boards: [...newStoreData.boards, { elementId: "", elementName: "", quantity: 1, customRate: 0, width: "", height: "", unit: "ft" }]
+                        });
+                      }}
+                      className="text-xs text-yellow-600 hover:text-yellow-700 font-medium flex items-center gap-1"
+                    >
+                      + Add Board
+                    </button>
+                  </div>
+                  
+                  {newStoreData.boards.map((board, index) => (
+                    <div key={index} className="flex flex-col gap-2 bg-white dark:bg-gray-900 p-3 rounded border border-gray-200 dark:border-gray-700 relative">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className={`text-xs font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Board {index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBoards = newStoreData.boards.filter((_, i) => i !== index);
+                            setNewStoreData({ ...newStoreData, boards: newBoards });
+                          }}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Width *</label>
+                          <input
+                            type="number"
+                            required
+                            value={board.width}
+                            onChange={(e) => {
+                              const newBoards = [...newStoreData.boards];
+                              newBoards[index].width = e.target.value;
+                              setNewStoreData({ ...newStoreData, boards: newBoards });
+                            }}
+                            className={inputClass}
+                            placeholder="W"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Height *</label>
+                          <input
+                            type="number"
+                            required
+                            value={board.height}
+                            onChange={(e) => {
+                              const newBoards = [...newStoreData.boards];
+                              newBoards[index].height = e.target.value;
+                              setNewStoreData({ ...newStoreData, boards: newBoards });
+                            }}
+                            className={inputClass}
+                            placeholder="H"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Unit</label>
+                          <select
+                            value={board.unit}
+                            onChange={(e) => {
+                              const newBoards = [...newStoreData.boards];
+                              newBoards[index].unit = e.target.value;
+                              setNewStoreData({ ...newStoreData, boards: newBoards });
+                            }}
+                            className={inputClass}
+                          >
+                            <option value="ft">ft</option>
+                            <option value="in">in</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-[1fr_80px] gap-3 mt-1">
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Element *</label>
+                          <select
+                            required
+                            value={board.elementId}
+                            onChange={(e) => {
+                              const client = clientsMap.get(newStoreData.clientCode);
+                              const selectedClientElement = client?.elements?.find((el: any) => el.elementId === e.target.value);
+                              const newBoards = [...newStoreData.boards];
+                              if (selectedClientElement) {
+                                newBoards[index] = {
+                                  ...newBoards[index],
+                                  elementId: selectedClientElement.elementId,
+                                  elementName: selectedClientElement.elementName,
+                                  customRate: selectedClientElement.customRate
+                                };
+                              } else {
+                                newBoards[index].elementId = e.target.value;
+                              }
+                              setNewStoreData({ ...newStoreData, boards: newBoards });
+                            }}
+                            className={inputClass}
+                          >
+                            <option value="">Select Element</option>
+                            {newStoreData.clientCode && clientsMap.get(newStoreData.clientCode)?.elements?.map((el: any) => (
+                              <option key={el.elementId} value={el.elementId}>
+                                {el.elementName} (₹{el.customRate}/sq.unit)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Qty</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={board.quantity}
+                            onChange={(e) => {
+                              const newBoards = [...newStoreData.boards];
+                              newBoards[index].quantity = Number(e.target.value);
+                              setNewStoreData({ ...newStoreData, boards: newBoards });
+                            }}
+                            className={inputClass}
+                            placeholder="Qty"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {newStoreData.boards.length === 0 && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">No boards added. Please add at least one board.</div>
+                  )}
+                </div>
+              )}
+            </div>
+
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button

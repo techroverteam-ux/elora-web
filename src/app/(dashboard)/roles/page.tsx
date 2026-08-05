@@ -47,7 +47,6 @@ export default function RolesPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-      setPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -316,7 +315,7 @@ export default function RolesPage() {
               type="text"
               placeholder="Search roles..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
               className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm ${
                 darkMode
                   ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400"
