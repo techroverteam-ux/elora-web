@@ -323,6 +323,9 @@ export default function StoresPage() {
     if (!newStoreData.clientCode) {
       return toast.error("Client Code is required");
     }
+    if (newStoreData.mobile && newStoreData.mobile.length !== 10) {
+      return toast.error("Mobile number must be exactly 10 digits");
+    }
     setIsSavingStore(true);
     try {
       const payload = {
@@ -3670,7 +3673,11 @@ export default function StoresPage() {
                 <input
                   name="mobile"
                   value={newStoreData.mobile}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setNewStoreData(prev => ({ ...prev, mobile: value }));
+                  }}
+                  maxLength={10}
                   className={inputClass}
                   placeholder="e.g. 9876543210"
                 />
