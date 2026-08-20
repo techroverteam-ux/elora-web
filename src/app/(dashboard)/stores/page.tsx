@@ -1233,6 +1233,7 @@ export default function StoresPage() {
               selected={filterStatus.map((s) => s.replace(/_/g, " "))}
               onChange={(vals) => { setFilterStatus(vals.map((v) => v.replace(/ /g, "_"))); setPage(1); }}
               className="sm:w-[160px]"
+              maxSelect={4}
             />
             {/* City Filter */}
             <FilterDropdown
@@ -1242,6 +1243,7 @@ export default function StoresPage() {
               selected={filterCity}
               onChange={(vals) => { setFilterCity(vals); setPage(1); }}
               className="sm:w-[180px]"
+              maxSelect={4}
             />
             {/* Client Code Filter */}
             <FilterDropdown
@@ -1251,6 +1253,7 @@ export default function StoresPage() {
               selected={filterClientCode}
               onChange={(vals) => { setFilterClientCode(vals); setPage(1); }}
               className="sm:w-[150px]"
+              maxSelect={4}
             />
             {/* Client Name Filter */}
             <FilterDropdown
@@ -1260,8 +1263,105 @@ export default function StoresPage() {
               selected={filterClientName}
               onChange={(vals) => { setFilterClientName(vals); setPage(1); }}
               className="sm:w-[150px]"
+              maxSelect={4}
             />
           </div>
+
+          {/* Active Filters Chips */}
+          {(filterStatus.length > 0 || filterCity.length > 0 || filterClientCode.length > 0 || filterClientName.length > 0) && (
+            <div className="flex flex-wrap items-center gap-2 mt-1 animate-in fade-in slide-in-from-top-2">
+              <span className={`text-xs font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Active Filters:</span>
+              
+              {filterStatus.map((status) => (
+                <div
+                  key={`status-${status}`}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    darkMode ? "bg-gray-800 border-gray-700 text-gray-200 shadow-sm" : "bg-white border-gray-200 text-gray-700 shadow-sm"
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+                  {status.replace(/_/g, " ")}
+                  <button
+                    onClick={() => { setFilterStatus(filterStatus.filter((s) => s !== status)); setPage(1); }}
+                    className={`ml-1 hover:text-red-500 focus:outline-none transition-colors ${darkMode ? "text-gray-400" : "text-gray-400"}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {filterCity.map((city) => (
+                <div
+                  key={`city-${city}`}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    darkMode ? "bg-gray-800 border-gray-700 text-gray-200 shadow-sm" : "bg-white border-gray-200 text-gray-700 shadow-sm"
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  {city}
+                  <button
+                    onClick={() => { setFilterCity(filterCity.filter((s) => s !== city)); setPage(1); }}
+                    className={`ml-1 hover:text-red-500 focus:outline-none transition-colors ${darkMode ? "text-gray-400" : "text-gray-400"}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {filterClientCode.map((code) => (
+                <div
+                  key={`code-${code}`}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    darkMode ? "bg-gray-800 border-gray-700 text-gray-200 shadow-sm" : "bg-white border-gray-200 text-gray-700 shadow-sm"
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  {code}
+                  <button
+                    onClick={() => { setFilterClientCode(filterClientCode.filter((s) => s !== code)); setPage(1); }}
+                    className={`ml-1 hover:text-red-500 focus:outline-none transition-colors ${darkMode ? "text-gray-400" : "text-gray-400"}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {filterClientName.map((name) => (
+                <div
+                  key={`name-${name}`}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    darkMode ? "bg-gray-800 border-gray-700 text-gray-200 shadow-sm" : "bg-white border-gray-200 text-gray-700 shadow-sm"
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                  {name}
+                  <button
+                    onClick={() => { setFilterClientName(filterClientName.filter((s) => s !== name)); setPage(1); }}
+                    className={`ml-1 hover:text-red-500 focus:outline-none transition-colors ${darkMode ? "text-gray-400" : "text-gray-400"}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {(filterStatus.length + filterCity.length + filterClientCode.length + filterClientName.length) > 1 && (
+                <button
+                  onClick={() => {
+                    setFilterStatus([]);
+                    setFilterCity([]);
+                    setFilterClientCode([]);
+                    setFilterClientName([]);
+                    setPage(1);
+                  }}
+                  className={`text-xs px-2 py-1 ml-1 hover:underline transition-colors ${
+                    darkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Bulk Actions */}
           {selectedStoreIds.size > 0 && (

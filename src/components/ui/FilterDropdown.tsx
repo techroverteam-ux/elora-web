@@ -11,6 +11,7 @@ interface FilterDropdownProps {
   onChange: (selected: string[]) => void;
   allLabel?: string;
   className?: string;
+  maxSelect?: number;
 }
 
 export default function FilterDropdown({
@@ -20,6 +21,7 @@ export default function FilterDropdown({
   onChange,
   allLabel = "All",
   className = "",
+  maxSelect,
 }: FilterDropdownProps) {
   const { darkMode } = useTheme();
   const [open, setOpen] = useState(false);
@@ -43,7 +45,15 @@ export default function FilterDropdown({
 
   const toggle = (val: string) => {
     if (val === "__all__") { onChange([]); return; }
-    onChange(selected.includes(val) ? selected.filter((s) => s !== val) : [...selected, val]);
+    if (selected.includes(val)) {
+      onChange(selected.filter((s) => s !== val));
+    } else {
+      if (maxSelect && selected.length >= maxSelect) {
+        import("react-hot-toast").then((toast) => toast.default.error(`You can only select up to ${maxSelect} options.`));
+        return;
+      }
+      onChange([...selected, val]);
+    }
   };
 
   const displayLabel =
