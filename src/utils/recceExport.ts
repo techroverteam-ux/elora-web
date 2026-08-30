@@ -61,7 +61,7 @@ function drawNoImage(doc: any, x: number, y: number, w: number, h: number) {
   doc.text("No Image", x + w / 2, y + h / 2, { align: "center" });
 }
 
-export async function generateReccePDF(stores: any[]): Promise<void> {
+export async function generateReccePDF(stores: any[], filename?: string): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = 210;
@@ -310,10 +310,10 @@ export async function generateReccePDF(stores: any[]): Promise<void> {
     }
   }
 
-  doc.save(`Recce_Report_${stores.length}_Stores_${new Date().toISOString().split("T")[0]}.pdf`);
+  doc.save(filename || `Recce_Report_${stores.length}_Stores_${new Date().toISOString().split("T")[0]}.pdf`);
 }
 
-export async function generateReccePPT(stores: any[]): Promise<void> {
+export async function generateReccePPT(stores: any[], filename?: string): Promise<void> {
   const pptxgen = (await import("pptxgenjs")).default;
   const prs = new pptxgen();
   prs.layout = "LAYOUT_WIDE";
@@ -471,5 +471,5 @@ export async function generateReccePPT(stores: any[]): Promise<void> {
     }
   }
 
-  prs.writeFile({ fileName: `Recce_Report_${stores.length}_Stores_${new Date().toISOString().split("T")[0]}.pptx` });
+  await prs.writeFile({ fileName: filename || `Recce_Report_${stores.length}_Stores_${new Date().toISOString().split("T")[0]}.pptx` });
 }

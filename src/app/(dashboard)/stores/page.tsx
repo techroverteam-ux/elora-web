@@ -182,8 +182,8 @@ export default function StoresPage() {
       params.append("limit", limit.toString());
       if (filterStatus.length > 0) {
         params.append("status", filterStatus.join(","));
-      } else {
-        // By default, only show unassigned stores in the operations queue
+      } else if (!isRecceOrInstallUser) {
+        // By default, only show unassigned stores in the operations queue for admins/managers
         params.append("status", "UPLOADED,MANUALLY_ADDED");
       }
       if (debouncedSearch) params.append("search", debouncedSearch);
