@@ -475,8 +475,12 @@ export default function RecceListPage() {
     if (!selectedInstallUserId) return toast.error("Please select a user");
     setIsAssigningInstallation(true);
     try {
-      const payload = { storeIds: Array.from(selectedStoreIds), installUserId: selectedInstallUserId };
-      await api.post("/stores/bulk-assign-installation", payload);
+      const payload = { 
+        storeIds: Array.from(selectedStoreIds), 
+        userId: selectedInstallUserId,
+        stage: "INSTALLATION"
+      };
+      await api.post("/stores/assign", payload);
       toast.success("Installation Assigned Successfully");
       setIsInstallModalOpen(false);
       setSelectedStoreIds(new Set());
