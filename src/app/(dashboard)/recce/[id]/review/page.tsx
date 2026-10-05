@@ -56,25 +56,27 @@ export default function RecceReviewPage() {
 
   useEffect(() => {
     if (!id) return;
-    fetchStore();
+    fetchStore(true);
   }, [id]);
 
-  const fetchStore = async () => {
+  const fetchStore = async (showSpinner = true) => {
     try {
-      setLoading(true);
+      if (showSpinner) setLoading(true);
       const { data } = await api.get(`/stores/${id}`);
-      setStore(data.store);
+      if (data?.store) {
+        setStore(data.store);
+      }
     } catch (error) {
       toast.error("Failed to load store details");
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   };
 
   const handleApprovePhoto = async (photoIndex: number) => {
     setProcessing(true);
     try {
-      await api.post(`/stores/${id}/recce/photos/${photoIndex}/review`, {
+      const { data } = await api.post(`/stores/${id}/recce/photos/${photoIndex}/review`, {
         status: "APPROVED",
       });
       // Remove from held if it was held
@@ -83,8 +85,12 @@ export default function RecceReviewPage() {
         delete updated[photoIndex];
         saveHeldPhotos(updated);
       }
+      if (data?.store) {
+        setStore(data.store);
+      } else {
+        await fetchStore(false);
+      }
       toast.success(`Photo ${photoIndex + 1} approved`);
-      fetchStore();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to approve photo");
     } finally {
@@ -101,11 +107,10 @@ export default function RecceReviewPage() {
 
     setProcessing(true);
     try {
-      await api.post(`/stores/${id}/recce/photos/${rejectPhotoIndex}/review`, {
+      const { data } = await api.post(`/stores/${id}/recce/photos/${rejectPhotoIndex}/review`, {
         status: "REJECTED",
         rejectionReason,
       });
-      toast.success(`Photo ${rejectPhotoIndex + 1} rejected`);
       // Remove from held if it was held
       if (heldPhotos[rejectPhotoIndex] !== undefined) {
         const updated = { ...heldPhotos };
@@ -115,7 +120,12 @@ export default function RecceReviewPage() {
       setShowRejectModal(false);
       setRejectPhotoIndex(null);
       setRejectionReason("");
-      fetchStore();
+      if (data?.store) {
+        setStore(data.store);
+      } else {
+        await fetchStore(false);
+      }
+      toast.success(`Photo ${rejectPhotoIndex + 1} rejected`);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to reject photo");
     } finally {
@@ -202,11 +212,31 @@ export default function RecceReviewPage() {
   const confirmApproveAll = async () => {
     setProcessing(true);
     try {
-      await api.post(`/stores/${id}/recce/approve-all`);
+      // Approve all recce photos together via review endpoint
+      const { data } = await api.post(`/stores/${id}/recce/review`, {
+        status: "APPROVED",
+      });
+      saveHeldPhotos({});
+      if (data?.store) {
+        setStore(data.store);
+      } else {
+        await fetchStore(false);
+      }
       toast.success("All photos approved");
-      fetchStore();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to approve all");
+      // Fallback: try /approve-all route
+      try {
+        const { data: fallbackData } = await api.post(`/stores/${id}/recce/approve-all`);
+        saveHeldPhotos({});
+        if (fallbackData?.store) {
+          setStore(fallbackData.store);
+        } else {
+          await fetchStore(false);
+        }
+        toast.success("All photos approved");
+      } catch (fallbackError: any) {
+        toast.error(fallbackError.response?.data?.message || error.response?.data?.message || "Failed to approve all");
+      }
     } finally {
       setProcessing(false);
     }
@@ -260,16 +290,22 @@ export default function RecceReviewPage() {
     );
   }
 
-  const approved = store.recce.approvedPhotosCount || 0;
-  const rejected = store.recce.rejectedPhotosCount || 0;
+  const approved = store.recce.reccePhotos.filter(
+    (photo: any) => photo.approvalStatus === "APPROVED"
+  ).length;
+  const rejected = store.recce.reccePhotos.filter(
+    (photo: any) => photo.approvalStatus === "REJECTED"
+  ).length;
   const onHold = Object.keys(heldPhotos).length;
   const pending = store.recce.reccePhotos.filter(
     (photo: any, idx: number) => !heldPhotos[idx] && (!photo.approvalStatus || photo.approvalStatus === "PENDING")
   ).length;
 
   const getEffectiveStatus = (photo: any, index: number) => {
-    if (heldPhotos[index]) return "HOLD";
-    return photo.approvalStatus;
+    if (heldPhotos[index] && (!photo.approvalStatus || photo.approvalStatus === "PENDING")) {
+      return "HOLD";
+    }
+    return photo.approvalStatus || "PENDING";
   };
 
   return (

@@ -269,7 +269,7 @@ export default function RecceSubmissionPage() {
 
     setUpdatingStatus(true);
     try {
-      await api.post(`/stores/${id}/recce/photos/${selectedPhotoIndex}/review`, {
+      const { data } = await api.post(`/stores/${id}/recce/photos/${selectedPhotoIndex}/review`, {
         status: newStatus,
         rejectionReason: newStatus === "REJECTED" ? rejectionReason : undefined,
       });
@@ -278,8 +278,12 @@ export default function RecceSubmissionPage() {
       setSelectedPhotoIndex(null);
       setRejectionReason("");
       // Refresh store data
-      const { data } = await api.get(`/stores/${id}`);
-      setStore(data.store);
+      if (data?.store) {
+        setStore(data.store);
+      } else {
+        const { data: resData } = await api.get(`/stores/${id}`);
+        setStore(resData.store);
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to update status");
     } finally {
