@@ -382,9 +382,17 @@ export default function StoreDetailsPage() {
                     return (
                       <div key={idx} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
                         <div className="flex gap-3">
-                          <a href={getFullImageUrl(photo.photo)} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                            <img src={getFullImageUrl(photo.photo)} alt={`Photo ${idx + 1}`} className="w-40 h-40 object-cover rounded border border-gray-300 dark:border-gray-600" />
-                          </a>
+                          {photo.photo ? (
+                            <a href={getFullImageUrl(photo.photo)} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                              <img src={getFullImageUrl(photo.photo)} alt={`Photo ${idx + 1}`} className="w-40 h-40 object-cover rounded border border-gray-300 dark:border-gray-600" />
+                            </a>
+                          ) : (
+                            <div className="w-40 h-40 flex flex-col items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-gray-400 text-center p-2 flex-shrink-0">
+                              <Building2 className="w-8 h-8 mb-1 text-blue-400" />
+                              <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Direct Installation</span>
+                              <span className="text-[9px] text-gray-400">(No Recce Photo)</span>
+                            </div>
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className={`text-xs font-semibold mb-2 ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>Photo {idx + 1}</div>
                             <div className={`space-y-1 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>

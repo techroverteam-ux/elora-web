@@ -31,6 +31,7 @@ import {
   XCircle,
   CheckCircle2,
   AlertCircle,
+  Camera,
 } from "lucide-react";
 import { exportToExcel } from "@/src/utils/excelExport";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -64,6 +65,38 @@ export default function StoresPage() {
       (role) => role?.name === "RECCE" || role?.name === "INSTALLATION",
     );
   }, [user]);
+
+  const canDeleteStore = (store: Store) => {
+    if (!user || !user.roles || !Array.isArray(user.roles)) return false;
+    const userRoles = user.roles || [];
+    const isAnyAdmin = userRoles.some((role: any) => {
+      const code = (role?.code || "").toUpperCase();
+      const name = (role?.name || "").toUpperCase();
+      return (
+        code.includes("ADMIN") ||
+        name.includes("ADMIN") ||
+        role?.permissions?.stores?.delete === true
+      );
+    });
+    if (isAnyAdmin) return true;
+
+    const isFieldUser = userRoles.some((role: any) => {
+      const code = (role?.code || "").toUpperCase();
+      const name = (role?.name || "").toUpperCase();
+      return (
+        code === "RECCE" ||
+        code === "INSTALLATION" ||
+        name.includes("RECCE") ||
+        name.includes("INSTALLATION")
+      );
+    });
+
+    if (isFieldUser && store.createdBy) {
+      const creatorId = typeof store.createdBy === "object" ? (store.createdBy as any)?._id : store.createdBy;
+      return String(creatorId) === String(user._id);
+    }
+    return false;
+  };
 
   // Data State
   const [stores, setStores] = useState<Store[]>([]);
@@ -116,6 +149,42 @@ export default function StoresPage() {
   const [isAddStoreOpen, setIsAddStoreOpen] = useState(false);
   const [isSavingStore, setIsSavingStore] = useState(false);
 
+  // Installation user picker for Add Store (direct installation)
+  const [addStoreInstallUsers, setAddStoreInstallUsers] = useState<any[]>([]);
+  const [addStoreInstallSearch, setAddStoreInstallSearch] = useState("");
+
+  // Optional Initial Store Photos for direct installation
+  const [directInstallInitialPhotos, setDirectInstallInitialPhotos] = useState<File[]>([]);
+  const [directInstallInitialPreviews, setDirectInstallInitialPreviews] = useState<string[]>([]);
+
+  const handleDirectInstallInitialPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      const remainingSlots = 10 - directInstallInitialPhotos.length;
+      const filesToAdd = files.slice(0, remainingSlots);
+
+      setDirectInstallInitialPhotos(prev => [...prev, ...filesToAdd]);
+
+      const newPreviews = filesToAdd.map(file => URL.createObjectURL(file));
+      setDirectInstallInitialPreviews(prev => [...prev, ...newPreviews]);
+    }
+  };
+
+  const removeDirectInstallInitialPhoto = (index: number) => {
+    setDirectInstallInitialPhotos(prev => prev.filter((_, i) => i !== index));
+    setDirectInstallInitialPreviews(prev => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const closeAddStoreModal = () => {
+    setIsAddStoreOpen(false);
+    setNewStoreData(initialFormState);
+    setDirectInstallInitialPhotos([]);
+    setDirectInstallInitialPreviews([]);
+  };
+
   // Download Menu State
   const [downloadMenuOpen, setDownloadMenuOpen] = useState<{
     storeId: string;
@@ -158,6 +227,7 @@ export default function StoresPage() {
     latitude: "",
     longitude: "",
     directInstallation: false,
+    installationAssignedTo: "",
     boards: [] as { elementId: string; elementName: string; quantity: number; customRate: number; width: string; height: string; unit: string }[],
   };
 
@@ -326,40 +396,96 @@ export default function StoresPage() {
     if (newStoreData.mobile && newStoreData.mobile.length !== 10) {
       return toast.error("Mobile number must be exactly 10 digits");
     }
+    if (newStoreData.directInstallation) {
+      if (!newStoreData.boards || newStoreData.boards.length === 0) {
+        return toast.error("At least one board is required for direct installation");
+      }
+      for (let i = 0; i < newStoreData.boards.length; i++) {
+        const b = newStoreData.boards[i];
+        if (!b.width || !b.height || !b.elementId) {
+          return toast.error(`Please provide Width, Height, and Element for Board ${i + 1}`);
+        }
+      }
+      if (!newStoreData.installationAssignedTo) {
+        return toast.error("Installation assignment is required for direct installation");
+      }
+    }
     setIsSavingStore(true);
     try {
-      const payload = {
-        dealerCode: newStoreData.dealerCode,
-        storeName: newStoreData.dealerName,
-        vendorCode: newStoreData.vendorCode,
-        clientCode: newStoreData.clientCode,
-        location: {
-          zone: newStoreData.zone,
-          state: newStoreData.state,
-          district: newStoreData.district,
-          city: newStoreData.city,
-          address: newStoreData.dealerAddress,
-          ...(newStoreData.latitude &&
-            newStoreData.longitude && {
-              coordinates: {
-                lat: Number(newStoreData.latitude),
-                lng: Number(newStoreData.longitude),
-              },
-            }),
-        },
-        contact: {
-          personName: newStoreData.dealerName,
-          mobile: newStoreData.mobile,
-        },
-        directInstallation: newStoreData.directInstallation,
-        ...(newStoreData.directInstallation && {
-          boards: newStoreData.boards,
-        }),
-      };
-      await api.post("/stores", payload);
+      if (newStoreData.directInstallation && directInstallInitialPhotos.length > 0) {
+        const formData = new FormData();
+        formData.append("dealerCode", newStoreData.dealerCode);
+        formData.append("storeName", newStoreData.dealerName);
+        if (newStoreData.vendorCode) formData.append("vendorCode", newStoreData.vendorCode);
+        if (newStoreData.clientCode) formData.append("clientCode", newStoreData.clientCode);
+        formData.append(
+          "location",
+          JSON.stringify({
+            zone: newStoreData.zone,
+            state: newStoreData.state,
+            district: newStoreData.district,
+            city: newStoreData.city,
+            address: newStoreData.dealerAddress,
+            ...(newStoreData.latitude &&
+              newStoreData.longitude && {
+                coordinates: {
+                  lat: Number(newStoreData.latitude),
+                  lng: Number(newStoreData.longitude),
+                },
+              }),
+          })
+        );
+        formData.append(
+          "contact",
+          JSON.stringify({
+            personName: newStoreData.dealerName,
+            mobile: newStoreData.mobile,
+          })
+        );
+        formData.append("directInstallation", "true");
+        formData.append("boards", JSON.stringify(newStoreData.boards));
+        formData.append("installationAssignedTo", newStoreData.installationAssignedTo);
+
+        directInstallInitialPhotos.forEach((file) => {
+          formData.append("initialPhotos", file);
+        });
+
+        await api.post("/stores", formData);
+      } else {
+        const payload = {
+          dealerCode: newStoreData.dealerCode,
+          storeName: newStoreData.dealerName,
+          vendorCode: newStoreData.vendorCode,
+          clientCode: newStoreData.clientCode,
+          location: {
+            zone: newStoreData.zone,
+            state: newStoreData.state,
+            district: newStoreData.district,
+            city: newStoreData.city,
+            address: newStoreData.dealerAddress,
+            ...(newStoreData.latitude &&
+              newStoreData.longitude && {
+                coordinates: {
+                  lat: Number(newStoreData.latitude),
+                  lng: Number(newStoreData.longitude),
+                },
+              }),
+          },
+          contact: {
+            personName: newStoreData.dealerName,
+            mobile: newStoreData.mobile,
+          },
+          directInstallation: newStoreData.directInstallation,
+          ...(newStoreData.directInstallation && {
+            boards: newStoreData.boards,
+            installationAssignedTo: newStoreData.installationAssignedTo,
+          }),
+        };
+        await api.post("/stores", payload);
+      }
+
       toast.success("Store Added Successfully");
-      setIsAddStoreOpen(false);
-      setNewStoreData(initialFormState);
+      closeAddStoreModal();
       fetchStores();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to add store");
@@ -2209,7 +2335,7 @@ export default function StoresPage() {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            {hasPermission('stores', 'delete') && (
+                            {canDeleteStore(store) && (
                               <button
                                 onClick={() => handleDelete(store._id)}
                                 className="p-1.5 rounded hover:bg-gray-100/50 dark:hover:bg-gray-700/50 text-red-600"
@@ -2842,7 +2968,7 @@ export default function StoresPage() {
                       >
                         <Eye className="w-3.5 h-3.5" /> View
                       </button>
-                      {hasPermission('stores', 'delete') && (
+                      {canDeleteStore(store) && (
                         <button
                           onClick={() => handleDelete(store._id)}
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 text-red-600 text-xs font-medium"
@@ -3809,12 +3935,35 @@ export default function StoresPage() {
             </div>
             
             <div className={sectionHeaderClass}>DIRECT INSTALLATION</div>
-            <div className={`p-4 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+            <div className={`p-4 rounded-lg border transition-colors ${darkMode ? "bg-gray-800/60 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
               <label className="flex items-center gap-2 cursor-pointer mb-4">
                 <input
                   type="checkbox"
                   checked={newStoreData.directInstallation}
-                  onChange={(e) => setNewStoreData({ ...newStoreData, directInstallation: e.target.checked })}
+                  onChange={async (e) => {
+                    const checked = e.target.checked;
+                    setNewStoreData({
+                      ...newStoreData,
+                      directInstallation: checked,
+                      installationAssignedTo: "",
+                      boards: checked && newStoreData.boards.length === 0
+                        ? [{ elementId: "", elementName: "", quantity: 1, customRate: 0, width: "", height: "", unit: "ft" }]
+                        : newStoreData.boards
+                    });
+                    if (checked) {
+                      try {
+                        const { data } = await api.get(`/users/role/INSTALLATION`);
+                        setAddStoreInstallUsers(data.users || []);
+                      } catch {
+                        setAddStoreInstallUsers([]);
+                      }
+                    } else {
+                      setAddStoreInstallUsers([]);
+                      setAddStoreInstallSearch("");
+                      setDirectInstallInitialPhotos([]);
+                      setDirectInstallInitialPreviews([]);
+                    }
+                  }}
                   className="w-4 h-4 text-yellow-500 rounded border-gray-300 focus:ring-yellow-500"
                 />
                 <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
@@ -3823,9 +3972,9 @@ export default function StoresPage() {
               </label>
 
               {newStoreData.directInstallation && (
-                <div className="space-y-4 pt-4 border-t border-dashed border-gray-300">
+                <div className={`space-y-4 pt-4 border-t border-dashed ${darkMode ? "border-gray-700" : "border-gray-300"}`}>
                   <div className="flex justify-between items-center">
-                    <label className={labelClass}>Boards (Required)</label>
+                    <label className={labelClass}>Boards (Required * - at least 1)</label>
                     <button
                       type="button"
                       onClick={() => {
@@ -3841,16 +3990,25 @@ export default function StoresPage() {
                   </div>
                   
                   {newStoreData.boards.map((board, index) => (
-                    <div key={index} className="flex flex-col gap-2 bg-white dark:bg-gray-900 p-3 rounded border border-gray-200 dark:border-gray-700 relative">
+                    <div
+                      key={index}
+                      className={`flex flex-col gap-2.5 p-3.5 rounded-lg border shadow-sm relative transition-colors ${
+                        darkMode
+                          ? "bg-gray-700/50 border-gray-600"
+                          : "bg-white border-gray-200"
+                      }`}
+                    >
                       <div className="flex justify-between items-center mb-1">
-                        <span className={`text-xs font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Board {index + 1}</span>
+                        <span className={`text-xs font-semibold ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Board {index + 1}</span>
                         <button
                           type="button"
                           onClick={() => {
                             const newBoards = newStoreData.boards.filter((_, i) => i !== index);
                             setNewStoreData({ ...newStoreData, boards: newBoards });
                           }}
-                          className="p-1 text-red-500 hover:bg-red-50 rounded"
+                          className={`p-1 rounded transition-colors ${
+                            darkMode ? "text-red-400 hover:bg-red-900/30" : "text-red-500 hover:bg-red-50"
+                          }`}
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -3858,7 +4016,7 @@ export default function StoresPage() {
 
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Width *</label>
+                          <label className={`block text-[10px] font-medium uppercase mb-1 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>Width *</label>
                           <input
                             type="number"
                             required
@@ -3873,7 +4031,7 @@ export default function StoresPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Height *</label>
+                          <label className={`block text-[10px] font-medium uppercase mb-1 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>Height *</label>
                           <input
                             type="number"
                             required
@@ -3888,7 +4046,7 @@ export default function StoresPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Unit</label>
+                          <label className={`block text-[10px] font-medium uppercase mb-1 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>Unit</label>
                           <select
                             value={board.unit}
                             onChange={(e) => {
@@ -3906,7 +4064,7 @@ export default function StoresPage() {
                       
                       <div className="grid grid-cols-[1fr_80px] gap-3 mt-1">
                         <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Element *</label>
+                          <label className={`block text-[10px] font-medium uppercase mb-1 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>Element *</label>
                           <select
                             required
                             value={board.elementId}
@@ -3937,7 +4095,7 @@ export default function StoresPage() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase mb-1">Qty</label>
+                          <label className={`block text-[10px] font-medium uppercase mb-1 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>Qty</label>
                           <input
                             type="number"
                             min="1"
@@ -3956,8 +4114,128 @@ export default function StoresPage() {
                   ))}
                   
                   {newStoreData.boards.length === 0 && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">No boards added. Please add at least one board.</div>
+                    <div className="text-xs text-red-500 font-medium italic">At least one board is required for direct installation. Please click "+ Add Board".</div>
                   )}
+
+                  {/* Initial Store Photos (Optional - Max 10) */}
+                  <div className={`mt-4 pt-4 border-t border-dashed ${darkMode ? "border-gray-700" : "border-gray-300"}`}>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className={labelClass}>Initial Store Photos (Optional)</label>
+                      <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        {directInstallInitialPhotos.length}/10 photos
+                      </span>
+                    </div>
+
+                    {directInstallInitialPreviews.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
+                        {directInstallInitialPreviews.map((preview, index) => (
+                          <div key={index} className={`relative aspect-video rounded-lg overflow-hidden border group ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+                            <img src={preview} alt={`Initial ${index + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => removeDirectInstallInitialPhoto(index)}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition-opacity"
+                              title="Remove photo"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {directInstallInitialPhotos.length < 10 && (
+                      <label className={`block cursor-pointer border-2 border-dashed rounded-lg p-3 text-center transition-colors ${darkMode ? "border-gray-600 hover:border-yellow-500/50 hover:bg-gray-800" : "border-gray-300 hover:border-yellow-500/50 hover:bg-yellow-50/20"}`}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={handleDirectInstallInitialPhotoChange}
+                        />
+                        <Camera className="h-6 w-6 mx-auto mb-1 text-gray-400" />
+                        <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                          Upload initial store photos ({10 - directInstallInitialPhotos.length} remaining)
+                        </span>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Assign Installation User */}
+                  <div className={`mt-4 pt-4 border-t border-dashed ${darkMode ? "border-gray-700" : "border-gray-300"}`}>
+                    <label className={labelClass}>Assign Installation To * (Required)</label>
+                    {!newStoreData.installationAssignedTo && (
+                      <p className="text-xs text-red-500 font-medium mb-1">Please select an installation user</p>
+                    )}
+                    <div className="relative mt-2 mb-2">
+                      <Search
+                        className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Search installation users..."
+                        value={addStoreInstallSearch}
+                        onChange={(e) => setAddStoreInstallSearch(e.target.value)}
+                        className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200 placeholder-gray-400" : "bg-white border-gray-300 text-gray-700 placeholder-gray-500"} focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20`}
+                      />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                      {addStoreInstallUsers
+                        .filter((u) => {
+                          if (!addStoreInstallSearch) return true;
+                          const q = addStoreInstallSearch.toLowerCase();
+                          return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+                        })
+                        .map((user: any) => (
+                          <div
+                            key={user._id}
+                            onClick={() =>
+                              setNewStoreData({
+                                ...newStoreData,
+                                installationAssignedTo: newStoreData.installationAssignedTo === user._id ? "" : user._id,
+                              })
+                            }
+                            className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all text-sm ${
+                              newStoreData.installationAssignedTo === user._id
+                                ? darkMode
+                                  ? "border-yellow-500 bg-yellow-900/20"
+                                  : "border-yellow-500 bg-yellow-50"
+                                : darkMode
+                                  ? "border-gray-700 hover:border-gray-600 hover:bg-gray-800"
+                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mr-2 ${
+                                newStoreData.installationAssignedTo === user._id
+                                  ? "bg-yellow-500 text-white"
+                                  : darkMode
+                                    ? "bg-gray-700 text-gray-200"
+                                    : "bg-gray-200 text-gray-700"
+                              }`}
+                            >
+                              {user.name?.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-medium text-xs truncate ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
+                                {user.name}
+                              </div>
+                              <div className={`text-[10px] truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                                {user.email}
+                              </div>
+                            </div>
+                            {newStoreData.installationAssignedTo === user._id && (
+                              <CheckSquare className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      {addStoreInstallUsers.length === 0 && (
+                        <div className={`text-center py-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                          <p className="text-xs">Loading users...</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -3966,7 +4244,7 @@ export default function StoresPage() {
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button
               type="button"
-              onClick={() => setIsAddStoreOpen(false)}
+              onClick={closeAddStoreModal}
               className="px-4 py-2 rounded text-gray-600 hover:bg-gray-100"
             >
               Cancel

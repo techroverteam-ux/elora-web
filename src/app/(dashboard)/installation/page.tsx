@@ -22,7 +22,8 @@ import {
   CheckSquare,
   Square,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Trash2
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -59,6 +60,118 @@ export default function InstallationListPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const deleteConfirmOpenRef = React.useRef<Set<string>>(new Set());
+
+  const canDeleteStore = (store: Store) => {
+    if (!user || !user.roles || !Array.isArray(user.roles)) return false;
+    const userRoles = user.roles || [];
+    const isAnyAdmin = userRoles.some((role: any) => {
+      const code = (role?.code || "").toUpperCase();
+      const name = (role?.name || "").toUpperCase();
+      return (
+        code.includes("ADMIN") ||
+        name.includes("ADMIN") ||
+        role?.permissions?.stores?.delete === true
+      );
+    });
+    if (isAnyAdmin) return true;
+
+    const isFieldUser = userRoles.some((role: any) => {
+      const code = (role?.code || "").toUpperCase();
+      const name = (role?.name || "").toUpperCase();
+      return (
+        code === "RECCE" ||
+        code === "INSTALLATION" ||
+        name.includes("RECCE") ||
+        name.includes("INSTALLATION")
+      );
+    });
+
+    if (isFieldUser && store.createdBy) {
+      const creatorId = typeof store.createdBy === "object" ? (store.createdBy as any)?._id : store.createdBy;
+      return String(creatorId) === String(user._id);
+    }
+    return false;
+  };
+
+  const handleDelete = async (id: string) => {
+    if (deleteConfirmOpenRef.current.has(id)) return;
+    deleteConfirmOpenRef.current.add(id);
+
+    const confirmed = await new Promise<boolean>((resolve) => {
+      toast(
+        (t) => (
+          <div
+            className={`rounded-xl shadow-2xl border-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+          >
+            <div
+              className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}
+            >
+              <p
+                className={`font-bold text-base ${darkMode ? "text-white" : "text-gray-900"}`}
+              >
+                Delete this store?
+              </p>
+            </div>
+            <div className="px-6 py-4">
+              <p
+                className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+              >
+                This action cannot be undone. The store will be permanently removed.
+              </p>
+            </div>
+            <div
+              className={`px-6 py-4 flex gap-3 justify-end border-t ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-gray-50"}`}
+            >
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  resolve(false);
+                }}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all border-2 ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  resolve(true);
+                }}
+                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 border-2 border-red-600 rounded-lg hover:bg-red-700 hover:border-red-700 transition-all shadow-lg shadow-red-500/20"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ),
+        {
+          duration: Infinity,
+          position: "bottom-center",
+          style: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+            maxWidth: "420px",
+          },
+        },
+      );
+    });
+
+    deleteConfirmOpenRef.current.delete(id);
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/stores/${id}`);
+      toast.success("Store deleted successfully", {
+        position: "bottom-center",
+      });
+      fetchStores();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to delete store", {
+        position: "bottom-center",
+      });
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -540,6 +653,14 @@ export default function InstallationListPage() {
                             <button onClick={() => router.push(`/installation/${store._id}`)} className={`w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 text-white ${isDone ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
                                 {isDone ? <><CheckCircle2 className="h-4 w-4" /> View Details</> : <><Camera className="h-4 w-4" /> Upload Proof</>}
                             </button>
+                            {canDeleteStore(store) && (
+                              <button
+                                onClick={() => handleDelete(store._id)}
+                                className="w-full mt-2 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/40"
+                              >
+                                <Trash2 className="h-4 w-4" /> Delete Store
+                              </button>
+                            )}
                         </div>
                     </div>
                   );
@@ -620,6 +741,16 @@ export default function InstallationListPage() {
                                                  {isDone ? <><Eye className="w-3 h-3 mr-1"/> View</> : <><Camera className="w-3 h-3 mr-1"/> Start</>}
                                              </button>
                                              
+                                             {canDeleteStore(store) && (
+                                               <button
+                                                 onClick={() => handleDelete(store._id)}
+                                                 className="p-1.5 rounded-lg transition-colors text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                 title="Delete Store"
+                                               >
+                                                 <Trash2 className="w-4 h-4" />
+                                               </button>
+                                             )}
+
                                              {isAdmin && (
                                                <div className="relative">
                                                  <button

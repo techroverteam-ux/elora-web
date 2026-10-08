@@ -73,7 +73,9 @@ export default function InstallationSubmissionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const approvedReccePhotos = store?.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED") || [];
+    const approvedReccePhotos = (store?.recce?.reccePhotos || [])
+      .map((p: any, originalIndex: number) => ({ ...p, originalIndex }))
+      .filter((p: any) => p.approvalStatus === "APPROVED");
     const approvedCount = approvedReccePhotos.length;
     
     if (approvedCount === 0) {
@@ -93,7 +95,7 @@ export default function InstallationSubmissionPage() {
     let fileIndex = 0;
 
     approvedReccePhotos.forEach((reccePhoto: any) => {
-      const originalIndex = store?.recce?.reccePhotos?.findIndex((p: any) => p.photo === reccePhoto.photo) || 0;
+      const originalIndex = reccePhoto.originalIndex;
       if (installationPhotos[originalIndex]) {
         formData.append(`installationPhoto${fileIndex}`, installationPhotos[originalIndex]!);
         photosData.push({ reccePhotoIndex: originalIndex });
@@ -231,18 +233,29 @@ export default function InstallationSubmissionPage() {
                 </span>
               </div>
               <div className="space-y-6">
-                {store.recce.reccePhotos
+                {(store.recce.reccePhotos || [])
+                  .map((p: any, originalIndex: number) => ({ ...p, originalIndex }))
                   .filter((p: any) => p.approvalStatus === "APPROVED")
                   .slice((currentPage - 1) * photosPerPage, currentPage * photosPerPage)
-                  .map((reccePhoto, idx) => {
-                  const originalIndex = store.recce!.reccePhotos!.findIndex((p: any) => p.photo === reccePhoto.photo);
+                  .map((reccePhoto) => {
+                  const originalIndex = reccePhoto.originalIndex;
                   return (
                   <div key={originalIndex} className={`p-4 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <h4 className={`font-bold mb-2 ${darkMode ? "text-blue-400" : "text-blue-600"}`}>Recce Photo {originalIndex + 1}</h4>
-                        <div className="aspect-video rounded-lg overflow-hidden border-2 border-blue-500 mb-3">
-                          <img src={getFullImageUrl(reccePhoto.photo)} alt={`Recce ${originalIndex + 1}`} className="h-full w-full object-cover" />
+                        <h4 className={`font-bold mb-2 ${darkMode ? "text-blue-400" : "text-blue-600"}`}>
+                          {reccePhoto.photo ? `Recce Photo ${originalIndex + 1}` : `Board ${originalIndex + 1}`}
+                        </h4>
+                        <div className="aspect-video rounded-lg overflow-hidden border-2 border-blue-500 mb-3 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                          {reccePhoto.photo ? (
+                            <img src={getFullImageUrl(reccePhoto.photo)} alt={`Recce ${originalIndex + 1}`} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-gray-400 p-4 text-center">
+                              <Building2 className="w-8 h-8 mb-1 text-blue-400" />
+                              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Direct Installation Board</span>
+                              <span className="text-[10px] text-gray-400 mt-0.5">Direct measurements provided</span>
+                            </div>
+                          )}
                         </div>
                         <div className={`p-3 rounded-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
                           <div className="flex items-center gap-2 mb-2">
@@ -259,7 +272,7 @@ export default function InstallationSubmissionPage() {
                                 <span className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Elements:</span>
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                {reccePhoto.elements.map((el, i) => (
+                                {reccePhoto.elements.map((el: any, i: number) => (
                                   <span key={i} className={`px-2 py-1 rounded text-xs ${darkMode ? "bg-yellow-900/30 text-yellow-400" : "bg-yellow-100 text-yellow-800"}`}>
                                     {el.elementName} (Qty: {el.quantity})
                                   </span>

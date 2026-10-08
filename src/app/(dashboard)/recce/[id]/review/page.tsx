@@ -14,6 +14,7 @@ import {
   AlertCircle,
   CheckSquare,
   PauseCircle,
+  Building2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -398,7 +399,15 @@ export default function RecceReviewPage() {
                 return (
                   <div key={index} className={`rounded-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
                     <div className="relative">
-                      <img src={getFullImageUrl(photo.photo)} alt={`Recce ${index + 1}`} className="w-full h-48 object-cover" />
+                      {photo.photo ? (
+                        <img src={getFullImageUrl(photo.photo)} alt={`Recce ${index + 1}`} className="w-full h-48 object-cover" />
+                      ) : (
+                        <div className="w-full h-48 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400">
+                          <Building2 className="w-8 h-8 mb-1 text-blue-400" />
+                          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Direct Installation</span>
+                          <span className="text-[10px] text-gray-400">(No Photo)</span>
+                        </div>
+                      )}
                       <div className="absolute top-2 right-2">{getStatusBadge(getEffectiveStatus(photo, index))}</div>
                     </div>
                     <div className="p-4 space-y-3">

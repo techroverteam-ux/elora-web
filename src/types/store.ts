@@ -20,6 +20,7 @@ export interface Store {
   vendorCode?: string;
   clientCode?: string;
   clientId?: string;
+  createdBy?: { _id: string; name: string; email: string } | string;
 
   location: {
     zone?: string;
