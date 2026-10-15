@@ -48,6 +48,8 @@ import {
   StatusBadge,
   StickyBar,
   Stepper,
+  WorkHistoryCard,
+  RecceBoardsSection,
   buildSteps,
   cx,
   useInputClass,
@@ -87,6 +89,8 @@ export default function RecceSubmissionPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const [showValidationError, setShowValidationError] = useState(false);
+  // Admins see a submitted recce read-only first; "Edit recce" opens the form.
+  const [editing, setEditing] = useState(false);
 
   const isRecceUser = user?.roles?.some((r: any) => r.code === "RECCE" || r.name === "RECCE");
   const isAdmin = user?.roles?.some((r: any) => r.code === "SUPER_ADMIN" || r.code === "ADMIN");
@@ -107,14 +111,12 @@ export default function RecceSubmissionPage() {
         const s = data.store;
         setStore(s);
 
-        // Fetch client elements
+        // Fetch client elements in the background so the page shows as soon as the store arrives.
         if (s.clientId) {
-          try {
-            const clientRes = await api.get(`/clients/${s.clientId}`);
-            setClientElements(clientRes.data?.elements || []);
-          } catch (err) {
-            console.error("Failed to fetch client elements:", err);
-          }
+          api
+            .get(`/clients/${s.clientId}`)
+            .then((clientRes) => setClientElements(clientRes.data?.elements || []))
+            .catch((err) => console.error("Failed to fetch client elements:", err));
         }
 
         if (s.recce && s.recce.submittedDate) {
@@ -335,6 +337,7 @@ export default function RecceSubmissionPage() {
     return m;
   };
 
+  const viewOnly = submitted && !isRecceUser && !editing;
   const boardImages = reccePhotos.map((rp, i) => ({ src: rp.preview || "", caption: `Board ${i + 1}` }));
   const initialImages = initialPreviews.map((p, i) => ({ src: p, caption: `Store photo ${i + 1}` }));
 
@@ -348,7 +351,9 @@ export default function RecceSubmissionPage() {
     ? {
         tone: "danger" as const,
         title: `${rejectedCount} of ${serverPhotos.length} boards rejected`,
-        body: "Read the reason on each red board, replace the photo or correct the size, then press Update recce.",
+        body: isRecceUser
+          ? "Read the reason on each red board, replace the photo or correct the size, then press Update recce."
+          : "The recce user has to re-shoot the red boards and resubmit. Use Review photos to change a decision.",
       }
     : pendingCount > 0
     ? {
@@ -389,12 +394,46 @@ export default function RecceSubmissionPage() {
           {banner.body}
         </NextStep>
 
-        <Section title="Progress" icon={<Layers className="h-4 w-4" />} collapsible defaultOpen={false} subtitle="Where this store is in the workflow">
+        <Section title="Progress" icon={<Layers className="h-4 w-4" />} collapsible subtitle="Where this store is in the workflow">
           <Stepper steps={buildSteps(store)} />
         </Section>
 
+        <WorkHistoryCard store={store} />
+
         <div className="grid items-start gap-4 lg:grid-cols-3">
           {/* ---------------- form ---------------- */}
+          {viewOnly ? (
+            <div className="space-y-4 lg:col-span-2">
+              <RecceBoardsSection
+                store={store}
+                getUrl={getFullImageUrl}
+                onOpen={(imgs, i) => lightbox.open(imgs, i)}
+                title="Boards measured"
+              />
+              {initialPreviews.length > 0 && (
+                <Section title="Store photos" icon={<Camera className="h-4 w-4" />} count={initialPreviews.length} subtitle="Taken by the recce user on arrival">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                    {initialImages.map((img, idx) => (
+                      <PhotoTile key={idx} src={img.src} alt={img.caption} aspect="aspect-square" onOpen={() => lightbox.open(initialImages, idx)} />
+                    ))}
+                  </div>
+                </Section>
+              )}
+              <Section title="Recce remarks" icon={<StickyNote className="h-4 w-4" />}>
+                <p className={cx("whitespace-pre-line text-sm", notes ? s.body : s.faint)}>{notes || "No remarks were added."}</p>
+              </Section>
+              <div className="flex flex-wrap gap-2">
+                {isAdmin && (
+                  <Btn variant="primary" icon={<ClipboardCheck className="h-4 w-4" />} onClick={() => router.push(`/recce/${id}/review`)}>
+                    Review photos
+                  </Btn>
+                )}
+                <Btn variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={() => setEditing(true)}>
+                  Edit recce details
+                </Btn>
+              </div>
+            </div>
+          ) : (
           <form id="recce-form" onSubmit={handleSubmit} className="space-y-4 lg:col-span-2">
             {/* Step 1: store photos */}
             <Section
@@ -643,6 +682,7 @@ export default function RecceSubmissionPage() {
               />
             </Section>
           </form>
+          )}
 
           {/* ---------------- store facts ---------------- */}
           <aside className="space-y-4">
@@ -656,6 +696,7 @@ export default function RecceSubmissionPage() {
         </div>
       </div>
 
+      {!viewOnly && (
       <StickyBar>
         <div className="flex-1 space-y-1.5">
           <p className={`text-sm ${s.body}`}>
@@ -671,6 +712,7 @@ export default function RecceSubmissionPage() {
           {submitted ? "Update recce" : "Submit recce"}
         </Btn>
       </StickyBar>
+      )}
 
       {/* Status change (admin) */}
       <Dialog
