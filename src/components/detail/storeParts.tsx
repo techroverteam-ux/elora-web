@@ -3,10 +3,10 @@
 // Store-specific pieces built on the detail kit: workflow steps, the store facts sidebar and the cost card.
 
 import React from "react";
-import { Building2, IndianRupee, MapPin, Package, Phone, FileSpreadsheet } from "lucide-react";
+import { Building2, IndianRupee, MapPin, Package, Phone, FileSpreadsheet, History, Ruler } from "lucide-react";
 import { Store } from "@/src/types/store";
-import { InfoGrid, MapLink, mapsUrl, ContactActions, Section, MoneyRows, Step } from "./kit";
-import { formatDate, formatINR, nameOf, sqft } from "./format";
+import { InfoGrid, MapLink, mapsUrl, ContactActions, Section, MoneyRows, Step, PhotoTile, Badge, ApprovalBadge, useSurface, cx } from "./kit";
+import { formatDate, formatDateTime, formatINR, nameOf, sqft, timeAgo, toFeet } from "./format";
 
 const ORDER: Record<string, number> = {
   UPLOADED: 0,
@@ -203,3 +203,132 @@ export const StoreFacts = ({ store, showMoney }: { store: Store; showMoney: bool
     {showMoney && <CostCard store={store} />}
   </div>
 );
+
+/* ------------------------------------------------------------------ */
+/* Full work history: who did what, and when                           */
+/* ------------------------------------------------------------------ */
+
+const when = (v?: string) => (v ? `${formatDateTime(v)} (${timeAgo(v)})` : "");
+
+export const WorkHistoryCard = ({ store }: { store: Store }) => {
+  const photos = store.recce?.reccePhotos || [];
+  const approved = photos.filter((p) => p.approvalStatus === "APPROVED").length;
+  const rejected = photos.filter((p) => p.approvalStatus === "REJECTED").length;
+  const pending = photos.length - approved - rejected;
+  const s = useSurface();
+  const block = (title: string, items: Parameters<typeof InfoGrid>[0]["items"]) => (
+    <div className={cx("rounded-lg border p-3", s.sunken)}>
+      <p className={cx("mb-2 text-xs font-bold uppercase tracking-wide", s.muted)}>{title}</p>
+      <InfoGrid items={items} />
+    </div>
+  );
+  return (
+    <Section title="Work history" icon={<History className="h-4 w-4" />} subtitle="Who did each step, and when">
+      <div className="grid gap-3 lg:grid-cols-3">
+        {block("Store", [
+          { label: "Added on", value: when(store.createdAt), full: true },
+          { label: "Added by", value: personName(store.createdBy) },
+          { label: "Priority", value: store.workflow?.priority ? store.workflow.priority.charAt(0) + store.workflow.priority.slice(1).toLowerCase() : "" },
+          { label: "Last updated", value: when(store.updatedAt), full: true },
+        ])}
+        {block("Recce", [
+          { label: "Recce user", value: personName(store.workflow?.recceAssignedTo) },
+          { label: "Assigned by", value: personName(store.workflow?.recceAssignedBy) },
+          { label: "Assigned on", value: when(store.recce?.assignedDate), full: true },
+          { label: "Submitted on", value: when(store.recce?.submittedDate), full: true },
+          { label: "Boards measured", value: photos.length ? String(photos.length) : "" },
+          { label: "Review", value: photos.length ? `${approved} approved · ${rejected} rejected · ${pending} pending` : "" },
+          { label: "Store photos", value: String(store.recce?.initialPhotos?.length || 0) },
+        ])}
+        {block("Installation", [
+          { label: "Installer", value: personName(store.workflow?.installationAssignedTo) },
+          { label: "Assigned by", value: personName(store.workflow?.installationAssignedBy) },
+          { label: "Assigned on", value: when(store.installation?.assignedDate), full: true },
+          { label: "Submitted on", value: when(store.installation?.submittedDate), full: true },
+          { label: "Installed photos", value: String(store.installation?.photos?.length || 0) },
+        ])}
+      </div>
+    </Section>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Every recce board, read-only                                        */
+/* ------------------------------------------------------------------ */
+
+export const RecceBoardsSection = ({
+  store,
+  getUrl,
+  onOpen,
+  title = "All recce boards",
+  collapsible,
+  defaultOpen = true,
+}: {
+  store: Store;
+  getUrl: (path: string) => string;
+  onOpen: (images: Array<{ src: string; caption: string }>, index: number) => void;
+  title?: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}) => {
+  const s = useSurface();
+  const photos = (store.recce?.reccePhotos || []) as Array<any>;
+  if (photos.length === 0) return null;
+  const images = photos.map((p, i) => ({ src: p.photo ? getUrl(p.photo) : "", caption: `Board ${i + 1} · recce` }));
+  const posOf = (i: number) => images.slice(0, i).filter((x) => !!x.src).length;
+  const approved = photos.filter((p) => p.approvalStatus === "APPROVED").length;
+  return (
+    <Section
+      title={title}
+      icon={<Ruler className="h-4 w-4" />}
+      count={photos.length}
+      subtitle={`As measured by the recce user · ${approved} of ${photos.length} approved`}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
+    >
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {photos.map((p, i) => {
+          const ft = toFeet(p.measurements);
+          return (
+            <article key={i} className={cx("overflow-hidden rounded-lg border", s.sunken, p.approvalStatus === "REJECTED" && "border-red-300")}>
+              <PhotoTile
+                src={images[i].src}
+                alt={`Board ${i + 1}`}
+                aspect="aspect-video"
+                className="rounded-none border-0"
+                onOpen={() => onOpen(images, posOf(i))}
+                empty={<span>Direct installation · no recce photo</span>}
+                overlay={
+                  <>
+                    <Badge tone="neutral" className="shadow-sm">Board {i + 1}</Badge>
+                    <ApprovalBadge status={p.approvalStatus} className="shadow-sm" />
+                  </>
+                }
+              />
+              <div className="space-y-2 p-3">
+                <InfoGrid
+                  items={[
+                    { label: "Measured", value: p.measurements ? `${p.measurements.width} × ${p.measurements.height} ${p.measurements.unit || ""}` : "" },
+                    { label: "In feet", value: `${ft.width.toFixed(2)} × ${ft.height.toFixed(2)} · ${sqft(p.measurements).toFixed(1)} sq.ft` },
+                    {
+                      label: "Element",
+                      value: (p.elements || []).map((e: any) => `${e.elementName}${e.quantity ? ` × ${e.quantity}` : ""}`).join(", "),
+                      full: true,
+                    },
+                    { label: "Reviewed on", value: p.approvedAt ? formatDate(p.approvedAt) : "", hideIfEmpty: true },
+                  ]}
+                />
+                {p.rejectionReason && (
+                  <p className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-800">
+                    <span className="font-semibold">Rejected: </span>
+                    {p.rejectionReason}
+                  </p>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </Section>
+  );
+};

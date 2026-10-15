@@ -24,6 +24,8 @@ import {
   StickyBar,
   Stepper,
   StoreFacts,
+  WorkHistoryCard,
+  RecceBoardsSection,
   buildSteps,
   cx,
   formatDate,
@@ -189,9 +191,11 @@ export default function InstallationSubmissionPage() {
           {banner.body}
         </NextStep>
 
-        <Section title="Progress" icon={<Layers className="h-4 w-4" />} collapsible defaultOpen={false} subtitle="Where this store is in the workflow">
+        <Section title="Progress" icon={<Layers className="h-4 w-4" />} collapsible subtitle="Where this store is in the workflow">
           <Stepper steps={buildSteps(store)} />
         </Section>
+
+        <WorkHistoryCard store={store} />
 
         <div className="grid items-start gap-4 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">
@@ -300,8 +304,16 @@ export default function InstallationSubmissionPage() {
               </Section>
             )}
 
+            <RecceBoardsSection
+              store={store}
+              getUrl={getFullImageUrl}
+              onOpen={(imgs, i) => lightbox.open(imgs, i)}
+              title="All recce boards"
+              collapsible
+            />
+
             {initialPhotos.length > 0 && (
-              <Section title="Store photos" icon={<ImageIcon className="h-4 w-4" />} count={initialPhotos.length} subtitle="Taken by the recce user" collapsible defaultOpen={false}>
+              <Section title="Store photos" icon={<ImageIcon className="h-4 w-4" />} count={initialPhotos.length} subtitle="Taken by the recce user on arrival" collapsible>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
                   {initialImages.map((img, idx) => (
                     <PhotoTile key={idx} src={img.src} alt={img.caption} aspect="aspect-square" onOpen={() => lightbox.open(initialImages, idx)} />

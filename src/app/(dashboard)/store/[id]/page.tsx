@@ -49,6 +49,7 @@ import {
   StickyBar,
   Stepper,
   buildSteps,
+  WorkHistoryCard,
   formatDate,
   formatINR,
   personName,
@@ -227,6 +228,8 @@ export default function StoreDetailsPage() {
         <Section title="Progress" icon={<Layers className="h-4 w-4" />}>
           <Stepper steps={buildSteps(store)} />
         </Section>
+
+        <WorkHistoryCard store={store} />
 
         <div className="grid items-start gap-4 lg:grid-cols-3">
           {/* ---------------- main column ---------------- */}
