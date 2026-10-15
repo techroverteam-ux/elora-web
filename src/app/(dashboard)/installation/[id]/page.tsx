@@ -4,22 +4,44 @@ import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
-import { ArrowLeft, Camera, CheckCircle2, Loader2, MapPin, Building2, Package, FileSpreadsheet, Ruler, FileText, Image as ImageIcon } from "lucide-react";
+import { Camera, CheckCircle2, Building2, Image as ImageIcon, Info, Layers, RefreshCw, Hammer, Store as StoreIcon } from "lucide-react";
 import toast from "react-hot-toast";
-import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { Skeleton, CardSkeleton } from "@/src/components/ui/Skeleton";
 import { useImageService } from "@/src/hooks/useImageService";
+import {
+  Badge,
+  Btn,
+  CopyText,
+  DetailHeader,
+  DetailSkeleton,
+  EmptyBlock,
+  NextStep,
+  NotFound,
+  PhotoTile,
+  ProgressBar,
+  Section,
+  StatusBadge,
+  StickyBar,
+  Stepper,
+  StoreFacts,
+  buildSteps,
+  cx,
+  formatDate,
+  toFeet,
+  sqft,
+  useLightbox,
+  useSurface,
+} from "@/src/components/detail";
 
 export default function InstallationSubmissionPage() {
   const router = useRouter();
-  const { darkMode } = useTheme();
   const { user } = useAuth();
   const params = useParams();
   const id = params?.id as string;
-  const API_BASE_URL = "http://localhost:5000";
 
-  const { getFullImageUrl, processStoreImages } = useImageService();
+  const { getFullImageUrl } = useImageService();
+  const s = useSurface();
+  const lightbox = useLightbox();
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +57,6 @@ export default function InstallationSubmissionPage() {
     if (!id) return;
 
     const fetchStore = async () => {
-      const startTime = Date.now();
       try {
         const { data } = await api.get(`/stores/${id}`);
         const s = data.store;
@@ -51,12 +72,7 @@ export default function InstallationSubmissionPage() {
       } catch (error) {
         toast.error("Failed to load store details");
       } finally {
-        const elapsed = Date.now() - startTime;
-        if (elapsed < 800) {
-          setTimeout(() => setLoading(false), 800 - elapsed);
-        } else {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
     fetchStore();
@@ -119,224 +135,212 @@ export default function InstallationSubmissionPage() {
     }
   };
 
-  if (loading) return (
-    <div className={`min-h-screen pb-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <div className={`sticky top-0 z-10 px-4 py-3 border-b ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-6 w-6 rounded-full" />
-          <div className="flex-1">
-            <Skeleton className="h-6 w-48 mb-2" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </div>
-      </div>
-      <div className="max-w-7xl mx-auto p-4">
-        <CardSkeleton />
-      </div>
-    </div>
-  );
+  if (loading) return <DetailSkeleton />;
+  if (!store)
+    return <NotFound title="Store not found" hint="It may have been deleted, or the link is wrong." backHref="/installation" backLabel="Back to installation" />;
 
-  if (!store) return <div className="p-10 text-center">Store not found</div>;
+  /* ---------------- derived display state ---------------- */
+  const approvedBoards = (store.recce?.reccePhotos || [])
+    .map((p: any, originalIndex: number) => ({ ...p, originalIndex }))
+    .filter((p: any) => p.approvalStatus === "APPROVED");
+  const approvedTotal = approvedBoards.length;
+  const doneCount = approvedBoards.filter((b: any) => !!previews[b.originalIndex]).length;
+  const totalPages = Math.ceil(approvedTotal / photosPerPage);
+  const submitted = !!store.installation?.submittedDate;
+  const initialPhotos = store.recce?.initialPhotos || [];
+  const initialImages = initialPhotos.map((p, i) => ({ src: getFullImageUrl(p), caption: `Store photo ${i + 1}` }));
+  const recceImages = approvedBoards.map((b: any) => ({ src: b.photo ? getFullImageUrl(b.photo) : "", caption: `Board ${b.originalIndex + 1} · before` }));
+  const afterImages = approvedBoards.map((b: any) => ({ src: previews[b.originalIndex] || "", caption: `Board ${b.originalIndex + 1} · installed` }));
+  // Lightbox drops empty slots, so work out each board's position among the photos that exist.
+  const posIn = (list: Array<{ src: string }>, i: number) => list.slice(0, i).filter((x) => !!x.src).length;
+
+  const banner = submitted
+    ? { tone: "success" as const, title: `Installation submitted ${formatDate(store.installation?.submittedDate)}`, body: "Photos are uploaded. You can replace a photo and submit again if needed." }
+    : approvedTotal === 0
+    ? { tone: "warning" as const, title: "No approved boards yet", body: "Boards appear here once the recce is approved. Check with the admin." }
+    : doneCount === approvedTotal
+    ? { tone: "success" as const, title: "All photos added", body: "Press Complete installation to submit." }
+    : { tone: "brand" as const, title: `Add an installed photo for each board (${doneCount} of ${approvedTotal} done)`, body: "Match each photo to the recce photo on its left so the admin can compare before and after." };
 
   return (
-    <div className={`min-h-screen pb-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <div className={`sticky top-0 z-10 px-4 py-3 border-b flex items-center gap-3 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-        <button onClick={() => router.back()} className={`p-2 -ml-2 rounded-full ${darkMode ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 hover:bg-gray-100"}`}>
-          <ArrowLeft className="h-6 w-6" />
-        </button>
-        <div className="flex-1">
-          <h1 className={`font-bold text-lg leading-tight line-clamp-1 ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`text-xs font-mono ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>{store.storeId || store.dealerCode}</span>
-            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-100 text-blue-800"}`}>{store.currentStatus.replace(/_/g, " ")}</span>
-          </div>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl pb-32">
+      <DetailHeader
+        backHref="/installation"
+        eyebrow="Installation"
+        title={store.storeName}
+        meta={
+          <>
+            <CopyText value={store.storeId || store.dealerCode} />
+            <StatusBadge status={store.currentStatus} />
+            {store.location?.city && <span>{[store.location.city, store.location.state].filter(Boolean).join(", ")}</span>}
+          </>
+        }
+        actions={
+          !isInstallationRole ? (
+            <Btn variant="secondary" icon={<StoreIcon className="h-4 w-4" />} onClick={() => router.push(`/store/${id}`)}>
+              <span className="hidden sm:inline">Store details</span>
+            </Btn>
+          ) : undefined
+        }
+      />
 
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="grid md:grid-cols-3 gap-4 mb-6">
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <MapPin className="h-5 w-5 text-yellow-500" />
-              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Location</h3>
-            </div>
-            <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-              <div><span className="text-gray-500">City:</span> {store.location.city || "-"}</div>
-              <div><span className="text-gray-500">State:</span> {store.location.state || "-"}</div>
-              <div><span className="text-gray-500">Address:</span> {store.location.address || "-"}</div>
-            </div>
-          </div>
+      <div className="space-y-4">
+        <NextStep tone={banner.tone} title={banner.title} icon={<Info className="h-5 w-5" />}>
+          {banner.body}
+        </NextStep>
 
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <Building2 className="h-5 w-5 text-yellow-500" />
-              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Dealer Info</h3>
-            </div>
-            <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-              <div><span className="text-gray-500">Code:</span> {store.dealerCode}</div>
-              <div><span className="text-gray-500">Contact:</span> {store.contact?.personName || "-"}</div>
-              <div><span className="text-gray-500">Mobile:</span> {store.contact?.mobile || "-"}</div>
-            </div>
-          </div>
+        <Section title="Progress" icon={<Layers className="h-4 w-4" />} collapsible defaultOpen={false} subtitle="Where this store is in the workflow">
+          <Stepper steps={buildSteps(store)} />
+        </Section>
 
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <Package className="h-5 w-5 text-yellow-500" />
-              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Board Specs</h3>
-            </div>
-            <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-              <div><span className="text-gray-500">Type:</span> {store.specs?.type || "-"}</div>
-              <div><span className="text-gray-500">Size:</span> {store.specs?.width} x {store.specs?.height} ft</div>
-              <div><span className="text-gray-500">Qty:</span> {store.specs?.qty || 1}</div>
-            </div>
-          </div>
-        </div>
+        <div className="grid items-start gap-4 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0 ? (
+              <form id="installation-form" onSubmit={handleSubmit}>
+                <Section
+                  title="Boards to install"
+                  icon={<Hammer className="h-4 w-4" />}
+                  count={approvedTotal}
+                  subtitle="Before (recce) on the left, your installed photo on the right"
+                  bodyClassName="space-y-4"
+                >
+                  {approvedTotal === 0 && <EmptyBlock icon={<Hammer className="h-8 w-8" />} title="No approved boards" hint="Only boards approved in the recce review need an installed photo." />}
 
-        {!isInstallationRole && store.costDetails && (
-          <div className={`p-4 rounded-xl border mb-6 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <FileSpreadsheet className="h-5 w-5 text-yellow-500" />
-              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Cost Details</h3>
-            </div>
-            <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-              <div><span className="text-gray-500">Board Rate:</span> ₹{store.costDetails.boardRate || 0}/sq.ft</div>
-              <div><span className="text-gray-500">Board Cost:</span> ₹{store.costDetails.totalBoardCost?.toLocaleString() || 0}</div>
-              {store.costDetails.angleCharges ? <div><span className="text-gray-500">Angle:</span> ₹{store.costDetails.angleCharges}</div> : null}
-              {store.costDetails.scaffoldingCharges ? <div><span className="text-gray-500">Scaffolding:</span> ₹{store.costDetails.scaffoldingCharges}</div> : null}
-            </div>
-          </div>
-        )}
-
-        {store.recce?.initialPhotos && store.recce.initialPhotos.length > 0 && (
-          <div className={`p-4 rounded-xl border mb-6 ${darkMode ? "bg-blue-900/20 border-blue-700/50" : "bg-blue-50 border-blue-200"}`}>
-            <div className="flex items-center gap-2 mb-4">
-              <ImageIcon className="h-5 w-5 text-blue-500" />
-              <h3 className={`font-bold text-lg ${darkMode ? "text-blue-300" : "text-blue-900"}`}>Initial Photos (Uploaded by Recce User)</h3>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {store.recce.initialPhotos.map((photo, idx) => (
-                <div key={idx} className="aspect-square rounded-lg overflow-hidden border-2 border-blue-300 dark:border-blue-700">
-                  <img src={getFullImageUrl(photo)} alt={`Initial ${idx + 1}`} className="h-full w-full object-cover" />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0 && (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className={`font-bold text-lg ${darkMode ? "text-white" : "text-gray-900"}`}>Approved Recce Photos & Installation Upload</h3>
-                <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-                  Total Approved: {store.recce.reccePhotos.filter((p: any) => p.approvalStatus === "APPROVED").length} photos
-                </span>
-              </div>
-              <div className="space-y-6">
-                {(store.recce.reccePhotos || [])
-                  .map((p: any, originalIndex: number) => ({ ...p, originalIndex }))
-                  .filter((p: any) => p.approvalStatus === "APPROVED")
-                  .slice((currentPage - 1) * photosPerPage, currentPage * photosPerPage)
-                  .map((reccePhoto) => {
-                  const originalIndex = reccePhoto.originalIndex;
-                  return (
-                  <div key={originalIndex} className={`p-4 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <h4 className={`font-bold mb-2 ${darkMode ? "text-blue-400" : "text-blue-600"}`}>
-                          {reccePhoto.photo ? `Recce Photo ${originalIndex + 1}` : `Board ${originalIndex + 1}`}
-                        </h4>
-                        <div className="aspect-video rounded-lg overflow-hidden border-2 border-blue-500 mb-3 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-                          {reccePhoto.photo ? (
-                            <img src={getFullImageUrl(reccePhoto.photo)} alt={`Recce ${originalIndex + 1}`} className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex flex-col items-center justify-center text-gray-400 p-4 text-center">
-                              <Building2 className="w-8 h-8 mb-1 text-blue-400" />
-                              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Direct Installation Board</span>
-                              <span className="text-[10px] text-gray-400 mt-0.5">Direct measurements provided</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className={`p-3 rounded-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Ruler className="h-4 w-4 text-yellow-500" />
-                            <span className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Measurements:</span>
+                  {approvedBoards.slice((currentPage - 1) * photosPerPage, currentPage * photosPerPage).map((reccePhoto: any, sliceIdx: number) => {
+                    const originalIndex = reccePhoto.originalIndex;
+                    const listIdx = (currentPage - 1) * photosPerPage + sliceIdx;
+                    const done = !!previews[originalIndex];
+                    const ft = toFeet(reccePhoto.measurements);
+                    return (
+                      <article key={originalIndex} className={cx("rounded-xl border", done ? (s.dark ? "border-emerald-900 bg-emerald-950/20" : "border-emerald-200 bg-emerald-50/30") : s.sunken)}>
+                        <header className={cx("flex flex-wrap items-center gap-2 border-b px-3 py-2", s.divider)}>
+                          <span className={`text-sm font-bold ${s.text}`}>Board {originalIndex + 1}</span>
+                          {done ? <Badge tone="success" dot>Photo added</Badge> : <Badge tone="neutral">Needs photo</Badge>}
+                          <span className={`ml-auto text-xs tabular-nums ${s.muted}`}>
+                            {reccePhoto.measurements.width} × {reccePhoto.measurements.height} {reccePhoto.measurements.unit} · {ft.width.toFixed(2)} × {ft.height.toFixed(2)} ft · {sqft(reccePhoto.measurements).toFixed(1)} sq.ft
+                          </span>
+                        </header>
+                        <div className="grid grid-cols-2 gap-3 p-3">
+                          <div>
+                            <p className={`mb-1 text-xs font-semibold ${s.muted}`}>Before (recce)</p>
+                            <PhotoTile
+                              src={reccePhoto.photo ? getFullImageUrl(reccePhoto.photo) : ""}
+                              alt={`Board ${originalIndex + 1} recce`}
+                              onOpen={() => lightbox.open(recceImages, posIn(recceImages, listIdx))}
+                              empty={
+                                <>
+                                  <Building2 className="h-7 w-7 text-blue-400" />
+                                  <span className="font-medium">Direct installation</span>
+                                  <span>Measurements only</span>
+                                </>
+                              }
+                            />
                           </div>
-                          <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                            {reccePhoto.measurements.width} x {reccePhoto.measurements.height} {reccePhoto.measurements.unit}
-                          </p>
-                          {reccePhoto.elements && reccePhoto.elements.length > 0 && (
-                            <>
-                              <div className="flex items-center gap-2 mt-3 mb-2">
-                                <FileText className="h-4 w-4 text-yellow-500" />
-                                <span className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Elements:</span>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {reccePhoto.elements.map((el: any, i: number) => (
-                                  <span key={i} className={`px-2 py-1 rounded text-xs ${darkMode ? "bg-yellow-900/30 text-yellow-400" : "bg-yellow-100 text-yellow-800"}`}>
-                                    {el.elementName} (Qty: {el.quantity})
-                                  </span>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className={`font-bold mb-2 ${darkMode ? "text-green-400" : "text-green-600"}`}>Installation Photo {originalIndex + 1}</h4>
-                        <label className="block cursor-pointer group">
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, originalIndex)} />
-                          <div className={`aspect-video rounded-lg border-2 border-dashed flex flex-col items-center justify-center overflow-hidden transition-all ${previews[originalIndex] ? "border-green-500 bg-green-50 dark:bg-green-900/20" : darkMode ? "border-gray-600 bg-gray-700 hover:bg-gray-600" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}`}>
+                          <div>
+                            <p className="mb-1 text-xs font-semibold text-emerald-600">After (installed)</p>
                             {previews[originalIndex] ? (
-                              <img src={previews[originalIndex]!} alt={`Installation ${originalIndex + 1}`} className="h-full w-full object-cover" />
+                              <div className="space-y-2">
+                                <PhotoTile src={previews[originalIndex]!} alt={`Board ${originalIndex + 1} installed`} onOpen={() => lightbox.open(afterImages, posIn(afterImages, listIdx))} />
+                                <label
+                                  className={cx(
+                                    "inline-flex h-8 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border text-xs font-semibold",
+                                    s.dark ? "border-gray-700 text-gray-200 hover:bg-gray-800" : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                                  )}
+                                >
+                                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, originalIndex)} />
+                                  <RefreshCw className="h-3.5 w-3.5" /> Replace photo
+                                </label>
+                              </div>
                             ) : (
-                              <>
-                                <Camera className={`h-8 w-8 mb-2 ${darkMode ? "text-gray-400" : "text-gray-400"}`} />
-                                <span className={`text-xs font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Upload Installation Photo</span>
-                              </>
+                              <label
+                                className={cx(
+                                  "flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed text-center transition-colors",
+                                  s.dark ? "border-gray-700 text-gray-400 hover:bg-gray-800" : "border-gray-300 text-gray-500 hover:bg-white"
+                                )}
+                              >
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, originalIndex)} />
+                                <Camera className="h-8 w-8" />
+                                <span className="text-sm font-semibold">Add installed photo</span>
+                                <span className="text-xs">Same angle as the recce photo</span>
+                              </label>
                             )}
                           </div>
-                        </label>
-                      </div>
+                        </div>
+                        {reccePhoto.elements && reccePhoto.elements.length > 0 && (
+                          <div className="flex flex-wrap gap-2 px-3 pb-3">
+                            {reccePhoto.elements.map((el: any, i: number) => (
+                              <Badge key={i} tone="brand">
+                                {el.elementName} × {el.quantity}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+
+                  {approvedTotal > photosPerPage && (
+                    <div className={cx("flex items-center justify-between border-t pt-4", s.divider)}>
+                      <Btn variant="secondary" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+                        Previous
+                      </Btn>
+                      <span className={`text-sm ${s.muted}`}>
+                        Boards {(currentPage - 1) * photosPerPage + 1}–{Math.min(currentPage * photosPerPage, approvedTotal)} of {approvedTotal}
+                      </span>
+                      <Btn variant="secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+                        Next
+                      </Btn>
                     </div>
-                  </div>
-                  );
-                })}
-              </div>
+                  )}
+                </Section>
+              </form>
+            ) : (
+              <Section title="Boards to install" icon={<Hammer className="h-4 w-4" />}>
+                <EmptyBlock icon={<Hammer className="h-8 w-8" />} title="No recce boards on this store" hint="Boards appear once a recce is submitted and approved." />
+              </Section>
+            )}
 
-              {store.recce.reccePhotos.filter((p: any) => p.approvalStatus === "APPROVED").length > photosPerPage && (
-                <div className={`flex items-center justify-between mt-6 pt-4 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""} ${darkMode ? "bg-gray-700 text-white hover:bg-gray-600" : "bg-gray-200 text-gray-900 hover:bg-gray-300"}`}
-                  >
-                    Previous
-                  </button>
-                  <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-                    Page {currentPage} of {Math.ceil((store.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED").length || 0) / photosPerPage)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil((store.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED").length || 0) / photosPerPage), p + 1))}
-                    disabled={currentPage === Math.ceil((store.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED").length || 0) / photosPerPage)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentPage === Math.ceil((store.recce?.reccePhotos?.filter((p: any) => p.approvalStatus === "APPROVED").length || 0) / photosPerPage) ? "opacity-50 cursor-not-allowed" : ""} ${darkMode ? "bg-gray-700 text-white hover:bg-gray-600" : "bg-gray-200 text-gray-900 hover:bg-gray-300"}`}
-                  >
-                    Next
-                  </button>
+            {initialPhotos.length > 0 && (
+              <Section title="Store photos" icon={<ImageIcon className="h-4 w-4" />} count={initialPhotos.length} subtitle="Taken by the recce user" collapsible defaultOpen={false}>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                  {initialImages.map((img, idx) => (
+                    <PhotoTile key={idx} src={img.src} alt={img.caption} aspect="aspect-square" onOpen={() => lightbox.open(initialImages, idx)} />
+                  ))}
                 </div>
-              )}
-            </div>
+              </Section>
+            )}
 
-            <button type="submit" disabled={submitting} className="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100">
-              {submitting ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-              Complete Installation
-            </button>
-          </form>
-        )}
+            {store.recce?.notes && (
+              <Section title="Recce remarks" icon={<Info className="h-4 w-4" />}>
+                <p className={`whitespace-pre-line text-sm ${s.body}`}>{store.recce.notes}</p>
+              </Section>
+            )}
+          </div>
+
+          <aside>
+            <StoreFacts store={store} showMoney={!isInstallationRole} />
+          </aside>
+        </div>
       </div>
+
+      {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0 && (
+        <StickyBar>
+          <div className="flex-1 space-y-1.5">
+            <p className={`text-sm ${s.body}`}>
+              <span className={`font-bold ${s.text}`}>
+                {doneCount} of {approvedTotal}
+              </span>{" "}
+              installed photos added
+            </p>
+            <ProgressBar total={approvedTotal || 1} segments={[{ value: doneCount, tone: doneCount === approvedTotal && approvedTotal > 0 ? "success" : "brand" }]} />
+          </div>
+          <Btn type="submit" form="installation-form" variant="success" size="lg" loading={submitting} icon={<CheckCircle2 className="h-5 w-5" />} className="sm:min-w-[240px]">
+            Complete installation
+          </Btn>
+        </StickyBar>
+      )}
+
+      {lightbox.node}
     </div>
   );
 }

@@ -180,11 +180,12 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                     key={item.name}
                     href={item.href}
                     onClick={handleLinkClick}
-                    className={`group flex items-center px-4 py-2.5 text-sm font-semibold rounded-xl transition-all transform hover:scale-[1.02] ${
+                    aria-current={isActive ? "page" : undefined}
+                    className={`group flex items-center px-4 py-2.5 text-sm font-semibold rounded-xl transition-colors ${
                       isActive
                         ? darkMode
-                          ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
-                          : "bg-yellow-500 text-white shadow-lg"
+                          ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                          : "bg-yellow-400 text-gray-950 shadow-sm"
                         : darkMode
                           ? "text-gray-300 hover:bg-purple-900/30 hover:text-white"
                           : "text-gray-700 hover:bg-yellow-50 hover:text-gray-900"
@@ -193,7 +194,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                     <item.icon
                       className={`mr-4 flex-shrink-0 h-5 w-5 ${
                         isActive
-                          ? "text-yellow-500"
+                          ? darkMode ? "text-yellow-300" : "text-gray-950"
                           : darkMode
                             ? "text-gray-400 group-hover:text-gray-300"
                             : "text-gray-500 group-hover:text-gray-700"
@@ -216,13 +217,13 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           >
             <button
               onClick={logout}
-              className={`w-full flex items-center justify-center gap-3 p-3 rounded-xl font-semibold transition-all transform hover:scale-[1.02] ${
+              className={`w-full flex items-center justify-center gap-3 p-2.5 rounded-xl text-sm font-semibold border transition-colors ${
                 darkMode
-                  ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30"
-                  : "bg-yellow-500 text-white hover:bg-yellow-600 shadow-lg"
+                  ? "border-gray-700 text-gray-300 hover:bg-gray-800"
+                  : "border-gray-300 text-gray-700 hover:bg-white"
               }`}
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-4 w-4" />
               Logout
             </button>
           </div>

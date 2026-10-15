@@ -32,6 +32,10 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import * as XLSX from "xlsx";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts } from "@/src/components/detail";
+
+const RECCE_SCOPE = ["RECCE_ASSIGNED", "RECCE_SUBMITTED", "RECCE_APPROVED", "RECCE_REJECTED"];
+const ADMIN_RECCE_SCOPE = [...RECCE_SCOPE, "INSTALLATION_ASSIGNED", "INSTALLATION_SUBMITTED", "COMPLETED"];
 
 export default function RecceListPage() {
   const router = useRouter();
@@ -46,6 +50,7 @@ export default function RecceListPage() {
     );
   }, [user]);
   
+  const statusCounts = useStatusCounts();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -62,6 +67,12 @@ export default function RecceListPage() {
   const [totalStores, setTotalStores] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  // Links from the dashboard can open this list on a stage: ?status=RECCE_SUBMITTED
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const st = new URLSearchParams(window.location.search).get("status");
+    if (st) setFilterStatus(st.split(",").filter(Boolean));
+  }, []);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStoreName, setFilterStoreName] = useState("");
   const [filterStoreCode, setFilterStoreCode] = useState("");
@@ -709,10 +720,14 @@ export default function RecceListPage() {
     <div className="max-w-7xl mx-auto pb-20 space-y-4">
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-           <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Recce Inspection</h1>
-           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage your recce assignments</p>
-        </div>
+        <PageIntro
+          title="Recce"
+          description={
+            isAdmin
+              ? "Site visits done by recce users. Review the submitted photos and approve boards so installation can start."
+              : "Your site visits. Open a store, photograph and measure each board, then submit for review."
+          }
+        />
         <div className="flex flex-wrap gap-2">
              {isAdmin && selectedStoreIds.size > 0 && (
                <>
@@ -757,6 +772,27 @@ export default function RecceListPage() {
              </button>
         </div>
       </div>
+
+      {/* Where these stores are */}
+      <StageStrip
+        title="Recce stages"
+        counts={statusCounts}
+        scope={isAdmin ? ADMIN_RECCE_SCOPE : RECCE_SCOPE}
+        selected={filterStatus}
+        onSelect={(statuses) => { setFilterStatus(statuses as StoreStatus[]); setPage(1); }}
+        hint="Click a stage to list its stores."
+      />
+      {filterStatus.length === 0 && (
+        isAdmin ? (
+          <ScopeNote action={<LinkBtn onClick={() => { setFilterStatus([StoreStatus.RECCE_ASSIGNED]); setPage(1); }}>Show visits not yet done</LinkBtn>}>
+            Showing recces that have been <strong>submitted</strong>, at any later stage. Stores still waiting for the site visit are not listed here.
+          </ScopeNote>
+        ) : (
+          <ScopeNote>
+            Showing your recce jobs: <strong>to visit, submitted, approved and rejected</strong>. Rejected ones need new photos.
+          </ScopeNote>
+        )
+      )}
 
       {/* FILTERS */}
       <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
@@ -844,9 +880,7 @@ export default function RecceListPage() {
                                     <p className={`text-xs font-mono mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</p>
                                 </div>
                             </div>
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide whitespace-nowrap ${getStatusColor(store.currentStatus)}`}>
-                                {store.currentStatus.replace(/_/g, " ")}
-                            </span>
+                            <StatusCell status={store.currentStatus} />
                         </div>
                         <div className={`flex items-start gap-2 text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
                             <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
@@ -957,14 +991,14 @@ export default function RecceListPage() {
                                              <div className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
                                                {(store.workflow?.recceAssignedTo as any)?.name || "-"}
                                                {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0 && (
-                                                 <div className="text-xs mt-1">
-                                                   <span className="text-green-600">{store.recce.approvedPhotosCount || 0}</span> / 
-                                                   <span className="text-red-600">{store.recce.rejectedPhotosCount || 0}</span> / 
+                                                 <div className="text-xs mt-1" title="Boards approved · rejected · pending review">
+                                                   <span className="text-green-600">{store.recce.approvedPhotosCount || 0} approved</span> · 
+                                                   <span className="text-red-600">{store.recce.rejectedPhotosCount || 0} rejected</span> · 
                                                    <span className="text-yellow-600">{
                                                      store.recce.reccePhotos.filter(
                                                        (photo: any) => !photo.approvalStatus || photo.approvalStatus === "PENDING"
                                                      ).length
-                                                   }</span>
+                                                   } pending</span>
                                                  </div>
                                                )}
                                              </div>
@@ -975,9 +1009,7 @@ export default function RecceListPage() {
                                            )}
                                        </td>
                                        <td className="px-6 py-4 whitespace-nowrap">
-                                           <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(store.currentStatus)}`}>
-                                               {store.currentStatus.replace(/_/g, " ")}
-                                           </span>
+                                           <StatusCell status={store.currentStatus} />
                                        </td>
                                        <td className="px-6 py-4 text-right">
                                            <div className="flex items-center justify-end gap-2">

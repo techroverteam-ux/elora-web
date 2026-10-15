@@ -10,6 +10,7 @@ import {
   MapPin, Loader2, Shield, LogIn
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { ActiveBadge, statusMeta } from "@/src/components/detail";
 
 interface UserStats {
   user: {
@@ -136,9 +137,7 @@ export default function UserDetailsPage() {
                   {stats.user.email}
                 </p>
               </div>
-              <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${stats.user.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                {stats.user.isActive ? "Active" : "Inactive"}
-              </span>
+              <ActiveBadge active={stats.user.isActive} />
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -336,7 +335,7 @@ export default function UserDetailsPage() {
                       </span>
                     </div>
                     <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-                      {activity.city} • {activity.status.replace(/_/g, " ")}
+                      {activity.city} • {statusMeta(activity.status).label}
                     </p>
                     {activity.assignedDate && (
                       <p className={`text-xs mt-1 ${darkMode ? "text-gray-500" : "text-gray-500"}`}>

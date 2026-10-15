@@ -5,6 +5,7 @@ import api from "@/src/lib/api";
 import { MessageSquare, Calendar, Phone, Mail, User, Loader2, CheckCircle2, Clock, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
+import { EnquiryStatus } from "@/src/components/detail";
 
 interface Enquiry {
   _id: string;
@@ -170,7 +171,7 @@ export default function EnquiriesPage() {
            <h1 className={`text-2xl font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
                <MessageSquare className="h-6 w-6 text-blue-600" /> Enquiries
            </h1>
-           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage messages from the landing page</p>
+           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Messages sent from the website contact form. New ones are listed first; opening one marks it as read.</p>
        </div>
 
        <div className={`rounded-xl border overflow-hidden ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
@@ -219,9 +220,7 @@ export default function EnquiriesPage() {
                                        </div>
                                    </td>
                                    <td className="px-6 py-4">
-                                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${statusColor(enq.status)}`}>
-                                           {enq.status}
-                                       </span>
+                                       <EnquiryStatus status={enq.status} showNext />
                                    </td>
                                </tr>
                            ))}
@@ -240,9 +239,7 @@ export default function EnquiriesPage() {
                                        <Clock className="w-3 h-3" /> {formatDate(enq.createdAt)}
                                    </div>
                                </div>
-                               <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${statusColor(enq.status)}`}>
-                                   {enq.status}
-                               </span>
+                               <EnquiryStatus status={enq.status} />
                            </div>
                            <div className="space-y-1.5 mb-3">
                                <div className={`flex items-center gap-2 text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
@@ -285,9 +282,7 @@ export default function EnquiriesPage() {
              <div className="p-4 space-y-3">
                {/* Status & Date */}
                <div className="flex items-center justify-between">
-                 <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase ${statusColor(selectedEnquiry.status)}`}>
-                   {selectedEnquiry.status}
-                 </span>
+                 <EnquiryStatus status={selectedEnquiry.status} showNext />
                  <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                    {formatDate(selectedEnquiry.createdAt)}
                  </span>

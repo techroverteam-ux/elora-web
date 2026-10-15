@@ -6,6 +6,7 @@ import api from "@/src/lib/api";
 import { useTheme } from "@/src/context/ThemeContext";
 import { ArrowLeft, Loader2, MapPin, User, Calendar, Package, FileText, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
+import { StatusCell } from "@/src/components/detail";
 
 export default function AssignmentDetailsPage() {
   const params = useParams();
@@ -103,9 +104,7 @@ export default function AssignmentDetailsPage() {
             <div>
               <label className={`text-xs font-semibold ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Status</label>
               <p className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
-                <span className="px-2 py-1 rounded text-xs font-semibold bg-yellow-100 text-yellow-700">
-                  {store.currentStatus?.replace(/_/g, " ")}
-                </span>
+                <StatusCell status={store.currentStatus} />
               </p>
             </div>
           </div>

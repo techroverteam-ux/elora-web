@@ -1,15 +1,49 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { MapPin, TrendingUp, Users, CheckCircle2, Filter, Calendar, Loader2, BarChart3, PieChart } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  MapPin,
+  Users,
+  CheckCircle2,
+  Filter,
+  Calendar,
+  Loader2,
+  BarChart3,
+  Hammer,
+  Camera,
+  ArrowRight,
+  ClipboardCheck,
+  UserPlus,
+  AlertTriangle,
+  Eye,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useTheme } from "@/src/context/ThemeContext";
 import api from "@/src/lib/api";
+import {
+  Btn,
+  PageIntro,
+  Section,
+  StageStrip,
+  StatusCell,
+  cx,
+  timeAgo,
+  toneClasses,
+  useSurface,
+  Tone,
+} from "@/src/components/detail";
 
 export default function DashboardPage() {
   const { darkMode } = useTheme();
+  const router = useRouter();
+  const s = useSurface();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [, setTick] = useState(0);
   const [filters, setFilters] = useState({ startDate: "", endDate: "", status: "", zone: "", state: "", store: "", client: "", city: "", district: "" });
   const [showFilters, setShowFilters] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -27,6 +61,12 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [autoRefresh, filters]);
 
+  // Re-render every 15 s so "Updated x ago" stays true.
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 15000);
+    return () => clearInterval(t);
+  }, []);
+
   const fetchStats = async (background = false) => {
     if (background) setRefreshing(true);
     else setLoading(true);
@@ -37,6 +77,7 @@ export default function DashboardPage() {
       });
       const { data } = await api.get(`/dashboard/stats?${params}`);
       setStats(data);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error("Failed to fetch dashboard stats", error);
     } finally {
@@ -50,13 +91,13 @@ export default function DashboardPage() {
   const formatDateToDisplay = (dateStr: string) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = date.toLocaleString('en-US', { month: 'short' });
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = date.toLocaleString("en-US", { month: "short" });
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   };
 
-  const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
+  const handleDateChange = (field: "startDate" | "endDate", value: string) => {
     setInternalDates({ ...internalDates, [field]: value });
     if (value) {
       setFilters({ ...filters, [field]: formatDateToDisplay(value) });
@@ -65,315 +106,360 @@ export default function DashboardPage() {
     }
   };
 
+  // Keep the old numbers on screen while new ones load, instead of blanking the page.
   const applyFilters = () => {
-    fetchStats();
+    fetchStats(!!stats);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-10 h-10 animate-spin text-yellow-500" />
-      </div>
-    );
-  }
+  const resetFilters = () => {
+    setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", store: "", client: "", city: "", district: "" });
+    setInternalDates({ startDate: "", endDate: "" });
+    fetchStats(!!stats);
+  };
+
+  if (loading && !stats) return <DashboardSkeleton dark={darkMode} />;
+
+  /* ---------------- derived numbers ---------------- */
+  const counts: Record<string, number> = {};
+  (stats?.statusBreakdown || []).forEach((r: any) => {
+    if (r?._id) counts[r._id] = Number(r.count || 0);
+  });
+  const c = (...keys: string[]) => keys.reduce((n, k) => n + (counts[k] || 0), 0);
+  const totalStores = Number(stats?.kpi?.totalStores || 0);
+  const recceDone = Number(stats?.kpi?.recceDoneTotal || 0);
+  const installDone = Number(stats?.kpi?.installationDoneTotal || 0);
+  const awaitingRecce = Math.max(0, totalStores - recceDone);
+  const isAdmin = !!stats?.isAdmin;
+
+  const attention: Array<{ key: string; label: string; hint: string; n: number; tone: Tone; icon: React.ReactNode; href: string }> = isAdmin
+    ? [
+        { key: "review", label: "Recces to review", hint: "Approve or reject the board photos", n: c("RECCE_SUBMITTED"), tone: "warning", icon: <ClipboardCheck className="h-4 w-4" />, href: "/recce?status=RECCE_SUBMITTED" },
+        { key: "installer", label: "Need an installer", hint: "Recce approved, nobody assigned yet", n: c("RECCE_APPROVED"), tone: "violet", icon: <UserPlus className="h-4 w-4" />, href: "/stores?status=RECCE_APPROVED" },
+        { key: "new", label: "Need a recce user", hint: "New stores nobody has visited", n: c("UPLOADED", "MANUALLY_ADDED"), tone: "neutral", icon: <Camera className="h-4 w-4" />, href: "/stores" },
+        { key: "check", label: "Installations to check", hint: "Installed photos waiting for a final check", n: c("INSTALLATION_SUBMITTED"), tone: "warning", icon: <Eye className="h-4 w-4" />, href: "/stores?status=INSTALLATION_SUBMITTED" },
+        { key: "redo", label: "Sent back for redo", hint: "Rejected recces and installations", n: c("RECCE_REJECTED", "INSTALLATION_REJECTED"), tone: "danger", icon: <AlertTriangle className="h-4 w-4" />, href: "/stores?status=RECCE_REJECTED,INSTALLATION_REJECTED" },
+      ]
+    : [
+        { key: "visit", label: "Recce visits to do", hint: "Go to the store, photograph and measure", n: c("RECCE_ASSIGNED"), tone: "info", icon: <Camera className="h-4 w-4" />, href: "/recce" },
+        { key: "reshoot", label: "Recces to re-shoot", hint: "Some boards were rejected", n: c("RECCE_REJECTED"), tone: "danger", icon: <AlertTriangle className="h-4 w-4" />, href: "/recce" },
+        { key: "install", label: "Installations to do", hint: "Put up the boards and upload photos", n: c("INSTALLATION_ASSIGNED"), tone: "info", icon: <Hammer className="h-4 w-4" />, href: "/installation" },
+        { key: "redo", label: "Installations to redo", hint: "The installation was rejected", n: c("INSTALLATION_REJECTED"), tone: "danger", icon: <AlertTriangle className="h-4 w-4" />, href: "/installation" },
+      ];
+  const openItems = attention.filter((a) => a.n > 0);
+
+  const activeFilters = Object.entries(filters).filter(([, v]) => !!v);
+  const filterLabel: Record<string, string> = { startDate: "From", endDate: "To", store: "Store", client: "Client", zone: "Zone", state: "State", city: "City", district: "District", status: "Status" };
+  const inputCls = `px-3 py-2 rounded-lg border text-sm w-full ${darkMode ? "bg-gray-950 border-gray-700 text-white placeholder:text-gray-500" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"}`;
 
   return (
-    <div className="space-y-6 pb-20">
-      {refreshing && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 border border-green-300 text-green-700 text-xs font-medium shadow">
-          <Loader2 className="w-3 h-3 animate-spin" /> Refreshing...
+    <div className="max-w-7xl mx-auto space-y-5 pb-20">
+      {/* Header */}
+      <PageIntro
+        title="Dashboard"
+        description={isAdmin ? "What needs attention today, and where every store is in the workflow." : "Your work for today and where your stores are."}
+        actions={
+          <>
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={cx(
+                "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+                autoRefresh
+                  ? darkMode ? "border-green-800 bg-green-950/40 text-green-300" : "border-green-200 bg-green-50 text-green-800"
+                  : darkMode ? "border-gray-700 bg-gray-900 text-gray-400" : "border-gray-200 bg-white text-gray-500"
+              )}
+              title={autoRefresh ? "Numbers refresh every 30 seconds. Click to pause." : "Auto-refresh is paused. Click to resume."}
+            >
+              {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className={cx("h-2 w-2 rounded-full", autoRefresh ? "bg-green-500" : "bg-gray-400")} />}
+              {autoRefresh ? "Live" : "Paused"}
+              {lastUpdated && <span className="hidden opacity-75 sm:inline">· updated {timeAgo(lastUpdated)}</span>}
+            </button>
+            <Btn variant="secondary" icon={<Filter className="h-4 w-4" />} onClick={() => setShowFilters(!showFilters)}>
+              Filters{activeFilters.length > 0 ? ` (${activeFilters.length})` : ""}
+            </Btn>
+          </>
+        }
+      />
+
+      {/* Applied filters, visible even when the panel is closed */}
+      {activeFilters.length > 0 && !showFilters && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={cx("text-xs font-medium", s.muted)}>Filtered by:</span>
+          {activeFilters.map(([k, v]) => (
+            <span key={k} className={cx("rounded-full border px-2.5 py-0.5 text-xs font-medium", s.dark ? "border-gray-700 bg-gray-900 text-gray-200" : "border-gray-200 bg-white text-gray-700")}>
+              {filterLabel[k] || k}: {v}
+            </span>
+          ))}
+          <button onClick={resetFilters} className={cx("inline-flex items-center gap-1 text-xs font-semibold", s.muted)}>
+            <X className="h-3.5 w-3.5" /> Clear
+          </button>
         </div>
       )}
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-xl sm:text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Dashboard</h1>
-          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Overview & Analytics</p>
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
-              autoRefresh
-                ? darkMode ? "bg-green-900/30 border-green-700/50 text-green-400" : "bg-green-50 border-green-200 text-green-700"
-                : darkMode ? "bg-gray-800 border-gray-700 text-gray-400" : "bg-white border-gray-200 text-gray-500"
-            }`}
-            title={autoRefresh ? "Auto-refresh enabled (30s)" : "Auto-refresh disabled"}
-          >
-            <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-            {autoRefresh ? 'Live' : 'Paused'}
-          </button>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
-              darkMode ? "bg-purple-900/30 border-purple-700/50 hover:bg-purple-900/50 text-white" : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"
-            }`}
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-          </button>
-        </div>
-      </div>
 
       {/* Filters */}
       {showFilters && (
-        <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <div className="relative">
-              <input
-                type="date"
-                value={internalDates.startDate}
-                onChange={(e) => handleDateChange('startDate', e.target.value)}
-                className={`px-3 py-2 rounded-lg border w-full ${filters.startDate ? 'opacity-0' : ''} ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"}`}
-                style={{ colorScheme: darkMode ? 'dark' : 'light' }}
-              />
-              {filters.startDate && (
-                <div className={`absolute inset-0 px-3 py-2 rounded-lg border flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                  onClick={() => document.querySelector<HTMLInputElement>('input[type="date"]')?.showPicker?.()}>
-                  <span className="text-sm font-medium">{filters.startDate}</span>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              )}
-            </div>
-            <div className="relative">
-              <input
-                type="date"
-                value={internalDates.endDate}
-                onChange={(e) => handleDateChange('endDate', e.target.value)}
-                className={`px-3 py-2 rounded-lg border w-full ${filters.endDate ? 'opacity-0' : ''} ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300"}`}
-                style={{ colorScheme: darkMode ? 'dark' : 'light' }}
-              />
-              {filters.endDate && (
-                <div className={`absolute inset-0 px-3 py-2 rounded-lg border flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                  onClick={() => document.querySelectorAll<HTMLInputElement>('input[type="date"]')[1]?.showPicker?.()}>
-                  <span className="text-sm font-medium">{filters.endDate}</span>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              )}
-            </div>
-            <input
-              type="text"
-              placeholder="Store Name/Code"
-              value={filters.store}
-              onChange={(e) => setFilters({ ...filters, store: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
-            />
-            <input
-              type="text"
-              placeholder="Client Code"
-              value={filters.client}
-              onChange={(e) => setFilters({ ...filters, client: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
-            />
-            <input
-              type="text"
-              placeholder="Zone"
-              value={filters.zone}
-              onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
-            />
-            <input
-              type="text"
-              placeholder="State"
-              value={filters.state}
-              onChange={(e) => setFilters({ ...filters, state: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
-            />
-            <input
-              type="text"
-              placeholder="City"
-              value={filters.city}
-              onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
-            />
-            <input
-              type="text"
-              placeholder="District"
-              value={filters.district}
-              onChange={(e) => setFilters({ ...filters, district: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"}`}
-            />
-            <button
-              onClick={() => {
-                setFilters({ startDate: "", endDate: "", status: "", zone: "", state: "", store: "", client: "", city: "", district: "" });
-                setInternalDates({ startDate: "", endDate: "" });
-                fetchStats();
-              }}
-              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold"
-            >
+        <div className={cx("rounded-xl border p-4", s.card)}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="block">
+              <span className={cx("mb-1 block text-xs font-semibold", s.body)}>From date</span>
+              <input type="date" value={internalDates.startDate} onChange={(e) => handleDateChange("startDate", e.target.value)} className={inputCls} style={{ colorScheme: darkMode ? "dark" : "light" }} />
+            </label>
+            <label className="block">
+              <span className={cx("mb-1 block text-xs font-semibold", s.body)}>To date</span>
+              <input type="date" value={internalDates.endDate} onChange={(e) => handleDateChange("endDate", e.target.value)} className={inputCls} style={{ colorScheme: darkMode ? "dark" : "light" }} />
+            </label>
+            {(
+              [
+                ["store", "Store name or code"],
+                ["client", "Client code"],
+                ["zone", "Zone"],
+                ["state", "State"],
+                ["city", "City"],
+                ["district", "District"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="block">
+                <span className={cx("mb-1 block text-xs font-semibold", s.body)}>{label}</span>
+                <input type="text" value={(filters as any)[key]} onChange={(e) => setFilters({ ...filters, [key]: e.target.value })} className={inputCls} />
+              </label>
+            ))}
+          </div>
+          <div className={cx("mt-4 flex justify-end gap-2 border-t pt-3", s.divider)}>
+            <Btn variant="secondary" onClick={resetFilters}>
               Reset
-            </button>
-            <button
-              onClick={applyFilters}
-              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
-            >
-              Apply
-            </button>
+            </Btn>
+            <Btn variant="primary" loading={refreshing} onClick={applyFilters}>
+              Apply filters
+            </Btn>
           </div>
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-        <StatCard title={stats?.isAdmin ? "Total Stores" : "Assigned to Me"} value={stats?.kpi?.totalStores || 0} icon={<MapPin className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.newStoresToday || 0} today`} />
-        {stats?.isAdmin && stats?.kpi?.totalClients !== undefined && (
-          <StatCard title="Total Clients" value={stats?.kpi?.totalClients || 0} icon={<Users className="h-4 w-4" />} darkMode={darkMode} color="purple" />
+      {/* Needs attention */}
+      <Section
+        title={isAdmin ? "Needs your attention" : "Your work"}
+        icon={<Sparkles className="h-4 w-4" />}
+        subtitle={openItems.length === 0 ? "Nothing waiting right now." : "Click a line to open those stores."}
+        bodyClassName="p-2"
+      >
+        {openItems.length === 0 ? (
+          <p className={cx("flex items-center gap-2 px-2 py-3 text-sm", s.muted)}>
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" /> All caught up. New work will show here.
+          </p>
+        ) : (
+          <ul className="divide-y divide-transparent">
+            {openItems.map((a) => {
+              const t = toneClasses(a.tone, s.dark);
+              return (
+                <li key={a.key}>
+                  <button
+                    onClick={() => router.push(a.href)}
+                    className={cx("flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors", s.hover)}
+                  >
+                    <span className={cx("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", t.badge)}>{a.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className={cx("block text-sm font-semibold", s.text)}>{a.label}</span>
+                      <span className={cx("block text-xs", s.muted)}>{a.hint}</span>
+                    </span>
+                    <span className={cx("text-xl font-bold tabular-nums", s.text)}>{a.n}</span>
+                    <ArrowRight className={cx("h-4 w-4", s.faint)} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         )}
-        <StatCard title="Recce Completed" value={stats?.kpi?.recceDoneTotal || 0} icon={<CheckCircle2 className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.recceDoneToday || 0} today`} color="blue" />
-        <StatCard title="Installations" value={stats?.kpi?.installationDoneTotal || 0} icon={<CheckCircle2 className="h-4 w-4" />} darkMode={darkMode} trend={`+${stats?.kpi?.installationDoneToday || 0} today`} color="green" />
-        <StatCard title="Pending Recce" value={stats?.kpi?.recceAssigned || 0} icon={<TrendingUp className="h-4 w-4" />} darkMode={darkMode} color="orange" subtitle="Assigned for recce" />
+      </Section>
+
+      {/* Pipeline */}
+      <StageStrip
+        title="Where stores are"
+        counts={counts}
+        onSelect={(statuses) => statuses.length && router.push(`/stores?status=${statuses.join(",")}`)}
+        hint="Click a stage to see its stores. Hover for what happens there."
+      />
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <StatCard title={isAdmin ? "Total stores" : "Assigned to me"} value={totalStores} icon={<MapPin className="h-4 w-4" />} today={stats?.kpi?.newStoresToday} todayLabel="added today" darkMode={darkMode} />
+        {isAdmin && stats?.kpi?.totalClients !== undefined && (
+          <StatCard title="Clients" value={stats?.kpi?.totalClients || 0} icon={<Users className="h-4 w-4" />} color="purple" darkMode={darkMode} />
+        )}
+        <StatCard title="Recces done" value={recceDone} icon={<CheckCircle2 className="h-4 w-4" />} today={stats?.kpi?.recceDoneToday} todayLabel="today" color="blue" darkMode={darkMode} />
+        <StatCard title="Awaiting recce" value={awaitingRecce} icon={<Camera className="h-4 w-4" />} subtitle="Stores without a submitted recce" color="orange" darkMode={darkMode} />
+        <StatCard title="Installations done" value={installDone} icon={<Hammer className="h-4 w-4" />} today={stats?.kpi?.installationDoneToday} todayLabel="today" color="green" darkMode={darkMode} />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Status Breakdown */}
-        <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-            <PieChart className="w-5 h-5" /> Status Breakdown
-          </h3>
-          <div className="space-y-3">
-            {stats?.statusBreakdown && stats.statusBreakdown.length > 0 ? stats.statusBreakdown.map((item: any) => (
-              <div key={item._id} className="flex items-center justify-between">
-                <span className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{item._id?.replace(/_/g, " ") || "Unknown"}</span>
-                <span className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{item.count}</span>
-              </div>
-            )) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data available</p>}
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Zone Distribution */}
-        <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-            <BarChart3 className="w-5 h-5" /> Zone Distribution
-          </h3>
-          <div className="space-y-3">
-            {stats?.zoneDistribution && stats.zoneDistribution.length > 0 ? stats.zoneDistribution.map((item: any) => (
-              <div key={item._id} className="flex items-center gap-3">
-                <span className={`text-sm flex-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{item._id || "N/A"}</span>
-                <div className="flex-1 bg-gray-200 rounded-full h-2">
-                  <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${(item.count / stats?.kpi?.totalStores) * 100}%` }}></div>
+        <Section title="Stores by zone" icon={<BarChart3 className="h-4 w-4" />}>
+          {stats?.zoneDistribution && stats.zoneDistribution.length > 0 ? (
+            <ul className="space-y-3">
+              {stats.zoneDistribution.map((item: any) => (
+                <li key={item._id || "none"} className="flex items-center gap-3">
+                  <span className={cx("w-28 shrink-0 truncate text-sm", item._id ? s.body : s.faint)}>{item._id || "Zone not set"}</span>
+                  <div className={cx("h-2 flex-1 rounded-full", s.dark ? "bg-gray-800" : "bg-gray-200")}>
+                    <div className="h-2 rounded-full bg-yellow-400" style={{ width: `${totalStores ? (item.count / totalStores) * 100 : 0}%` }} />
+                  </div>
+                  <span className={cx("w-10 text-right text-sm font-bold tabular-nums", s.text)}>{item.count}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={cx("text-sm", s.muted)}>No zone data for these filters.</p>
+          )}
+        </Section>
+
+        {/* Monthly Trend */}
+        <Section title="New stores per month" icon={<Calendar className="h-4 w-4" />} subtitle="Last 6 months">
+          {stats?.monthlyTrend && stats.monthlyTrend.length > 0 ? (
+            <div className="flex h-44 items-end justify-between gap-2">
+              {stats.monthlyTrend.map((item: any) => {
+                const maxCount = Math.max(...stats.monthlyTrend.map((m: any) => m.count));
+                const heightPercent = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+                return (
+                  <div key={item._id} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+                    <span className={cx("text-xs font-bold tabular-nums", s.text)}>{item.count}</span>
+                    <div className="w-full max-w-12 rounded-t-md bg-yellow-400" style={{ height: `${heightPercent}%`, minHeight: item.count > 0 ? "4px" : "0" }} />
+                    <span className={cx("text-xs", s.muted)}>{item._id}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className={cx("text-sm", s.muted)}>No data for these filters.</p>
+          )}
+        </Section>
+      </div>
+
+      {/* Recent Stores */}
+      <Section title="Recently added stores" icon={<MapPin className="h-4 w-4" />} subtitle="Click a store to open it">
+        {stats?.recentStores && stats.recentStores.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {stats.recentStores.map((store: any) => (
+              <button
+                key={store._id}
+                onClick={() => router.push(`/store/${store._id}`)}
+                className={cx("rounded-lg border p-3 text-left transition-colors", s.sunken, s.dark ? "hover:border-gray-600" : "hover:border-gray-400")}
+              >
+                <p className={cx("truncate text-sm font-bold", s.text)}>{store.storeName || "Unnamed store"}</p>
+                <p className={cx("truncate text-xs", s.muted)}>
+                  {[store.location?.city, store.dealerCode].filter(Boolean).join(" · ") || "No city"}
+                </p>
+                <div className="mt-2">
+                  <StatusCell status={store.currentStatus} />
                 </div>
-                <span className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{item.count}</span>
-              </div>
-            )) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data available</p>}
+              </button>
+            ))}
           </div>
-        </div>
-      </div>
-
-      {/* Monthly Trend */}
-      <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-        <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-          <Calendar className="w-5 h-5" /> Monthly Trend (Last 6 Months)
-        </h3>
-        {stats?.monthlyTrend && stats.monthlyTrend.length > 0 ? (
-        <div className="flex items-end justify-between gap-2 h-48">
-          {stats.monthlyTrend.map((item: any) => {
-            const maxCount = Math.max(...stats.monthlyTrend.map((m: any) => m.count));
-            const heightPercent = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
-            return (
-            <div key={item._id} className="flex-1 flex flex-col items-center gap-2">
-              <span className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{item.count}</span>
-              <div className="w-full bg-yellow-500 rounded-t-lg" style={{ height: `${heightPercent}%`, minHeight: '20px' }}></div>
-              <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{item._id}</span>
-            </div>
-          )})}
-        </div>
-        ) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data available</p>}
-      </div>
-
-      {/* Recent Stores - Full Width */}
-      <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-        <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Recent Stores</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {stats?.recentStores && stats.recentStores.length > 0 ? stats.recentStores.map((store: any) => (
-            <div key={store._id} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="w-4 h-4 text-yellow-500 flex-shrink-0" />
-                <h4 className={`text-sm font-bold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{store.storeName || "Unnamed"}</h4>
-              </div>
-              <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.location?.city || "N/A"}</p>
-              <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</p>
-              <span className={`text-[10px] uppercase font-bold block mt-2 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{store.currentStatus?.replace(/_/g, " ")}</span>
-            </div>
-          )) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No recent stores</p>}
-        </div>
-      </div>
+        ) : (
+          <p className={cx("text-sm", s.muted)}>No stores added yet.</p>
+        )}
+      </Section>
 
       {/* Personnel Stats */}
-      {stats?.isAdmin && stats?.personnelStats && stats.personnelStats.length > 0 && (
-      <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-        <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Team Performance</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className={`text-xs uppercase ${darkMode ? "text-gray-400 bg-gray-800/50" : "text-gray-500 bg-gray-50"}`}>
-              <tr>
-                <th className="px-4 py-3 text-left rounded-l-lg">Name</th>
-                <th className="px-4 py-3 text-left">Role</th>
-                <th className="px-4 py-3 text-center">Assigned</th>
-                <th className="px-4 py-3 text-center rounded-r-lg">Completed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats?.personnelStats?.map((person: any) => (
-                <tr key={person._id} className={`border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-                  <td className={`px-4 py-3 font-medium ${darkMode ? "text-white" : "text-gray-900"}`}>{person.name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${person.role === "RECCE" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}`}>
-                      {person.role}
-                    </span>
-                  </td>
-                  <td className={`px-4 py-3 text-center font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{person.assignedCount}</td>
-                  <td className="px-4 py-3 text-center text-green-500 font-bold">{person.completedCount}</td>
+      {isAdmin && stats?.personnelStats && stats.personnelStats.length > 0 && (
+        <Section title="Team performance" icon={<Users className="h-4 w-4" />} subtitle="Completed out of assigned, per person">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className={cx("text-xs", s.muted)}>
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold">Name</th>
+                  <th className="px-3 py-2 text-left font-semibold">Role</th>
+                  <th className="px-3 py-2 text-right font-semibold">Assigned</th>
+                  <th className="px-3 py-2 text-right font-semibold">Completed</th>
+                  <th className="px-3 py-2 text-left font-semibold">Progress</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {[...stats.personnelStats]
+                  .sort((a: any, b: any) => (b.completedCount || 0) - (a.completedCount || 0))
+                  .map((person: any) => {
+                    const pct = person.assignedCount ? Math.round(((person.completedCount || 0) / person.assignedCount) * 100) : 0;
+                    return (
+                      <tr key={person._id} className={cx("border-t", s.divider)}>
+                        <td className={cx("px-3 py-2.5 font-medium", s.text)}>{person.name}</td>
+                        <td className="px-3 py-2.5">
+                          <span className={cx("rounded-full px-2 py-0.5 text-xs font-semibold", person.role === "RECCE" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800")}>
+                            {person.role === "RECCE" ? "Recce" : person.role === "INSTALLATION" ? "Installation" : person.role}
+                          </span>
+                        </td>
+                        <td className={cx("px-3 py-2.5 text-right tabular-nums", s.body)}>{person.assignedCount}</td>
+                        <td className={cx("px-3 py-2.5 text-right font-semibold tabular-nums", s.text)}>{person.completedCount}</td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className={cx("h-1.5 w-24 rounded-full", s.dark ? "bg-gray-800" : "bg-gray-200")}>
+                              <div className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${Math.min(100, pct)}%` }} />
+                            </div>
+                            <span className={cx("text-xs tabular-nums", s.muted)}>{pct}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </Section>
       )}
 
       {/* State Distribution */}
-      <div className={`rounded-xl border p-5 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-        <h3 className={`text-lg font-bold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>Top 10 States</h3>
+      <Section title="Top 10 states" icon={<MapPin className="h-4 w-4" />}>
         {stats?.stateDistribution && stats.stateDistribution.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {stats.stateDistribution.map((item: any) => (
-            <div key={item._id} className={`p-4 rounded-lg border text-center ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
-              <div className={`text-2xl font-black ${darkMode ? "text-white" : "text-gray-900"}`}>{item.count}</div>
-              <div className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-600"}`} title={item._id || "N/A"}>{item._id || "N/A"}</div>
-            </div>
-          ))}
-        </div>
-        ) : <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No data available</p>}
-      </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+            {stats.stateDistribution.map((item: any) => (
+              <div key={item._id || "none"} className={cx("rounded-lg border p-3", s.sunken)}>
+                <div className={cx("text-xl font-bold tabular-nums", s.text)}>{item.count}</div>
+                <div className={cx("truncate text-xs", item._id ? s.muted : s.faint)} title={item._id || "State not set"}>
+                  {item._id || "State not set"}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={cx("text-sm", s.muted)}>No state data for these filters.</p>
+        )}
+      </Section>
     </div>
   );
 }
 
-function StatCard({ title, value, icon, darkMode, trend, color = "yellow", subtitle }: any) {
+function StatCard({ title, value, icon, darkMode, today, todayLabel, color = "yellow", subtitle }: any) {
   const colors: any = {
-    yellow: { bg: "bg-yellow-500/20", text: "text-yellow-500" },
-    blue: { bg: "bg-blue-500/20", text: "text-blue-500" },
-    green: { bg: "bg-green-500/20", text: "text-green-500" },
-    orange: { bg: "bg-orange-500/20", text: "text-orange-500" },
-    purple: { bg: "bg-purple-500/20", text: "text-purple-500" },
+    yellow: "bg-yellow-400/20 text-yellow-600",
+    blue: "bg-blue-500/15 text-blue-600",
+    green: "bg-emerald-500/15 text-emerald-600",
+    orange: "bg-orange-500/15 text-orange-600",
+    purple: "bg-violet-500/15 text-violet-600",
   };
-  const c = colors[color] || colors.yellow;
-
+  const n = Number(today || 0);
   return (
-    <div className={`p-3 sm:p-4 rounded-xl border transition-all hover:scale-105 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-      <div className="flex items-start justify-between">
-        <div className="min-w-0 flex-1">
-          <p className={`text-[10px] sm:text-xs font-medium uppercase ${darkMode ? "text-gray-400" : "text-gray-500"} truncate`}>{title}</p>
-          <h3 className={`text-lg sm:text-xl lg:text-2xl font-black mt-1 ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</h3>
-          {subtitle && <p className={`text-[9px] sm:text-[10px] mt-0.5 ${darkMode ? "text-gray-500" : "text-gray-400"} truncate`}>{subtitle}</p>}
-          {trend && <p className="text-[10px] sm:text-xs text-green-500 font-medium mt-0.5 truncate">{trend}</p>}
-        </div>
-        <div className={`p-1.5 sm:p-2 rounded-lg ${c.bg} ${c.text} flex-shrink-0`}>{icon}</div>
+    <div className={`rounded-xl border p-4 ${darkMode ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <p className={`text-xs font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{title}</p>
+        <span className={`rounded-lg p-1.5 ${colors[color] || colors.yellow}`}>{icon}</span>
+      </div>
+      <p className={`mt-1 text-2xl font-bold tabular-nums ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</p>
+      {subtitle && <p className={`mt-0.5 text-xs ${darkMode ? "text-gray-500" : "text-gray-500"}`}>{subtitle}</p>}
+      {todayLabel !== undefined && (
+        <p className={`mt-0.5 text-xs ${n > 0 ? "font-medium text-emerald-600" : darkMode ? "text-gray-500" : "text-gray-400"}`}>
+          {n > 0 ? `+${n} ${todayLabel}` : `None ${todayLabel}`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DashboardSkeleton({ dark }: { dark: boolean }) {
+  const b = dark ? "bg-gray-800" : "bg-gray-200";
+  return (
+    <div className="max-w-7xl mx-auto space-y-5 animate-pulse">
+      <div className={`h-8 w-48 rounded-lg ${b}`} />
+      <div className={`h-40 w-full rounded-xl ${b}`} />
+      <div className={`h-24 w-full rounded-xl ${b}`} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className={`h-24 rounded-xl ${b}`} />
+        ))}
       </div>
     </div>
   );

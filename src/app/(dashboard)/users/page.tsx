@@ -388,7 +388,7 @@ export default function UsersPage() {
               Users
             </h1>
             <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-              Manage system users
+              People who can sign in, and their roles. Recce and installation users only see the stores assigned to them.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -515,10 +515,11 @@ export default function UsersPage() {
                     <td className="px-6 py-4">
                         <button 
                             onClick={() => toggleUserStatus(user)}
+                            title={user.isActive ? "Active: can sign in. Click to deactivate." : "Inactive: cannot sign in. Click to activate."}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                             user.isActive 
                                 ? "bg-green-100 text-green-700 hover:bg-green-200" 
-                                : "bg-red-100 text-red-700 hover:bg-red-200"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                             }`}
                         >
                             {user.isActive ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
@@ -571,10 +572,11 @@ export default function UsersPage() {
                     <div className="flex items-center justify-between pt-2">
                       <button 
                         onClick={() => toggleUserStatus(user)}
+                        title={user.isActive ? "Active: can sign in. Tap to deactivate." : "Inactive: cannot sign in. Tap to activate."}
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
                           user.isActive 
                             ? "bg-green-100 text-green-700" 
-                            : "bg-red-100 text-red-700"
+                            : "bg-gray-100 text-gray-600"
                         }`}
                       >
                         {user.isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}

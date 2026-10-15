@@ -168,7 +168,7 @@ export default function ElementsPage() {
             Element Mapping
           </h1>
           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-            Manage element rates
+            The catalogue of board types (flex, glow sign, one-way vision...). Link them to clients, with rates, in Client Management.
           </p>
         </div>
         <button

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import { AssignmentStatus } from "@/src/components/detail";
 
 export default function ReportsPage() {
   const { user } = useAuth();
@@ -257,7 +258,7 @@ export default function ReportsPage() {
             <BarChart3 className="h-6 w-6 text-yellow-500" /> Reports
           </h1>
           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-            {isAdmin ? "Complete project overview and insights" : "Your performance metrics and tasks"}
+            {isAdmin ? "Who did what, and where each recce and installation stands. Filter, then export to Excel." : "Your recce and installation work and where each task stands."}
           </p>
         </div>
       </div>
@@ -460,13 +461,7 @@ export default function ReportsPage() {
                       </td>
                       <td className={`px-4 py-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{formatDate(assignment.date)}</td>
                       <td className={`px-4 py-3`}>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          assignment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                          assignment.status === 'SUBMITTED' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {assignment.status?.replace(/_/g, ' ')}
-                        </span>
+                        <AssignmentStatus status={assignment.status} />
                       </td>
                       <td className="px-4 py-3">
                         <button
@@ -590,14 +585,7 @@ export default function ReportsPage() {
                       <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{location}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                        task.status === 'SUBMITTED' ? 'bg-yellow-100 text-yellow-700' :
-                        task.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {task.status?.replace(/_/g, ' ')}
-                      </span>
+                      <AssignmentStatus status={task.status} />
                       <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{task.assignedDate ? formatDate(task.assignedDate) : 'N/A'}</span>
                     </div>
                   </div>

@@ -363,7 +363,7 @@ export default function ClientsPage() {
             Client Management
           </h1>
           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-            Manage clients and their element rates
+            Brands you do work for. Each client has its own elements and rates, which recce users pick from when measuring boards.
           </p>
         </div>
         <div className="flex gap-2">

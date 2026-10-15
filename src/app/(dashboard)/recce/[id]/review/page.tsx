@@ -5,26 +5,41 @@ import { useRouter, useParams } from "next/navigation";
 import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
 import { useImageService } from "@/src/hooks/useImageService";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Loader2,
-  AlertCircle,
-  CheckSquare,
-  PauseCircle,
-  Building2,
-} from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, CheckSquare, PauseCircle, Building2, Store as StoreIcon, Info } from "lucide-react";
 import toast from "react-hot-toast";
-import { useTheme } from "@/src/context/ThemeContext";
+import {
+  ApprovalBadge,
+  Badge,
+  Btn,
+  CopyText,
+  DetailHeader,
+  DetailSkeleton,
+  Dialog,
+  EmptyBlock,
+  Field,
+  NotFound,
+  PhotoTile,
+  ProgressBar,
+  Section,
+  StatTiles,
+  StatusBadge,
+  cx,
+  formatDate,
+  toFeet,
+  sqft,
+  useInputClass,
+  useLightbox,
+  useSurface,
+} from "@/src/components/detail";
 
 export default function RecceReviewPage() {
   const router = useRouter();
-  const { darkMode } = useTheme();
   const params = useParams();
   const id = params?.id as string;
   const { getFullImageUrl } = useImageService();
+  const s = useSurface();
+  const inputClass = useInputClass();
+  const lightbox = useLightbox();
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,70 +159,10 @@ export default function RecceReviewPage() {
     setHoldReason("");
   };
 
-  const handleApproveAll = async () => {
-    // Prevent multiple confirmation dialogs
+  const handleApproveAll = () => {
+    // Opens the confirm dialog; confirmApproveAll does the work.
     if (approveAllConfirmOpen) return;
-
     setApproveAllConfirmOpen(true);
-
-    toast(
-      (t) => (
-        <div
-          className={`rounded-xl shadow-2xl border-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
-        >
-          <div
-            className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}
-          >
-            <p
-              className={`font-bold text-base ${darkMode ? "text-white" : "text-gray-900"}`}
-            >
-              Approve all pending photos?
-            </p>
-          </div>
-          <div className="px-6 py-4">
-            <p
-              className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}
-            >
-              This action cannot be undone. All pending photos will be
-              approved and marked as ready.
-            </p>
-          </div>
-          <div
-            className={`px-6 py-4 flex gap-3 justify-end border-t ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-gray-50"}`}
-          >
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                setApproveAllConfirmOpen(false);
-              }}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all border-2 ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"}`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                setApproveAllConfirmOpen(false);
-                confirmApproveAll();
-              }}
-              className="px-4 py-2 text-sm font-semibold text-white bg-green-600 border-2 border-green-600 rounded-lg hover:bg-green-700 hover:border-green-700 transition-all shadow-lg shadow-green-500/20"
-            >
-              Approve All
-            </button>
-          </div>
-        </div>
-      ),
-      {
-        duration: Infinity,
-        position: "bottom-center",
-        style: {
-          background: "transparent",
-          boxShadow: "none",
-          padding: 0,
-          maxWidth: "420px",
-        },
-      }
-    );
   };
 
   const confirmApproveAll = async () => {
@@ -243,51 +198,16 @@ export default function RecceReviewPage() {
     }
   };
 
-  const getStatusBadge = (status?: string) => {
-    if (status === "APPROVED") {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-          <CheckCircle2 className="w-3 h-3" /> Approved
-        </span>
-      );
-    }
-    if (status === "REJECTED") {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">
-          <XCircle className="w-3 h-3" /> Rejected
-        </span>
-      );
-    }
-    if (status === "HOLD") {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800">
-          <PauseCircle className="w-3 h-3" /> On Hold
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">
-        <Clock className="w-3 h-3" /> Pending
-      </span>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
-      </div>
-    );
-  }
+  if (loading) return <DetailSkeleton />;
 
   if (!store || !store.recce?.reccePhotos) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-        <div className="text-center">
-          <AlertCircle className={`w-12 h-12 mx-auto mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
-          <p className={darkMode ? "text-gray-300" : "text-gray-700"}>No recce data found</p>
-        </div>
-      </div>
+      <NotFound
+        title="No recce to review"
+        hint="This store has no submitted recce yet."
+        backHref={store ? `/store/${id}` : "/recce"}
+        backLabel={store ? "Open store" : "Back to recce"}
+      />
     );
   }
 
@@ -309,275 +229,311 @@ export default function RecceReviewPage() {
     return photo.approvalStatus || "PENDING";
   };
 
+
+  const total = store.recce.reccePhotos.length;
+  const reviewed = approved + rejected;
+  const allImages = store.recce.reccePhotos.map((p: any, i: number) => ({ src: p.photo ? getFullImageUrl(p.photo) : "", caption: `Board ${i + 1}` }));
+  // Lightbox skips boards without a photo, so map board index to its position in the photo list.
+  const photoPos: Record<number, number> = {};
+  let pos = 0;
+  allImages.forEach((im, i) => {
+    if (im.src) photoPos[i] = pos++;
+  });
+
+  const matchesFilter = (photo: any, index: number) => {
+    const status = getEffectiveStatus(photo, index);
+    if (activeFilter === "ALL") return true;
+    if (activeFilter === "PENDING") return !status || status === "PENDING";
+    return status === activeFilter;
+  };
+  const hasAny = store.recce.reccePhotos.some((photo: any, idx: number) => matchesFilter(photo, idx));
+
+  const filterLabel: Record<string, string> = { ALL: "", PENDING: "pending", APPROVED: "approved", REJECTED: "rejected", HOLD: "on hold" };
+
   return (
-    <div className={`min-h-screen pb-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      {/* Header */}
-      <div className={`sticky top-0 z-10 px-4 py-3 border-b ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className={`p-2 rounded-full ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"}`}>
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <div className="flex-1">
-            <h1 className={`font-bold text-lg ${darkMode ? "text-white" : "text-gray-900"}`}>Review Recce Photos</h1>
-            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.storeName}</p>
-          </div>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl pb-16">
+      <DetailHeader
+        backHref="/recce"
+        eyebrow="Recce review"
+        title={store.storeName}
+        meta={
+          <>
+            <CopyText value={store.storeId || store.dealerCode} />
+            <StatusBadge status={store.currentStatus} />
+            {store.recce.submittedDate && <span>Submitted {formatDate(store.recce.submittedDate)}</span>}
+            {store.workflow?.recceAssignedTo?.name && <span>by {store.workflow.recceAssignedTo.name}</span>}
+          </>
+        }
+        actions={
+          <Btn variant="secondary" icon={<StoreIcon className="h-4 w-4" />} onClick={() => router.push(`/store/${id}`)}>
+            <span className="hidden sm:inline">Store details</span>
+          </Btn>
+        }
+      />
 
-      <div className="max-w-7xl mx-auto p-4 space-y-4">
-        {/* Filter Buttons */}
-        <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-center sm:justify-between">
-            <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 w-full sm:w-auto">
-              {([
-                { key: "ALL",      label: "All",      count: store.recce.reccePhotos.length, color: "gray" },
-                { key: "PENDING",  label: "Pending",  count: pending,   color: "yellow" },
-                { key: "APPROVED", label: "Approved", count: approved,  color: "green" },
-                { key: "REJECTED", label: "Rejected", count: rejected,  color: "red" },
-                { key: "HOLD",     label: "On Hold",  count: onHold,    color: "orange" },
-              ] as const).map(({ key, label, count, color }) => {
-                const isActive = activeFilter === key;
-                const colorMap = {
-                  gray:   { active: "bg-gray-600 text-white border-gray-600",     inactive: darkMode ? "bg-gray-700/50 text-gray-300 border-gray-600 hover:bg-gray-700" : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100",   num: darkMode ? "text-gray-300" : "text-gray-500" },
-                  yellow: { active: "bg-yellow-500 text-white border-yellow-500", inactive: darkMode ? "bg-yellow-900/20 text-yellow-400 border-yellow-700/50 hover:bg-yellow-900/40" : "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100", num: "text-yellow-500" },
-                  green:  { active: "bg-green-600 text-white border-green-600",   inactive: darkMode ? "bg-green-900/20 text-green-400 border-green-700/50 hover:bg-green-900/40" : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",   num: "text-green-600" },
-                  red:    { active: "bg-red-600 text-white border-red-600",       inactive: darkMode ? "bg-red-900/20 text-red-400 border-red-700/50 hover:bg-red-900/40" : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",             num: "text-red-600" },
-                  orange: { active: "bg-orange-500 text-white border-orange-500", inactive: darkMode ? "bg-orange-900/20 text-orange-400 border-orange-700/50 hover:bg-orange-900/40" : "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100", num: "text-orange-500" },
-                };
-                const c = colorMap[color];
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setActiveFilter(key)}
-                    className={`cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 h-8 sm:h-10 px-2 sm:w-28 rounded-lg border text-xs sm:text-sm font-semibold transition-all ${
-                      isActive ? c.active : c.inactive
-                    }`}
-                  >
-                    <span className={`font-black ${isActive ? "text-white" : c.num}`}>{count}</span>
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {pending > 0 && (
-              <button
-                onClick={handleApproveAll}
-                disabled={processing}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-all"
-              >
-                <CheckSquare className="w-4 h-4" />
-                <span className="hidden sm:inline">Approve All Remaining</span>
-                <span className="sm:hidden">Approve All</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Photos Grid */}
-        {(() => {
-          const hasAny = store.recce.reccePhotos.some((photo: any, idx: number) => {
-            const status = getEffectiveStatus(photo, idx);
-            if (activeFilter === "ALL") return true;
-            if (activeFilter === "PENDING") return !status || status === "PENDING";
-            return status === activeFilter;
-          });
-          if (!hasAny) {
-            return (
-              <div className={`p-10 rounded-xl border text-center ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                <p className={`text-sm font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>No photos in this category</p>
-              </div>
-            );
+      <div className="space-y-4">
+        <Section
+          title={
+            <span>
+              {reviewed} of {total} boards reviewed
+            </span>
           }
-          return (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {store.recce.reccePhotos.map((photo: any, index: number) => {
-                const status = getEffectiveStatus(photo, index);
-                const matches = activeFilter === "ALL" ? true
-                  : activeFilter === "PENDING" ? (!status || status === "PENDING")
-                  : status === activeFilter;
-                if (!matches) return null;
-                return (
-                  <div key={index} className={`rounded-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                    <div className="relative">
-                      {photo.photo ? (
-                        <img src={getFullImageUrl(photo.photo)} alt={`Recce ${index + 1}`} className="w-full h-48 object-cover" />
-                      ) : (
-                        <div className="w-full h-48 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400">
-                          <Building2 className="w-8 h-8 mb-1 text-blue-400" />
-                          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Direct Installation</span>
-                          <span className="text-[10px] text-gray-400">(No Photo)</span>
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2">{getStatusBadge(getEffectiveStatus(photo, index))}</div>
-                    </div>
-                    <div className="p-4 space-y-3">
+          icon={<CheckSquare className="h-4 w-4" />}
+          action={
+            pending > 0 ? (
+              <Btn variant="success" size="sm" icon={<CheckSquare className="h-4 w-4" />} disabled={processing} onClick={handleApproveAll}>
+                Approve {pending} remaining
+              </Btn>
+            ) : undefined
+          }
+          bodyClassName="space-y-4"
+        >
+          <ProgressBar
+            total={total}
+            height="h-2.5"
+            segments={[
+              { value: approved, tone: "success", label: "Approved" },
+              { value: rejected, tone: "danger", label: "Rejected" },
+              { value: onHold, tone: "warning", label: "On hold" },
+            ]}
+          />
+          <StatTiles
+            active={activeFilter}
+            onSelect={(k) => setActiveFilter(k as typeof activeFilter)}
+            items={[
+              { key: "ALL", label: "All boards", value: total, tone: "neutral" },
+              { key: "PENDING", label: "To review", value: pending, tone: "brand" },
+              { key: "APPROVED", label: "Approved", value: approved, tone: "success" },
+              { key: "REJECTED", label: "Rejected", value: rejected, tone: "danger" },
+              { key: "HOLD", label: "On hold", value: onHold, tone: "warning" },
+            ]}
+          />
+          {onHold > 0 && (
+            <p className={cx("flex items-start gap-2 text-xs", s.muted)}>
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              On-hold marks are saved in this browser only. Other admins and the recce user do not see them.
+            </p>
+          )}
+        </Section>
+
+        {!hasAny ? (
+          <EmptyBlock
+            title={`No ${filterLabel[activeFilter]} boards`}
+            hint="Pick another filter above to see the rest."
+            action={
+              <Btn size="sm" variant="secondary" onClick={() => setActiveFilter("ALL")}>
+                Show all boards
+              </Btn>
+            }
+          />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {store.recce.reccePhotos.map((photo: any, index: number) => {
+              if (!matchesFilter(photo, index)) return null;
+              const status = getEffectiveStatus(photo, index);
+              const ft = toFeet(photo.measurements);
+              const canAct = !status || status === "PENDING" || status === "HOLD";
+              return (
+                <article
+                  key={index}
+                  className={cx(
+                    "flex flex-col overflow-hidden rounded-xl border",
+                    s.card,
+                    status === "REJECTED" && (s.dark ? "border-red-800" : "border-red-300"),
+                    status === "APPROVED" && (s.dark ? "border-emerald-900" : "border-emerald-200")
+                  )}
+                >
+                  <PhotoTile
+                    src={photo.photo ? getFullImageUrl(photo.photo) : ""}
+                    alt={`Board ${index + 1}`}
+                    onOpen={() => lightbox.open(allImages, photoPos[index] ?? 0)}
+                    className="rounded-none border-0"
+                    empty={
+                      <>
+                        <Building2 className="h-7 w-7 text-blue-400" />
+                        <span className="font-medium">Direct installation</span>
+                        <span>No photo</span>
+                      </>
+                    }
+                    overlay={
+                      <>
+                        <Badge tone="neutral" className="shadow-sm">Board {index + 1}</Badge>
+                        <ApprovalBadge status={status} className="shadow-sm" />
+                      </>
+                    }
+                  />
+                  <div className="flex flex-1 flex-col gap-3 p-4">
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                       <div>
-                        <div className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Photo {index + 1}</div>
-                        <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        <dt className={`text-xs ${s.muted}`}>Measured</dt>
+                        <dd className={`font-semibold tabular-nums ${s.text}`}>
                           {photo.measurements.width} × {photo.measurements.height} {photo.measurements.unit}
-                        </div>
-                        {photo.elements?.[0] && (
-                          <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                            Element: {photo.elements[0].elementName}
-                          </div>
-                        )}
+                        </dd>
                       </div>
+                      <div>
+                        <dt className={`text-xs ${s.muted}`}>In feet</dt>
+                        <dd className={`font-semibold tabular-nums ${s.text}`}>
+                          {ft.width.toFixed(2)} × {ft.height.toFixed(2)} · {sqft(photo.measurements).toFixed(1)} sq.ft
+                        </dd>
+                      </div>
+                      <div className="col-span-2">
+                        <dt className={`text-xs ${s.muted}`}>Element</dt>
+                        <dd className={cx("font-semibold", photo.elements?.[0] ? s.text : s.faint)}>{photo.elements?.[0]?.elementName || "Not set"}</dd>
+                      </div>
+                    </dl>
 
-                      {photo.rejectionReason && (
-                        <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                          <div className="text-xs font-medium text-red-800 dark:text-red-400">Rejection Reason:</div>
-                          <div className="text-xs text-red-700 dark:text-red-300 mt-1">{photo.rejectionReason}</div>
-                        </div>
-                      )}
+                    {photo.rejectionReason && (
+                      <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                        <span className="font-semibold">Rejected: </span>
+                        {photo.rejectionReason}
+                      </p>
+                    )}
+                    {heldPhotos[index] && (
+                      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        <span className="font-semibold">On hold: </span>
+                        {heldPhotos[index]}
+                      </p>
+                    )}
 
-                      {heldPhotos[index] && (
-                        <div className="p-2 rounded bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
-                          <div className="text-xs font-medium text-orange-800 dark:text-orange-400">Hold Reason:</div>
-                          <div className="text-xs text-orange-700 dark:text-orange-300 mt-1">{heldPhotos[index]}</div>
-                        </div>
-                      )}
-
-                      {(!getEffectiveStatus(photo, index) || getEffectiveStatus(photo, index) === "PENDING") && (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => handleApprovePhoto(index)}
+                    {canAct && (
+                      <div className="mt-auto grid grid-cols-3 gap-2 pt-1">
+                        <Btn variant="success" className="col-span-3" disabled={processing} icon={<CheckCircle2 className="h-4 w-4" />} onClick={() => handleApprovePhoto(index)}>
+                          Approve
+                        </Btn>
+                        {status !== "HOLD" && (
+                          <Btn
+                            variant="warning"
                             disabled={processing}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 disabled:opacity-50 transition-all"
+                            icon={<PauseCircle className="h-4 w-4" />}
+                            onClick={() => {
+                              setHoldPhotoIndex(index);
+                              setShowHoldModal(true);
+                            }}
                           >
-                            <CheckCircle2 className="w-4 h-4" />
-                            Approve
-                          </button>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={() => { setHoldPhotoIndex(index); setShowHoldModal(true); }}
-                              disabled={processing}
-                              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-all"
-                            >
-                              <PauseCircle className="w-4 h-4" />
-                              Hold
-                            </button>
-                            <button
-                              onClick={() => { setRejectPhotoIndex(index); setShowRejectModal(true); }}
-                              disabled={processing}
-                              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-all"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              Reject
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {getEffectiveStatus(photo, index) === "HOLD" && (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => handleApprovePhoto(index)}
-                            disabled={processing}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 disabled:opacity-50 transition-all"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => { setRejectPhotoIndex(index); setShowRejectModal(true); }}
-                            disabled={processing}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-all"
-                          >
-                            <XCircle className="w-4 h-4" />
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                            Hold
+                          </Btn>
+                        )}
+                        <Btn
+                          variant="secondary"
+                          className={cx("text-red-700", status === "HOLD" ? "col-span-3" : "col-span-2")}
+                          disabled={processing}
+                          icon={<XCircle className="h-4 w-4" />}
+                          onClick={() => {
+                            setRejectPhotoIndex(index);
+                            setShowRejectModal(true);
+                          }}
+                        >
+                          Reject
+                        </Btn>
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          );
-        })()}
+                </article>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`max-w-md w-full rounded-xl shadow-2xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-              <h3 className={`text-base font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
-                Reject Photo {rejectPhotoIndex !== null ? rejectPhotoIndex + 1 : ""}
-              </h3>
-              <p className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>This photo will be marked as rejected and sent back for re-submission.</p>
-            </div>
-            <div className="px-6 py-4">
-              <textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Enter rejection reason (required)..."
-                className={`w-full p-3 border rounded-lg text-sm min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-red-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400"}`}
-              />
-            </div>
-            <div className={`px-6 py-4 flex gap-3 border-t ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-100 bg-gray-50"}`}>
-              <button
-                onClick={() => { setShowRejectModal(false); setRejectPhotoIndex(null); setRejectionReason(""); }}
-                className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm border-2 transition-all ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"}`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRejectPhoto}
-                disabled={processing || !rejectionReason.trim()}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2 border-2 border-red-600 transition-all"
-              >
-                {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4" /> Reject</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reject */}
+      <Dialog
+        open={showRejectModal}
+        onClose={() => {
+          setShowRejectModal(false);
+          setRejectPhotoIndex(null);
+          setRejectionReason("");
+        }}
+        icon={<XCircle className="h-5 w-5 text-red-600" />}
+        title={`Reject board ${rejectPhotoIndex !== null ? rejectPhotoIndex + 1 : ""}`}
+        description="The recce user will see this reason and must re-shoot the board."
+        footer={
+          <>
+            <Btn
+              variant="secondary"
+              className="flex-1"
+              onClick={() => {
+                setShowRejectModal(false);
+                setRejectPhotoIndex(null);
+                setRejectionReason("");
+              }}
+            >
+              Cancel
+            </Btn>
+            <Btn variant="danger" className="flex-1" loading={processing} disabled={!rejectionReason.trim()} icon={<XCircle className="h-4 w-4" />} onClick={handleRejectPhoto}>
+              Reject board
+            </Btn>
+          </>
+        }
+      >
+        <Field label="Reason" required hint="Be specific, for example: photo is blurred, board edges cut off.">
+          <textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className={cx(inputClass, "min-h-[100px] resize-none")} />
+        </Field>
+      </Dialog>
 
-      {/* Hold Modal */}
-      {showHoldModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`max-w-md w-full rounded-xl shadow-2xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${darkMode ? "bg-orange-900/40" : "bg-orange-100"}`}>
-                  <PauseCircle className="w-5 h-5 text-orange-500" />
-                </div>
-                <div>
-                  <h3 className={`text-base font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
-                    Hold Photo {holdPhotoIndex !== null ? holdPhotoIndex + 1 : ""}
-                  </h3>
-                  <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                    This photo will be put on hold. It can be approved or rejected later.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-4">
-              <textarea
-                value={holdReason}
-                onChange={(e) => setHoldReason(e.target.value)}
-                placeholder="Reason for holding (optional)..."
-                className={`w-full p-3 border rounded-lg text-sm min-h-[90px] resize-none focus:outline-none focus:ring-2 focus:ring-orange-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400"}`}
-              />
-            </div>
-            <div className={`px-6 py-4 flex gap-3 border-t ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-100 bg-gray-50"}`}>
-              <button
-                onClick={() => { setShowHoldModal(false); setHoldPhotoIndex(null); setHoldReason(""); }}
-                className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm border-2 transition-all ${darkMode ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"}`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleHoldPhoto}
-                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg font-semibold text-sm hover:bg-orange-600 flex items-center justify-center gap-2 border-2 border-orange-500 transition-all"
-              >
-                <PauseCircle className="w-4 h-4" /> Put on Hold
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Hold */}
+      <Dialog
+        open={showHoldModal}
+        onClose={() => {
+          setShowHoldModal(false);
+          setHoldPhotoIndex(null);
+          setHoldReason("");
+        }}
+        icon={<PauseCircle className="h-5 w-5 text-amber-500" />}
+        title={`Hold board ${holdPhotoIndex !== null ? holdPhotoIndex + 1 : ""}`}
+        description="Park this board to decide later. The hold is saved in this browser only."
+        footer={
+          <>
+            <Btn
+              variant="secondary"
+              className="flex-1"
+              onClick={() => {
+                setShowHoldModal(false);
+                setHoldPhotoIndex(null);
+                setHoldReason("");
+              }}
+            >
+              Cancel
+            </Btn>
+            <Btn variant="warning" className="flex-1" icon={<PauseCircle className="h-4 w-4" />} onClick={handleHoldPhoto}>
+              Put on hold
+            </Btn>
+          </>
+        }
+      >
+        <Field label="Reason" hint="Optional.">
+          <textarea value={holdReason} onChange={(e) => setHoldReason(e.target.value)} className={cx(inputClass, "min-h-[90px] resize-none")} />
+        </Field>
+      </Dialog>
+
+      {/* Approve all */}
+      <Dialog
+        open={approveAllConfirmOpen}
+        onClose={() => setApproveAllConfirmOpen(false)}
+        icon={<CheckSquare className="h-5 w-5 text-emerald-600" />}
+        title={`Approve all ${pending} remaining boards?`}
+        description="Every board that is still pending is approved. This cannot be undone from here."
+        footer={
+          <>
+            <Btn variant="secondary" className="flex-1" onClick={() => setApproveAllConfirmOpen(false)}>
+              Cancel
+            </Btn>
+            <Btn
+              variant="success"
+              className="flex-1"
+              icon={processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckSquare className="h-4 w-4" />}
+              disabled={processing}
+              onClick={() => {
+                setApproveAllConfirmOpen(false);
+                confirmApproveAll();
+              }}
+            >
+              Approve all
+            </Btn>
+          </>
+        }
+      />
+
+      {lightbox.node}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import { StatusCell } from "@/src/components/detail";
 
 export default function RFQGenerationPage() {
   const { darkMode } = useTheme();
@@ -181,7 +182,7 @@ export default function RFQGenerationPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className={`text-xl sm:text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>RFQ Generation</h1>
-          <p className={`text-xs sm:text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Create Request for Quotation for selected stores</p>
+          <p className={`text-xs sm:text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Pick stores and generate a Request for Quotation sheet for vendors. Usually done once the recce is approved, so board sizes are known.</p>
         </div>
         <div className="flex items-center gap-2">
           {selectedStoreIds.size > 0 && (
@@ -264,9 +265,7 @@ export default function RFQGenerationPage() {
                           <div className={`text-xs sm:text-sm ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{store.location.city || "-"}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-full ${getStatusColor(store.currentStatus)}`}>
-                            {store.currentStatus.replace(/_/g, " ")}
-                          </span>
+                          <StatusCell status={store.currentStatus} />
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-right">
                           <button onClick={() => router.push(`/store/${store._id}`)} className="p-1.5 rounded hover:bg-gray-100/50 dark:hover:bg-gray-700/50 text-blue-600" title="View Details">
@@ -297,9 +296,7 @@ export default function RFQGenerationPage() {
                           <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"} mt-1`}>{store.location.city}</div>
                         </div>
                       </div>
-                      <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-full whitespace-nowrap ${getStatusColor(store.currentStatus)}`}>
-                        {store.currentStatus.replace(/_/g, " ")}
-                      </span>
+                      <StatusCell status={store.currentStatus} hideNext />
                     </div>
                     <div className={`flex items-center justify-between text-xs mt-2 pt-2 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
                       <div>

@@ -274,7 +274,7 @@ export default function RolesPage() {
               darkMode ? "text-gray-400" : "text-gray-500"
             }`}
           >
-            Manage system permissions
+            What each role can see and do, per module. A user gets the combined permissions of all their roles. Super Admin can do everything.
           </p>
         </div>
         <div className="flex gap-2">

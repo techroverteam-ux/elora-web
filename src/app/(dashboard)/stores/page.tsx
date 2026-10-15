@@ -40,6 +40,11 @@ import { usePermissions } from "@/src/hooks/usePermissions";
 import Modal from "@/src/components/ui/Modal";
 import { TableSkeleton } from "@/src/components/ui/Skeleton";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts } from "@/src/components/detail";
+
+// Every status a store can have; picking all of them means "show every store".
+const ALL_STORE_STATUSES = [...Object.values(StoreStatus), "MANUALLY_ADDED"];
+const NEW_STORE_STATUSES = ["UPLOADED", "MANUALLY_ADDED"];
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -49,14 +54,6 @@ export default function StoresPage() {
   const { hasPermission } = usePermissions();
   const router = useRouter();
 
-  // Debug: Log user permissions
-  React.useEffect(() => {
-    if (user) {
-      console.log('User:', user);
-      console.log('Has edit permission on stores:', hasPermission('stores', 'edit'));
-    }
-  }, [user]);
-
   // Check if user has RECCE or INSTALLATION role
   const isRecceOrInstallUser = React.useMemo(() => {
     if (!user || !user.roles || !Array.isArray(user.roles)) return false;
@@ -65,6 +62,8 @@ export default function StoresPage() {
       (role) => role?.name === "RECCE" || role?.name === "INSTALLATION",
     );
   }, [user]);
+
+  const statusCounts = useStatusCounts();
 
   const canDeleteStore = (store: Store) => {
     if (!user || !user.roles || !Array.isArray(user.roles)) return false;
@@ -113,6 +112,16 @@ export default function StoresPage() {
   // Filter State
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Links from other pages can open this list on a stage or a store: /stores?status=RECCE_APPROVED&search=ELR-001
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    const st = q.get("status");
+    const se = q.get("search");
+    if (st) setFilterStatus(st.split(",").filter(Boolean));
+    if (se) setSearchTerm(se);
+  }, []);
   const [filterCity, setFilterCity] = useState<string[]>([]);
   const [filterClientCode, setFilterClientCode] = useState<string[]>([]);
   const [filterClientName, setFilterClientName] = useState<string[]>([]);
@@ -244,7 +253,6 @@ export default function StoresPage() {
 
 
   const fetchStores = async () => {
-    const startTime = Date.now();
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -261,9 +269,7 @@ export default function StoresPage() {
       if (filterClientCode.length > 0) filterClientCode.forEach(c => params.append("clientCode", c));
       if (filterClientName.length > 0) filterClientName.forEach(n => params.append("clientName", n));
 
-      console.log('Fetching stores with params:', params.toString());
       const { data } = await api.get(`/stores?${params.toString()}`);
-      console.log('Stores response:', data);
       setStores(data.stores);
       if (data.pagination) {
         setTotalPages(data.pagination.pages);
@@ -272,12 +278,7 @@ export default function StoresPage() {
     } catch (error) {
       toast.error("Failed to load stores");
     } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 800) {
-        setTimeout(() => setIsLoading(false), 800 - elapsed);
-      } else {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   };
 
@@ -1284,19 +1285,15 @@ export default function StoresPage() {
   return (
     <div className="space-y-4 pb-20">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1
-            className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
-          >
-            Store Operations
-          </h1>
-          <p
-            className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-          >
-            Manage and track all store activities
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <PageIntro
+          title="Store Operations"
+          description={
+            isRecceOrInstallUser
+              ? "Stores assigned to you or added by you, and the stage each one is in."
+              : "Every store and the stage it is in. Assign recce users and installers from here."
+          }
+        />
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleExportStores}
@@ -1329,6 +1326,25 @@ export default function StoresPage() {
           )}
         </div>
       </div>
+
+      {/* Where stores are */}
+      <StageStrip
+        counts={statusCounts}
+        selected={filterStatus.length > 0 ? filterStatus : isRecceOrInstallUser ? [] : NEW_STORE_STATUSES}
+        onSelect={(statuses) => { setFilterStatus(statuses); setPage(1); }}
+        hint="Click a stage to list its stores. Hover for what happens there."
+        showClear={filterStatus.length > 0}
+      />
+      {!isRecceOrInstallUser && filterStatus.length === 0 && (
+        <ScopeNote action={<LinkBtn onClick={() => { setFilterStatus(ALL_STORE_STATUSES); setPage(1); }}>Show all stores</LinkBtn>}>
+          Showing <strong>new stores that still need a recce user</strong>. Stores already assigned or finished are in the other stages above.
+        </ScopeNote>
+      )}
+      {filterStatus.length >= ALL_STORE_STATUSES.length && (
+        <ScopeNote action={!isRecceOrInstallUser ? <LinkBtn onClick={() => { setFilterStatus([]); setPage(1); }}>Back to new stores</LinkBtn> : undefined}>
+          Showing <strong>all stores</strong> in every stage.
+        </ScopeNote>
+      )}
 
       {/* Filters & Bulk Actions */}
       <div
@@ -1398,7 +1414,12 @@ export default function StoresPage() {
             <div className="flex flex-wrap items-center gap-2 mt-1 animate-in fade-in slide-in-from-top-2">
               <span className={`text-xs font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Active Filters:</span>
               
-              {filterStatus.map((status) => (
+              {filterStatus.length >= ALL_STORE_STATUSES.length && (
+                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${darkMode ? "bg-gray-800 border-gray-700 text-gray-200" : "bg-white border-gray-200 text-gray-700"}`}>
+                  All stages
+                </span>
+              )}
+              {filterStatus.length < ALL_STORE_STATUSES.length && filterStatus.map((status) => (
                 <div
                   key={`status-${status}`}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${
@@ -2252,11 +2273,7 @@ export default function StoresPage() {
                           </>
                         )}
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-full ${getStatusColor(store.currentStatus)}`}
-                          >
-                            {store.currentStatus.replace(/_/g, " ")}
-                          </span>
+                          <StatusCell status={store.currentStatus} />
                         </td>
                         <td className="px-4 py-4">
                           <div className="space-y-1.5">
@@ -2822,11 +2839,7 @@ export default function StoresPage() {
                           </div>
                         </div>
                       </div>
-                      <span
-                        className={`px-2 py-1 text-[10px] font-bold uppercase rounded-full whitespace-nowrap ${getStatusColor(store.currentStatus)}`}
-                      >
-                        {store.currentStatus.replace(/_/g, " ")}
-                      </span>
+                      <StatusCell status={store.currentStatus} />
                     </div>
 
                     {/* Details Grid */}

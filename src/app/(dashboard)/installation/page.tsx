@@ -30,6 +30,9 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import * as XLSX from "xlsx";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import { PageIntro, ScopeNote, StageStrip, StatusCell, useStatusCounts } from "@/src/components/detail";
+
+const INSTALL_SCOPE = ["INSTALLATION_ASSIGNED", "INSTALLATION_SUBMITTED", "INSTALLATION_REJECTED", "COMPLETED"];
 
 export default function InstallationListPage() {
   const router = useRouter();
@@ -43,6 +46,7 @@ export default function InstallationListPage() {
     );
   }, [user]);
   
+  const statusCounts = useStatusCounts();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -59,6 +63,12 @@ export default function InstallationListPage() {
   const [totalStores, setTotalStores] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  // Links from the dashboard can open this list on a stage: ?status=RECCE_SUBMITTED
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const st = new URLSearchParams(window.location.search).get("status");
+    if (st) setFilterStatus(st.split(",").filter(Boolean));
+  }, []);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const deleteConfirmOpenRef = React.useRef<Set<string>>(new Set());
 
@@ -541,12 +551,11 @@ export default function InstallationListPage() {
     <div className="max-w-7xl mx-auto pb-20 space-y-4">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-           <h1 className={`text-2xl font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-               <Wrench className="h-6 w-6 text-blue-600" /> Installation Tasks
-           </h1>
-           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage your installation assignments</p>
-        </div>
+        <PageIntro
+          icon={<Wrench className="h-6 w-6 text-yellow-500" />}
+          title="Installation"
+          description="Stores whose recce is approved and an installer is assigned. The installer uploads an installed photo for each approved board."
+        />
         <div className="flex gap-2">
              {isAdmin && selectedStoreIds.size > 0 && (
                <>
@@ -563,6 +572,20 @@ export default function InstallationListPage() {
              </button>
         </div>
       </div>
+
+      <StageStrip
+        title="Installation stages"
+        counts={statusCounts}
+        scope={INSTALL_SCOPE}
+        selected={filterStatus}
+        onSelect={(statuses) => { setFilterStatus(statuses as StoreStatus[]); setPage(1); }}
+        hint="Click a stage to list its stores."
+      />
+      {filterStatus.length === 0 && (
+        <ScopeNote>
+          Showing stores that are <strong>assigned for installation, submitted or completed</strong>. Approved recces waiting for an installer are in Store Operations and Recce.
+        </ScopeNote>
+      )}
 
       {/* FILTERS */}
       <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
@@ -636,9 +659,7 @@ export default function InstallationListPage() {
                                         <p className={`text-xs font-mono mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{store.dealerCode}</p>
                                     </div>
                                 </div>
-                                <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide whitespace-nowrap ${statusColors(store.currentStatus)}`}>
-                                    {statusLabel(store.currentStatus)}
-                                </span>
+                                <StatusCell status={store.currentStatus} />
                             </div>
                             <div className={`flex items-start gap-2 text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
                                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
@@ -730,9 +751,7 @@ export default function InstallationListPage() {
                                            )}
                                        </td>
                                        <td className="px-6 py-4">
-                                           <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors(store.currentStatus)}`}>
-                                               {statusLabel(store.currentStatus)}
-                                           </span>
+                                           <StatusCell status={store.currentStatus} />
                                        </td>
                                        <td className="px-6 py-4 text-right">
                                            <div className="flex items-center justify-end gap-2">

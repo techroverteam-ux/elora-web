@@ -5,36 +5,72 @@ import { useRouter, useParams } from "next/navigation";
 import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
 import {
-  ArrowLeft,
-  MapPin,
   Building2,
+  Camera,
+  ClipboardCheck,
+  Edit2,
+  Hammer,
+  Image as ImageIcon,
+  Info,
+  Layers,
+  MapPin,
   Package,
+  Save,
+  StickyNote,
+  UserPlus,
   IndianRupee,
   FileSpreadsheet,
-  Edit2,
-  Save,
-  X,
-  Image as ImageIcon,
-  Calendar,
-  User,
-  CheckCircle,
-  Loader2,
-  UserPlus
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { Skeleton, CardSkeleton } from "@/src/components/ui/Skeleton";
 import { useImageService } from "@/src/hooks/useImageService";
+import {
+  ApprovalBadge,
+  Badge,
+  Btn,
+  CommercialCard,
+  ContactCard,
+  CopyText,
+  CostCard,
+  DealerCard,
+  DetailHeader,
+  DetailSkeleton,
+  EmptyBlock,
+  Field,
+  InfoGrid,
+  LocationCard,
+  NextStep,
+  NotFound,
+  PhotoTile,
+  PriorityBadge,
+  Section,
+  SpecsCard,
+  StatusBadge,
+  StickyBar,
+  Stepper,
+  buildSteps,
+  formatDate,
+  formatINR,
+  personName,
+  sqft,
+  statusMeta,
+  timeAgo,
+  toFeet,
+  useInputClass,
+  useLightbox,
+  useSurface,
+} from "@/src/components/detail";
 
 export default function StoreDetailsPage() {
   const router = useRouter();
-  const { darkMode } = useTheme();
   const { user } = useAuth();
   const params = useParams();
   const id = params?.id as string;
 
-  const { getFullImageUrl, processStoreImages } = useImageService();
+  const { getFullImageUrl } = useImageService();
+  const s = useSurface();
+  const inputClass = useInputClass();
+  const lightbox = useLightbox();
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,9 +78,7 @@ export default function StoreDetailsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<any>({});
 
-  const canEdit = user?.roles?.some((r: any) => 
-    ["SUPER_ADMIN", "ADMIN"].includes(r?.code)
-  );
+  const canEdit = user?.roles?.some((r: any) => ["SUPER_ADMIN", "ADMIN"].includes(r?.code));
 
   useEffect(() => {
     if (!id) return;
@@ -52,7 +86,6 @@ export default function StoreDetailsPage() {
   }, [id]);
 
   const fetchStore = async () => {
-    const startTime = Date.now();
     try {
       const { data } = await api.get(`/stores/${id}`);
       setStore(data.store);
@@ -70,12 +103,7 @@ export default function StoreDetailsPage() {
     } catch (error) {
       toast.error("Failed to load store details");
     } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 800) {
-        setTimeout(() => setLoading(false), 800 - elapsed);
-      } else {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
@@ -93,396 +121,398 @@ export default function StoreDetailsPage() {
     }
   };
 
-  if (loading)
-    return (
-      <div className={`min-h-screen pb-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-        <div className={`sticky top-0 z-10 px-4 py-3 border-b ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-6 w-6 rounded-full" />
-            <div className="flex-1">
-              <Skeleton className="h-6 w-48 mb-2" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto p-4">
-          <div className="grid md:grid-cols-3 gap-4 mb-6">
-            <CardSkeleton />
-            <CardSkeleton />
-            <CardSkeleton />
-          </div>
-        </div>
-      </div>
-    );
-  if (!store) return <div className="p-10 text-center">Store not found</div>;
+  if (loading) return <DetailSkeleton />;
+  if (!store)
+    return <NotFound title="Store not found" hint="It may have been deleted, or the link is wrong." backHref="/stores" backLabel="Back to stores" />;
 
-  const inputClass = `w-full px-3 py-2 rounded-lg border text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`;
+  const meta = statusMeta(store.currentStatus);
+  const photos = (store.recce?.reccePhotos || []) as Array<any>;
+  const initialPhotos = store.recce?.initialPhotos || [];
+  const installPhotos = (store.installation?.photos || []) as Array<any>;
+  const approvedCount = photos.filter((p) => p.approvalStatus === "APPROVED").length;
+  const rejectedCount = photos.filter((p) => p.approvalStatus === "REJECTED").length;
+  const pendingCount = photos.length - approvedCount - rejectedCount;
+
+  // Same condition the page used before for the installation block and its Assign button.
+  const showInstallation =
+    !!store.recce &&
+    ["RECCE_SUBMITTED", "RECCE_APPROVED", "INSTALLATION_ASSIGNED", "INSTALLATION_SUBMITTED", "COMPLETED"].includes(store.currentStatus);
+  const installNotAssigned = !store.workflow?.installationAssignedTo && (!store.installation || !store.installation.submittedDate);
+  const canAssignInstall = showInstallation && installNotAssigned && canEdit;
+  const hasCommercials = !!(store.commercials?.poNumber || store.commercials?.poMonth || store.commercials?.invoiceNumber || store.commercials?.totalCost);
+
+  const set = (patch: any) => setEditData({ ...editData, ...patch });
+  const setIn = (key: string, field: string, value: any) => setEditData({ ...editData, [key]: { ...editData[key], [field]: value } });
+
+  const recceImages = photos.map((p, i) => ({ src: p.photo ? getFullImageUrl(p.photo) : "", caption: `Board ${i + 1} · recce` }));
+  const initialImages = initialPhotos.map((p, i) => ({ src: getFullImageUrl(p), caption: `Store photo ${i + 1}` }));
+  const installImages = installPhotos.map((p) => ({ src: getFullImageUrl(p.installationPhoto), caption: `Board ${p.reccePhotoIndex + 1} · installed` }));
+
+  /* ---------------- next-step actions ---------------- */
+  const nextActions = (
+    <>
+      {canEdit && store.currentStatus === "RECCE_SUBMITTED" && (
+        <Btn variant="primary" icon={<ClipboardCheck className="h-4 w-4" />} onClick={() => router.push(`/recce/${store._id}/review`)}>
+          Review recce
+        </Btn>
+      )}
+      {canAssignInstall && (
+        <Btn
+          variant={store.currentStatus === "RECCE_APPROVED" ? "primary" : "secondary"}
+          icon={<UserPlus className="h-4 w-4" />}
+          onClick={() => router.push(`/stores?status=${store.currentStatus}&search=${encodeURIComponent(store.storeId || store.dealerCode)}`)}
+        >
+          Assign installer
+        </Btn>
+      )}
+      {store.recce && (
+        <Btn variant="secondary" icon={<Camera className="h-4 w-4" />} onClick={() => router.push(`/recce/${store._id}`)}>
+          Open recce
+        </Btn>
+      )}
+      {(store.workflow?.installationAssignedTo || store.installation?.submittedDate) && (
+        <Btn variant="secondary" icon={<Hammer className="h-4 w-4" />} onClick={() => router.push(`/installation/${store._id}`)}>
+          Open installation
+        </Btn>
+      )}
+    </>
+  );
 
   return (
-    <div className={`min-h-screen pb-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      {/* Header */}
-      <div className={`sticky top-0 z-10 px-4 py-3 border-b ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-        <div className="flex items-center gap-2">
-          <button onClick={() => router.back()} className={`p-2 -ml-2 rounded-full ${darkMode ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 hover:bg-gray-100"}`}>
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className={`font-bold text-base sm:text-lg leading-tight truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
-              {store.storeName}
-            </h1>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className={`text-xs font-mono ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>{store.storeId || store.dealerCode}</span>
-              <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-100 text-blue-800"}`}>{store.currentStatus.replace(/_/g, " ")}</span>
-            </div>
-          </div>
-          {canEdit && !isEditing && (
-            <button onClick={() => setIsEditing(true)} className="px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap">
-              <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Edit</span>
-            </button>
-          )}
-          {isEditing && (
-            <div className="flex gap-2">
-              <button onClick={() => setIsEditing(false)} className={`p-2 rounded-lg ${darkMode ? "bg-gray-700 text-gray-200" : "bg-gray-200 text-gray-700"}`}>
-                <X className="h-4 w-4" />
-              </button>
-              <button onClick={handleSave} disabled={isSaving} className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-xs sm:text-sm flex items-center gap-1">
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} <span className="hidden sm:inline">Save</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
-        {/* Store Details Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-          {/* Location Card */}
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-yellow-500" />
-                <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Location</h3>
-              </div>
-            </div>
-            {isEditing ? (
-              <div className="space-y-2">
-                <input placeholder="Zone" value={editData.location?.zone || ""} onChange={(e) => setEditData({...editData, location: {...editData.location, zone: e.target.value}})} className={inputClass} />
-                <input placeholder="State" value={editData.location?.state || ""} onChange={(e) => setEditData({...editData, location: {...editData.location, state: e.target.value}})} className={inputClass} />
-                <input placeholder="District" value={editData.location?.district || ""} onChange={(e) => setEditData({...editData, location: {...editData.location, district: e.target.value}})} className={inputClass} />
-                <input placeholder="City" value={editData.location?.city || ""} onChange={(e) => setEditData({...editData, location: {...editData.location, city: e.target.value}})} className={inputClass} />
-                <textarea placeholder="Address" value={editData.location?.address || ""} onChange={(e) => setEditData({...editData, location: {...editData.location, address: e.target.value}})} className={inputClass} rows={2} />
-                <input placeholder="Mobile Number" value={editData.contact?.mobile || ""} onChange={(e) => setEditData({...editData, contact: {...editData.contact, mobile: e.target.value}})} className={inputClass} />
-              </div>
-            ) : (
-              <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                <div><span className="text-gray-500">Zone:</span> {store.location.zone || "-"}</div>
-                <div><span className="text-gray-500">State:</span> {store.location.state || "-"}</div>
-                <div><span className="text-gray-500">District:</span> {store.location.district || "-"}</div>
-                <div><span className="text-gray-500">City:</span> {store.location.city || "-"}</div>
-                <div><span className="text-gray-500">Mobile:</span> {store.contact?.mobile || "-"}</div>
-                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                  <span className="text-gray-500">Address:</span>
-                  <p className="mt-1">{store.location.address || "-"}</p>
-                </div>
-              </div>
+    <div className="mx-auto max-w-7xl pb-28">
+      <DetailHeader
+        backHref="/stores"
+        eyebrow="Store"
+        title={store.storeName}
+        meta={
+          <>
+            <CopyText value={store.storeId || store.dealerCode} />
+            <StatusBadge status={store.currentStatus} />
+            <PriorityBadge priority={store.workflow?.priority} />
+            {(store.location?.city || store.location?.state) && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {[store.location?.city, store.location?.state].filter(Boolean).join(", ")}
+              </span>
             )}
-          </div>
+            {store.updatedAt && <span>Updated {timeAgo(store.updatedAt)}</span>}
+          </>
+        }
+        actions={
+          canEdit &&
+          (isEditing ? (
+            <>
+              <Btn variant="ghost" onClick={() => setIsEditing(false)} className="hidden sm:inline-flex">
+                Cancel
+              </Btn>
+              <Btn variant="primary" loading={isSaving} icon={<Save className="h-4 w-4" />} onClick={handleSave}>
+                <span className="hidden sm:inline">Save changes</span>
+              </Btn>
+            </>
+          ) : (
+            <Btn variant="secondary" icon={<Edit2 className="h-4 w-4" />} onClick={() => setIsEditing(true)}>
+              <span className="hidden sm:inline">Edit details</span>
+            </Btn>
+          ))
+        }
+      />
 
-          {/* Dealer Info Card */}
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <Building2 className="h-5 w-5 text-yellow-500" />
-              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Dealer Info</h3>
-            </div>
-            {isEditing ? (
-              <div className="space-y-2">
-                <input placeholder="Dealer Code" value={editData.dealerCode} onChange={(e) => setEditData({...editData, dealerCode: e.target.value})} className={inputClass} />
-                <input placeholder="Store Name" value={editData.storeName} onChange={(e) => setEditData({...editData, storeName: e.target.value})} className={inputClass} />
-                <input placeholder="Vendor Code" value={editData.vendorCode} onChange={(e) => setEditData({...editData, vendorCode: e.target.value})} className={inputClass} />
-                <input placeholder="Client Code" value={editData.clientCode} onChange={(e) => setEditData({...editData, clientCode: e.target.value})} className={inputClass} />
-              </div>
-            ) : (
-              <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                <div><span className="text-gray-500">Code:</span> {store.dealerCode}</div>
-                <div><span className="text-gray-500">Vendor:</span> {store.vendorCode || "-"}</div>
-                <div><span className="text-gray-500">Client:</span> {store.clientCode || "-"}</div>
-              </div>
-            )}
-          </div>
+      <div className="space-y-4">
+        {!isEditing && (
+          <NextStep tone={meta.tone} icon={<Info className="h-5 w-5" />} title={meta.label} action={nextActions}>
+            {meta.next}
+          </NextStep>
+        )}
 
-          {/* Commercial Details Card - Only show if PO details exist */}
-          {(store.commercials?.poNumber || store.commercials?.poMonth || store.commercials?.invoiceNumber || store.commercials?.totalCost) && (
-            <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-              <div className="flex items-center gap-2 mb-3">
-                <FileSpreadsheet className="h-5 w-5 text-yellow-500" />
-                <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Commercial</h3>
-              </div>
-              {isEditing ? (
-                <div className="space-y-2">
-                  <input placeholder="PO Number" value={editData.commercials?.poNumber || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, poNumber: e.target.value}})} className={inputClass} />
-                  <input placeholder="PO Month" value={editData.commercials?.poMonth || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, poMonth: e.target.value}})} className={inputClass} />
-                  <input placeholder="Invoice Number" value={editData.commercials?.invoiceNumber || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, invoiceNumber: e.target.value}})} className={inputClass} />
-                  <input type="number" placeholder="Total Cost" value={editData.commercials?.totalCost || ""} onChange={(e) => setEditData({...editData, commercials: {...editData.commercials, totalCost: Number(e.target.value)}})} className={inputClass} />
-                </div>
+        <Section title="Progress" icon={<Layers className="h-4 w-4" />}>
+          <Stepper steps={buildSteps(store)} />
+        </Section>
+
+        <div className="grid items-start gap-4 lg:grid-cols-3">
+          {/* ---------------- main column ---------------- */}
+          <div className="space-y-4 lg:col-span-2">
+            <Section
+              title="Boards"
+              icon={<Package className="h-4 w-4" />}
+              count={photos.length || undefined}
+              subtitle={
+                photos.length > 0 ? `${approvedCount} approved · ${pendingCount} pending · ${rejectedCount} rejected` : "Measured during recce"
+              }
+              action={
+                canEdit && store.currentStatus === "RECCE_SUBMITTED" ? (
+                  <Btn size="sm" variant="secondary" onClick={() => router.push(`/recce/${store._id}/review`)}>
+                    Review
+                  </Btn>
+                ) : undefined
+              }
+            >
+              {photos.length === 0 ? (
+                <EmptyBlock
+                  icon={<Camera className="h-8 w-8" />}
+                  title="No boards measured yet"
+                  hint={store.workflow?.recceAssignedTo ? `Waiting for ${personName(store.workflow.recceAssignedTo) || "the recce user"} to submit the recce.` : "Assign a recce user from Store Operations to get boards measured."}
+                />
               ) : (
-                <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                  <div><span className="text-gray-500">PO Number:</span> {store.commercials?.poNumber || "-"}</div>
-                  <div><span className="text-gray-500">PO Month:</span> {store.commercials?.poMonth || "-"}</div>
-                  <div><span className="text-gray-500">Invoice:</span> {store.commercials?.invoiceNumber || "-"}</div>
-                  <div><span className="text-gray-500">Total Cost:</span> ₹{store.commercials?.totalCost?.toLocaleString() || 0}</div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Board Specs & Costs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <Package className="h-5 w-5 text-yellow-500" />
-              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Board Specifications</h3>
-            </div>
-            {isEditing ? (
-              <div className="grid grid-cols-2 gap-2">
-                <input placeholder="Type" value={editData.specs?.type || ""} onChange={(e) => setEditData({...editData, specs: {...editData.specs, type: e.target.value}})} className={inputClass} />
-                <input type="number" placeholder="Qty" value={editData.specs?.qty || ""} onChange={(e) => setEditData({...editData, specs: {...editData.specs, qty: Number(e.target.value)}})} className={inputClass} />
-                <input type="number" placeholder="Width (ft)" value={editData.specs?.width || ""} onChange={(e) => setEditData({...editData, specs: {...editData.specs, width: Number(e.target.value)}})} className={inputClass} />
-                <input type="number" placeholder="Height (ft)" value={editData.specs?.height || ""} onChange={(e) => setEditData({...editData, specs: {...editData.specs, height: Number(e.target.value)}})} className={inputClass} />
-              </div>
-            ) : (
-              <div className={`grid grid-cols-2 gap-3 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                <div><span className="text-gray-500">Type:</span> {store.specs?.type || "-"}</div>
-                <div><span className="text-gray-500">Qty:</span> {store.specs?.qty || 1}</div>
-                <div><span className="text-gray-500">Width:</span> {store.specs?.width} ft</div>
-                <div><span className="text-gray-500">Height:</span> {store.specs?.height} ft</div>
-              </div>
-            )}
-          </div>
-
-          <div className={`p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <IndianRupee className="h-5 w-5 text-yellow-500" />
-              <h3 className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Cost Details</h3>
-            </div>
-            {isEditing ? (
-              <div className="space-y-2">
-                <input type="number" placeholder="Board Rate" value={editData.costDetails?.boardRate || ""} onChange={(e) => setEditData({...editData, costDetails: {...editData.costDetails, boardRate: Number(e.target.value)}})} className={inputClass} />
-                <input type="number" placeholder="Angle Charges" value={editData.costDetails?.angleCharges || ""} onChange={(e) => setEditData({...editData, costDetails: {...editData.costDetails, angleCharges: Number(e.target.value)}})} className={inputClass} />
-                <input type="number" placeholder="Scaffolding" value={editData.costDetails?.scaffoldingCharges || ""} onChange={(e) => setEditData({...editData, costDetails: {...editData.costDetails, scaffoldingCharges: Number(e.target.value)}})} className={inputClass} />
-                <input type="number" placeholder="Transportation" value={editData.costDetails?.transportation || ""} onChange={(e) => setEditData({...editData, costDetails: {...editData.costDetails, transportation: Number(e.target.value)}})} className={inputClass} />
-              </div>
-            ) : (
-              <div className={`space-y-1 text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                {store.recce?.reccePhotos && store.recce.reccePhotos.length > 0 ? (
-                  <>
-                    <div className="mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                      <div className="text-xs font-semibold mb-1 text-gray-500">Board Costs:</div>
-                      {store.recce.reccePhotos.map((photo: any, idx: number) => {
-                        if (photo.elements && photo.elements.length > 0 && photo.elements[0].customRate) {
-                          const width = photo.measurements?.unit === "in" ? photo.measurements.width / 12 : photo.measurements.width;
-                          const height = photo.measurements?.unit === "in" ? photo.measurements.height / 12 : photo.measurements.height;
-                          const boardSize = width * height;
-                          const cost = boardSize * photo.elements[0].customRate * (photo.elements[0].quantity || 1);
-                          return (
-                            <div key={idx} className="text-xs mb-1">
-                              <div className="flex justify-between">
-                                <span>{photo.elements[0].elementName}:</span>
-                                <span>₹{photo.elements[0].customRate}/sq.ft</span>
-                              </div>
-                              <div className="flex justify-between text-[10px] text-gray-500 ml-2">
-                                <span>({boardSize.toFixed(2)} sq.ft × {photo.elements[0].quantity || 1})</span>
-                                <span>₹{cost.toLocaleString()}</span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })}
-                    </div>
-                    <div className="flex justify-between font-semibold">
-                      <span className="text-gray-500">Total Board Cost:</span>
-                      <span>₹{(() => {
-                        let total = 0;
-                        store.recce.reccePhotos.forEach((photo: any) => {
-                          if (photo.elements && photo.elements.length > 0 && photo.elements[0].customRate) {
-                            const width = photo.measurements?.unit === "in" ? photo.measurements.width / 12 : photo.measurements.width;
-                            const height = photo.measurements?.unit === "in" ? photo.measurements.height / 12 : photo.measurements.height;
-                            const boardSize = width * height;
-                            total += boardSize * photo.elements[0].customRate * (photo.elements[0].quantity || 1);
-                          }
-                        });
-                        return total.toLocaleString();
-                      })()}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between"><span className="text-gray-500">Board Rate:</span> <span>₹{store.costDetails?.boardRate || 0}/sq.ft</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Board Cost:</span> <span>₹{store.costDetails?.totalBoardCost?.toLocaleString() || 0}</span></div>
-                  </>
-                )}
-                {store.costDetails?.angleCharges ? <div className="flex justify-between"><span className="text-gray-500">Angle:</span> <span>₹{store.costDetails.angleCharges}</span></div> : null}
-                {store.costDetails?.scaffoldingCharges ? <div className="flex justify-between"><span className="text-gray-500">Scaffolding:</span> <span>₹{store.costDetails.scaffoldingCharges}</span></div> : null}
-                {store.costDetails?.transportation ? <div className="flex justify-between"><span className="text-gray-500">Transport:</span> <span>₹{store.costDetails.transportation}</span></div> : null}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Recce Details */}
-        {store.recce && (
-          <div className={`p-3 sm:p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
-              <h3 className={`font-bold text-sm sm:text-base ${darkMode ? "text-white" : "text-gray-900"}`}>Recce Details</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4">
-              <div className={`text-xs sm:text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-                  <span>Submitted: {store.recce.submittedDate ? new Date(store.recce.submittedDate).toLocaleDateString() : "-"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-                  <span>By: {store.recce.submittedBy || "-"}</span>
-                </div>
-                {store.recce.notes && (
-                  <div className="mt-3 p-2 rounded bg-gray-100 dark:bg-gray-700">
-                    <p className="text-xs font-semibold mb-1">Notes:</p>
-                    <p className="text-xs">{store.recce.notes}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Initial Photos */}
-            {store.recce.initialPhotos && store.recce.initialPhotos.length > 0 && (
-              <div className="mb-4">
-                <h4 className={`font-semibold text-sm mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>Initial Photos ({store.recce.initialPhotos.length})</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {store.recce.initialPhotos.map((photo: string, idx: number) => (
-                    <a key={idx} href={getFullImageUrl(photo)} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
-                      <img src={getFullImageUrl(photo)} alt={`Initial ${idx + 1}`} className="w-full h-full object-cover" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Recce Photos with Details */}
-            {store.recce.reccePhotos && store.recce.reccePhotos.length > 0 && (
-              <div className="space-y-4">
-                <h4 className={`font-semibold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>Recce Photos ({store.recce.reccePhotos.length})</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {store.recce.reccePhotos.map((photo: any, idx: number) => {
-                    const width = photo.measurements?.unit === "in" ? photo.measurements.width / 12 : photo.measurements.width;
-                    const height = photo.measurements?.unit === "in" ? photo.measurements.height / 12 : photo.measurements.height;
-                    const boardSize = (width * height).toFixed(2);
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {photos.map((photo, idx) => {
+                    const ft = toFeet(photo.measurements);
+                    const area = sqft(photo.measurements);
+                    const el = photo.elements?.[0];
                     return (
-                      <div key={idx} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
-                        <div className="flex gap-3">
-                          {photo.photo ? (
-                            <a href={getFullImageUrl(photo.photo)} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                              <img src={getFullImageUrl(photo.photo)} alt={`Photo ${idx + 1}`} className="w-40 h-40 object-cover rounded border border-gray-300 dark:border-gray-600" />
-                            </a>
-                          ) : (
-                            <div className="w-40 h-40 flex flex-col items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-gray-400 text-center p-2 flex-shrink-0">
-                              <Building2 className="w-8 h-8 mb-1 text-blue-400" />
-                              <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Direct Installation</span>
-                              <span className="text-[9px] text-gray-400">(No Recce Photo)</span>
-                            </div>
+                      <article key={idx} className={`overflow-hidden rounded-xl border ${s.sunken}`}>
+                        <PhotoTile
+                          src={photo.photo ? getFullImageUrl(photo.photo) : ""}
+                          alt={`Board ${idx + 1}`}
+                          onOpen={() => lightbox.open(recceImages, idx)}
+                          className="rounded-none border-0"
+                          aspect="aspect-video"
+                          empty={
+                            <>
+                              <Building2 className="h-7 w-7 text-blue-400" />
+                              <span className="font-medium">Direct installation</span>
+                              <span>No recce photo</span>
+                            </>
+                          }
+                          overlay={
+                            <>
+                              <Badge tone="neutral" className="pointer-events-auto shadow-sm">Board {idx + 1}</Badge>
+                              <ApprovalBadge status={photo.approvalStatus} className="shadow-sm" />
+                            </>
+                          }
+                        />
+                        <div className="space-y-3 p-3">
+                          <InfoGrid
+                            items={[
+                              { label: "Size", value: `${ft.width.toFixed(2)} × ${ft.height.toFixed(2)} ft` },
+                              { label: "Area", value: `${area.toFixed(2)} sq.ft` },
+                              { label: "Element", value: el?.elementName },
+                              { label: "Quantity", value: el ? String(el.quantity || 1) : "" },
+                              { label: "Rate", value: el?.customRate ? `${formatINR(el.customRate)}/sq.ft` : "", hideIfEmpty: true },
+                              { label: "Cost", value: el?.customRate ? formatINR(area * el.customRate * (el.quantity || 1)) : "", hideIfEmpty: true },
+                            ]}
+                          />
+                          {photo.rejectionReason && (
+                            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                              <span className="font-semibold">Rejected: </span>
+                              {photo.rejectionReason}
+                            </p>
                           )}
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-xs font-semibold mb-2 ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>Photo {idx + 1}</div>
-                            <div className={`space-y-1 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                              <div><span className="text-gray-500">Size:</span> {width.toFixed(2)} × {height.toFixed(2)} ft ({boardSize} sq.ft)</div>
-                              {photo.elements && photo.elements.length > 0 && (
-                                <>
-                                  <div><span className="text-gray-500">Element:</span> {photo.elements[0].elementName}</div>
-                                  <div><span className="text-gray-500">Qty:</span> {photo.elements[0].quantity || 1}</div>
-                                  {photo.elements[0].customRate && (
-                                    <div><span className="text-gray-500">Rate:</span> ₹{photo.elements[0].customRate}/sq.ft</div>
-                                  )}
-                                  {photo.elements[0].customRate && (
-                                    <div className="font-semibold"><span className="text-gray-500">Cost:</span> ₹{(parseFloat(boardSize) * photo.elements[0].customRate * (photo.elements[0].quantity || 1)).toLocaleString()}</div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </div>
                         </div>
-                      </div>
+                      </article>
                     );
                   })}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Installation Details */}
-        {store.recce && (store.currentStatus === "RECCE_SUBMITTED" || store.currentStatus === "RECCE_APPROVED" || store.currentStatus === "INSTALLATION_ASSIGNED" || store.currentStatus === "INSTALLATION_SUBMITTED" || store.currentStatus === "COMPLETED") && (
-          <div className={`p-3 sm:p-4 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
-                <h3 className={`font-bold text-sm sm:text-base ${darkMode ? "text-white" : "text-gray-900"}`}>Installation Details</h3>
-              </div>
-              {!store.workflow?.installationAssignedTo && (!store.installation || !store.installation.submittedDate) && canEdit && (
-                <button
-                  onClick={() => router.push(`/stores?assignInstallation=${store._id}`)}
-                  className="px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-xs flex items-center gap-1"
-                >
-                  <UserPlus className="h-3 w-3" /> Assign
-                </button>
               )}
-            </div>
-            {!store.workflow?.installationAssignedTo && (!store.installation || !store.installation.submittedDate) ? (
-              <div className={`text-center py-6 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm font-medium">No installation assigned</p>
-                <p className="text-xs mt-1">Assign an installation user to proceed</p>
-              </div>
-            ) : store.installation?.submittedDate ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                <div className={`text-xs sm:text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-                    <span>Submitted: {store.installation.submittedDate ? new Date(store.installation.submittedDate).toLocaleDateString() : "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-                    <span>By: {store.installation.submittedBy || "-"}</span>
-                  </div>
+            </Section>
+
+            {initialPhotos.length > 0 && (
+              <Section title="Store photos" icon={<ImageIcon className="h-4 w-4" />} count={initialPhotos.length} subtitle="Taken by the recce user on arrival" collapsible>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                  {initialImages.map((img, idx) => (
+                    <PhotoTile key={idx} src={img.src} alt={img.caption} aspect="aspect-square" onOpen={() => lightbox.open(initialImages, idx)} />
+                  ))}
                 </div>
-                {store.installation.photos && store.installation.photos.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold mb-2 flex items-center gap-1">
-                      <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4" /> Installation Photos ({store.installation.photos.length})
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {store.installation.photos.slice(0, 6).map((photo: any, idx: number) => (
-                        <a key={idx} href={getFullImageUrl(photo.installationPhoto)} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 hover:opacity-80">
-                          <img src={getFullImageUrl(photo.installationPhoto)} alt={`Installation ${idx + 1}`} className="w-full h-full object-cover" />
-                        </a>
-                      ))}
-                    </div>
+              </Section>
+            )}
+
+            {store.recce?.notes && (
+              <Section title="Recce remarks" icon={<StickyNote className="h-4 w-4" />}>
+                <p className={`whitespace-pre-line text-sm ${s.body}`}>{store.recce.notes}</p>
+              </Section>
+            )}
+
+            {showInstallation && (
+              <Section
+                title="Installation"
+                icon={<Hammer className="h-4 w-4" />}
+                count={installPhotos.length || undefined}
+                action={
+                  canAssignInstall ? (
+                    <Btn size="sm" variant="primary" icon={<UserPlus className="h-3.5 w-3.5" />} onClick={() => router.push(`/stores?status=${store.currentStatus}&search=${encodeURIComponent(store.storeId || store.dealerCode)}`)}>
+                      Assign
+                    </Btn>
+                  ) : undefined
+                }
+              >
+                {installNotAssigned ? (
+                  <EmptyBlock icon={<UserPlus className="h-8 w-8" />} title="No installer assigned" hint="Assign an installation user to proceed." />
+                ) : store.installation?.submittedDate ? (
+                  <div className="space-y-4">
+                    <InfoGrid
+                      cols={3}
+                      items={[
+                        { label: "Installer", value: personName(store.workflow?.installationAssignedTo) },
+                        { label: "Submitted", value: formatDate(store.installation.submittedDate) },
+                        { label: "Photos", value: String(installPhotos.length) },
+                      ]}
+                    />
+                    {installPhotos.length > 0 && (
+                      <div className="space-y-3">
+                        {installPhotos.map((p, i) => {
+                          const recce = photos[p.reccePhotoIndex];
+                          return (
+                            <div key={i} className="grid grid-cols-2 gap-3">
+                              <div>
+                                <p className={`mb-1 text-xs font-semibold ${s.muted}`}>Board {p.reccePhotoIndex + 1} · before</p>
+                                <PhotoTile
+                                  src={recce?.photo ? getFullImageUrl(recce.photo) : ""}
+                                  alt={`Board ${p.reccePhotoIndex + 1} before`}
+                                  onOpen={() => lightbox.open(recceImages, p.reccePhotoIndex)}
+                                  empty="No recce photo"
+                                />
+                              </div>
+                              <div>
+                                <p className="mb-1 text-xs font-semibold text-emerald-600">Board {p.reccePhotoIndex + 1} · installed</p>
+                                <PhotoTile src={installImages[i].src} alt={installImages[i].caption} onOpen={() => lightbox.open(installImages, i)} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  <InfoGrid
+                    items={[
+                      { label: "Assigned to", value: personName(store.workflow?.installationAssignedTo) },
+                      { label: "Status", value: "Waiting for installation photos" },
+                    ]}
+                  />
                 )}
-              </div>
-            ) : (
-              <div className={`text-xs sm:text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                <div className="flex items-center gap-2">
-                  <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-                  <span>Assigned to: {(store.workflow.installationAssignedTo as any)?.name || "-"}</span>
-                </div>
-                <p className={`text-xs mt-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Waiting for installation submission</p>
-              </div>
+              </Section>
             )}
           </div>
-        )}
+
+          {/* ---------------- side column ---------------- */}
+          <aside className="space-y-4">
+            {isEditing ? (
+              <>
+                <Section title="Store & dealer" icon={<Building2 className="h-4 w-4" />}>
+                  <div className="space-y-3">
+                    <Field label="Store name" required>
+                      <input className={inputClass} value={editData.storeName} onChange={(e) => set({ storeName: e.target.value })} />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Dealer code" required>
+                        <input className={inputClass} value={editData.dealerCode} onChange={(e) => set({ dealerCode: e.target.value })} />
+                      </Field>
+                      <Field label="Vendor code">
+                        <input className={inputClass} value={editData.vendorCode} onChange={(e) => set({ vendorCode: e.target.value })} />
+                      </Field>
+                    </div>
+                    <Field label="Client code">
+                      <input className={inputClass} value={editData.clientCode} onChange={(e) => set({ clientCode: e.target.value })} />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section title="Location & contact" icon={<MapPin className="h-4 w-4" />}>
+                  <div className="space-y-3">
+                    <Field label="Address">
+                      <textarea rows={2} className={inputClass} value={editData.location?.address || ""} onChange={(e) => setIn("location", "address", e.target.value)} />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="City">
+                        <input className={inputClass} value={editData.location?.city || ""} onChange={(e) => setIn("location", "city", e.target.value)} />
+                      </Field>
+                      <Field label="District">
+                        <input className={inputClass} value={editData.location?.district || ""} onChange={(e) => setIn("location", "district", e.target.value)} />
+                      </Field>
+                      <Field label="State">
+                        <input className={inputClass} value={editData.location?.state || ""} onChange={(e) => setIn("location", "state", e.target.value)} />
+                      </Field>
+                      <Field label="Zone">
+                        <input className={inputClass} value={editData.location?.zone || ""} onChange={(e) => setIn("location", "zone", e.target.value)} />
+                      </Field>
+                    </div>
+                    <Field label="Mobile number">
+                      <input inputMode="tel" className={inputClass} value={editData.contact?.mobile || ""} onChange={(e) => setIn("contact", "mobile", e.target.value)} />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section title="Board specs" icon={<Package className="h-4 w-4" />}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Type">
+                      <input className={inputClass} value={editData.specs?.type || ""} onChange={(e) => setIn("specs", "type", e.target.value)} />
+                    </Field>
+                    <Field label="Quantity">
+                      <input type="number" className={inputClass} value={editData.specs?.qty || ""} onChange={(e) => setIn("specs", "qty", Number(e.target.value))} />
+                    </Field>
+                    <Field label="Width (ft)">
+                      <input type="number" className={inputClass} value={editData.specs?.width || ""} onChange={(e) => setIn("specs", "width", Number(e.target.value))} />
+                    </Field>
+                    <Field label="Height (ft)">
+                      <input type="number" className={inputClass} value={editData.specs?.height || ""} onChange={(e) => setIn("specs", "height", Number(e.target.value))} />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section title="Commercial" icon={<FileSpreadsheet className="h-4 w-4" />}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="PO number">
+                      <input className={inputClass} value={editData.commercials?.poNumber || ""} onChange={(e) => setIn("commercials", "poNumber", e.target.value)} />
+                    </Field>
+                    <Field label="PO month">
+                      <input className={inputClass} value={editData.commercials?.poMonth || ""} onChange={(e) => setIn("commercials", "poMonth", e.target.value)} />
+                    </Field>
+                    <Field label="Invoice number">
+                      <input className={inputClass} value={editData.commercials?.invoiceNumber || ""} onChange={(e) => setIn("commercials", "invoiceNumber", e.target.value)} />
+                    </Field>
+                    <Field label="Total cost (₹)">
+                      <input type="number" className={inputClass} value={editData.commercials?.totalCost || ""} onChange={(e) => setIn("commercials", "totalCost", Number(e.target.value))} />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section title="Cost" icon={<IndianRupee className="h-4 w-4" />}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Board rate (₹/sq.ft)">
+                      <input type="number" className={inputClass} value={editData.costDetails?.boardRate || ""} onChange={(e) => setIn("costDetails", "boardRate", Number(e.target.value))} />
+                    </Field>
+                    <Field label="Angle charges (₹)">
+                      <input type="number" className={inputClass} value={editData.costDetails?.angleCharges || ""} onChange={(e) => setIn("costDetails", "angleCharges", Number(e.target.value))} />
+                    </Field>
+                    <Field label="Scaffolding (₹)">
+                      <input type="number" className={inputClass} value={editData.costDetails?.scaffoldingCharges || ""} onChange={(e) => setIn("costDetails", "scaffoldingCharges", Number(e.target.value))} />
+                    </Field>
+                    <Field label="Transportation (₹)">
+                      <input type="number" className={inputClass} value={editData.costDetails?.transportation || ""} onChange={(e) => setIn("costDetails", "transportation", Number(e.target.value))} />
+                    </Field>
+                  </div>
+                </Section>
+              </>
+            ) : (
+              <>
+                <LocationCard store={store} />
+                <ContactCard store={store} />
+                <DealerCard store={store} />
+                <SpecsCard store={store} />
+                {hasCommercials && <CommercialCard store={store} />}
+                <CostCard store={store} />
+              </>
+            )}
+          </aside>
+        </div>
       </div>
+
+      {isEditing && (
+        <StickyBar>
+          <p className={`flex-1 text-sm ${s.muted}`}>
+            Editing <span className={`font-semibold ${s.text}`}>{store.storeName}</span>. Changes are saved when you press Save.
+          </p>
+          <div className="flex gap-2">
+            <Btn variant="secondary" onClick={() => setIsEditing(false)}>
+              Cancel
+            </Btn>
+            <Btn variant="primary" loading={isSaving} icon={<Save className="h-4 w-4" />} onClick={handleSave}>
+              Save changes
+            </Btn>
+          </div>
+        </StickyBar>
+      )}
+
+      {lightbox.node}
     </div>
   );
 }
