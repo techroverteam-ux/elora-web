@@ -247,9 +247,10 @@ export default function RecceListPage() {
       if (filterStatus.length > 0) {
         params.append("status", filterStatus.join(","));
       } else {
-        // Show all recce-related stores (including completed for admins)
-        const statuses = isAdmin 
-          ? `${StoreStatus.RECCE_ASSIGNED},${StoreStatus.RECCE_SUBMITTED},${StoreStatus.RECCE_APPROVED},${StoreStatus.RECCE_REJECTED},${StoreStatus.INSTALLATION_ASSIGNED},${StoreStatus.INSTALLATION_SUBMITTED},${StoreStatus.INSTALLATION_REJECTED},${StoreStatus.COMPLETED}`
+        // Default: recce stages only. Stores that moved on to installation live on the Installation page;
+        // admins can still pick those stages from the Status filter or the stage strip.
+        const statuses = isAdmin
+          ? `${StoreStatus.RECCE_SUBMITTED},${StoreStatus.RECCE_APPROVED},${StoreStatus.RECCE_REJECTED}`
           : `${StoreStatus.RECCE_ASSIGNED},${StoreStatus.RECCE_SUBMITTED},${StoreStatus.RECCE_APPROVED},${StoreStatus.RECCE_REJECTED}`;
         params.append("status", statuses);
       }
@@ -785,7 +786,7 @@ export default function RecceListPage() {
       {filterStatus.length === 0 && (
         isAdmin ? (
           <ScopeNote action={<LinkBtn onClick={() => { setFilterStatus([StoreStatus.RECCE_ASSIGNED]); setPage(1); }}>Show visits not yet done</LinkBtn>}>
-            Showing recces that have been <strong>submitted</strong>, at any later stage. Stores still waiting for the site visit are not listed here.
+            Showing recces that are <strong>submitted, approved or rejected</strong>. Stores already in installation are on the Installation page; visits not yet done are hidden.
           </ScopeNote>
         ) : (
           <ScopeNote>
