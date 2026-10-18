@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
+import { ReportPageSkeleton } from "@/src/components/ui/Skeleton";
 import toast from "react-hot-toast";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
 import { AssignmentStatus } from "@/src/components/detail";
@@ -234,11 +235,7 @@ export default function ReportsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
-      </div>
-    );
+    return <ReportPageSkeleton />;
   }
 
   if (!analytics) {

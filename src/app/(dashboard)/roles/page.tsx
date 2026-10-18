@@ -6,6 +6,7 @@ import { Role, PermissionSet } from "@/src/types/auth";
 import { Plus, Shield, Trash2, Loader2, Edit2, Search, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTheme } from "@/src/context/ThemeContext";
 import Modal from "@/src/components/ui/Modal";
+import { ListPageSkeleton } from "@/src/components/ui/Skeleton";
 import toast from "react-hot-toast";
 
 const MODULES = ["users", "roles", "stores", "recce", "installation", "enquiries", "reports", "elements", "clients", "rfq"];
@@ -207,55 +208,7 @@ export default function RolesPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className={`h-8 w-32 rounded-lg mb-2 animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-            <div className={`h-4 w-48 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-          </div>
-          <div className="flex gap-2">
-            <div className={`h-10 w-24 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-            <div className={`h-10 w-32 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-          </div>
-        </div>
-        <div className={`p-4 rounded-xl border ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-          <div className="flex items-center justify-between">
-            <div className={`flex-1 max-w-md h-10 rounded-lg animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-            <div className={`h-4 w-20 rounded animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className={`rounded-xl border p-4 animate-pulse ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
-              <div className="flex items-center mb-3">
-                <div className={`h-10 w-10 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-                <div className="ml-3 flex-1">
-                  <div className={`h-4 w-24 rounded mb-2 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-                  <div className={`h-3 w-16 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-                </div>
-              </div>
-              <div className="space-y-2 mb-4">
-                {[...Array(3)].map((_, j) => (
-                  <div key={j} className="flex justify-between">
-                    <div className={`h-3 w-16 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-                    <div className="flex gap-1">
-                      {[...Array(4)].map((_, k) => (
-                        <div key={k} className={`h-2 w-2 rounded-full ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className={`flex justify-end gap-2 pt-3 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
-                <div className={`h-8 w-8 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-                <div className={`h-8 w-8 rounded ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <ListPageSkeleton actions={2} filters={0} rows={6} cols={4} />;
   }
 
   return (

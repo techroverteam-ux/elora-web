@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
 import { StatusCell } from "@/src/components/detail";
+import { ListSkeleton } from "@/src/components/ui/Skeleton";
 
 export default function RFQGenerationPage() {
   const { darkMode } = useTheme();
@@ -209,11 +210,7 @@ export default function RFQGenerationPage() {
 
       <div className={`rounded-xl border overflow-hidden shadow-sm ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
         {isLoading ? (
-          <div className="p-6">
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-yellow-500" />
-            </div>
-          </div>
+          <ListSkeleton rows={10} cols={8} checkbox bare />
         ) : stores.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             <p>No stores found matching filters</p>

@@ -32,6 +32,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import * as XLSX from "xlsx";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
 import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts } from "@/src/components/detail";
 
 const RECCE_SCOPE = ["RECCE_ASSIGNED", "RECCE_SUBMITTED", "RECCE_APPROVED", "RECCE_REJECTED"];
@@ -834,7 +835,14 @@ export default function RecceListPage() {
       </div>
 
       {/* CONTENT */}
-      {stores.length === 0 && !loading ? (
+      {loading && stores.length > 0 && (
+        <div className="relative h-0.5">
+          <RefreshBar active />
+        </div>
+      )}
+      {loading && stores.length === 0 ? (
+        <ListSkeleton rows={8} cols={8} checkbox />
+      ) : stores.length === 0 ? (
         <div className={`rounded-xl border p-12 text-center ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
           <Search className={`w-16 h-16 mx-auto mb-4 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
           <h3 className={`text-lg font-semibold mb-2 ${darkMode ? "text-gray-200" : "text-gray-900"}`}>

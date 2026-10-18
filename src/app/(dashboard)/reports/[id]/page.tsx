@@ -6,7 +6,7 @@ import api from "@/src/lib/api";
 import { useTheme } from "@/src/context/ThemeContext";
 import { ArrowLeft, Loader2, MapPin, User, Calendar, Package, FileText, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import { StatusCell } from "@/src/components/detail";
+import { DetailSkeleton, StatusCell } from "@/src/components/detail";
 
 export default function AssignmentDetailsPage() {
   const params = useParams();
@@ -40,13 +40,7 @@ export default function AssignmentDetailsPage() {
     return `${d.getDate().toString().padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
-      </div>
-    );
-  }
+  if (loading) return <DetailSkeleton />;
 
   if (!store) {
     return (

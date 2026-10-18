@@ -9,6 +9,7 @@ import {
   CheckCircle, Clock, XCircle, TrendingUp, BarChart3, 
   MapPin, Loader2, Shield, LogIn
 } from "lucide-react";
+import { ProfileSkeleton } from "@/src/components/ui/Skeleton";
 import toast from "react-hot-toast";
 import { ActiveBadge, statusMeta } from "@/src/components/detail";
 
@@ -87,11 +88,7 @@ export default function UserDetailsPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   if (!stats) return null;
