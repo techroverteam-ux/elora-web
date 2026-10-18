@@ -36,8 +36,9 @@ import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
 import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts } from "@/src/components/detail";
 
 const RECCE_SCOPE = ["RECCE_ASSIGNED", "RECCE_SUBMITTED", "RECCE_APPROVED", "RECCE_REJECTED"];
-// The Recce page lists recce stages only. Stores in installation are on the Installation page.
-const ADMIN_RECCE_SCOPE = RECCE_SCOPE;
+// The Recce page lists recce stages plus "Install assigned" (the step right after approval).
+// Installation submitted / completed stores are on the Installation page.
+const ADMIN_RECCE_SCOPE = [...RECCE_SCOPE, "INSTALLATION_ASSIGNED"];
 
 export default function RecceListPage() {
   const router = useRouter();
@@ -73,7 +74,7 @@ export default function RecceListPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const st = new URLSearchParams(window.location.search).get("status");
-    if (st) setFilterStatus(st.split(",").filter((x) => RECCE_SCOPE.includes(x)));
+    if (st) setFilterStatus(st.split(",").filter((x) => ADMIN_RECCE_SCOPE.includes(x)));
   }, []);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStoreName, setFilterStoreName] = useState("");
@@ -311,7 +312,9 @@ export default function RecceListPage() {
     }
   };
 
-  const recceStatusOptions = ["Recce Assigned", "Recce Submitted", "Recce Approved", "Recce Rejected"];
+  const recceStatusOptions = isAdmin
+    ? ["Recce Assigned", "Recce Submitted", "Recce Approved", "Recce Rejected", "Install Assigned"]
+    : ["Recce Assigned", "Recce Submitted", "Recce Approved", "Recce Rejected"];
 
   useEffect(() => {
     fetchStores();
