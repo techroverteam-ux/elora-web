@@ -36,7 +36,8 @@ import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
 import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts } from "@/src/components/detail";
 
 const RECCE_SCOPE = ["RECCE_ASSIGNED", "RECCE_SUBMITTED", "RECCE_APPROVED", "RECCE_REJECTED"];
-const ADMIN_RECCE_SCOPE = [...RECCE_SCOPE, "INSTALLATION_ASSIGNED", "INSTALLATION_SUBMITTED", "COMPLETED"];
+// The Recce page lists recce stages only. Stores in installation are on the Installation page.
+const ADMIN_RECCE_SCOPE = RECCE_SCOPE;
 
 export default function RecceListPage() {
   const router = useRouter();
@@ -72,7 +73,7 @@ export default function RecceListPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const st = new URLSearchParams(window.location.search).get("status");
-    if (st) setFilterStatus(st.split(",").filter(Boolean));
+    if (st) setFilterStatus(st.split(",").filter((x) => RECCE_SCOPE.includes(x)));
   }, []);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStoreName, setFilterStoreName] = useState("");
@@ -248,8 +249,7 @@ export default function RecceListPage() {
       if (filterStatus.length > 0) {
         params.append("status", filterStatus.join(","));
       } else {
-        // Default: recce stages only. Stores that moved on to installation live on the Installation page;
-        // admins can still pick those stages from the Status filter or the stage strip.
+        // Default: recce stages only. Stores that moved on to installation live on the Installation page.
         const statuses = isAdmin
           ? `${StoreStatus.RECCE_SUBMITTED},${StoreStatus.RECCE_APPROVED},${StoreStatus.RECCE_REJECTED}`
           : `${StoreStatus.RECCE_ASSIGNED},${StoreStatus.RECCE_SUBMITTED},${StoreStatus.RECCE_APPROVED},${StoreStatus.RECCE_REJECTED}`;
@@ -311,9 +311,7 @@ export default function RecceListPage() {
     }
   };
 
-  const recceStatusOptions = isAdmin
-    ? ["Recce Assigned", "Recce Submitted", "Recce Approved", "Recce Rejected", "Install Assigned", "Install Submitted", "Completed"]
-    : ["Recce Assigned", "Recce Submitted", "Recce Approved", "Recce Rejected"];
+  const recceStatusOptions = ["Recce Assigned", "Recce Submitted", "Recce Approved", "Recce Rejected"];
 
   useEffect(() => {
     fetchStores();
@@ -449,31 +447,37 @@ export default function RecceListPage() {
     setSelectedStoreIds(newSet);
   };
 
+  // Only submitted / approved recces can be selected and downloaded from this page.
+  const DOWNLOADABLE: string[] = [StoreStatus.RECCE_SUBMITTED, StoreStatus.RECCE_APPROVED];
+  const isDownloadable = (s?: Store) => !!s && DOWNLOADABLE.includes(s.currentStatus);
+  const selectableIds = stores.filter(isDownloadable).map((s) => s._id);
+  const downloadableIds = Array.from(selectedStoreIds).filter((id) => isDownloadable(stores.find((s) => s._id === id)));
+
   const toggleAllSelection = () => {
-    if (selectedStoreIds.size === stores.length && stores.length > 0) {
+    if (selectableIds.length > 0 && selectableIds.every((id) => selectedStoreIds.has(id))) {
       setSelectedStoreIds(new Set());
     } else {
-      setSelectedStoreIds(new Set(stores.map(s => s._id)));
+      setSelectedStoreIds(new Set(selectableIds));
     }
   };
 
   const handleBulkPPTDownload = async () => {
-    if (selectedStoreIds.size === 0) {
-      toast.error("Please select stores");
+    if (downloadableIds.length === 0) {
+      toast.error("Select stores with a submitted or approved recce");
       return;
     }
     setIsDownloadingPPT(true);
-    const toastId = toast.loading("Generating PPT...");
+    const toastId = toast.loading("Generating recce PPT...");
     try {
       const response = await api.post('/stores/ppt/bulk', {
-        storeIds: Array.from(selectedStoreIds),
+        storeIds: downloadableIds,
         type: "recce"
       }, { responseType: 'blob' });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Recce_Report_${selectedStoreIds.size}_Stores.pptx`);
+      link.setAttribute('download', `Recce_Report_${downloadableIds.length}_Stores.pptx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -491,22 +495,22 @@ export default function RecceListPage() {
   };
 
   const handleBulkPDFDownload = async () => {
-    if (selectedStoreIds.size === 0) {
-      toast.error("Please select stores");
+    if (downloadableIds.length === 0) {
+      toast.error("Select stores with a submitted or approved recce");
       return;
     }
     setIsDownloadingPDF(true);
-    const toastId = toast.loading("Generating PDF...");
+    const toastId = toast.loading("Generating recce PDF...");
     try {
       const response = await api.post('/stores/pdf/bulk', {
-        storeIds: Array.from(selectedStoreIds),
+        storeIds: downloadableIds,
         type: "recce"
       }, { responseType: 'blob' });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Recce_Report_${selectedStoreIds.size}_Stores.pdf`);
+      link.setAttribute('download', `Recce_Report_${downloadableIds.length}_Stores.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -733,16 +737,19 @@ export default function RecceListPage() {
         <div className="flex flex-wrap gap-2">
              {isAdmin && selectedStoreIds.size > 0 && (
                <>
+                 {/* Bulk downloads on the Recce page: Recce report, submitted / approved recces only. */}
+                 {downloadableIds.length > 0 && (<>
                  <button onClick={handleBulkPPTDownload} disabled={isDownloadingPPT} className="flex items-center px-3 sm:px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600">
                    <FileText className="w-4 h-4 sm:mr-2"/>
-                   <span className="hidden sm:inline">PPT ({selectedStoreIds.size})</span>
-                   <span className="sm:hidden">PPT</span>
+                   <span className="hidden sm:inline">Recce PPT ({downloadableIds.length})</span>
+                   <span className="sm:hidden">Recce PPT</span>
                  </button>
                  <button onClick={handleBulkPDFDownload} disabled={isDownloadingPDF} className="flex items-center px-3 sm:px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600">
                    <FileText className="w-4 h-4 sm:mr-2"/>
-                   <span className="hidden sm:inline">PDF ({selectedStoreIds.size})</span>
-                   <span className="sm:hidden">PDF</span>
+                   <span className="hidden sm:inline">Recce PDF ({downloadableIds.length})</span>
+                   <span className="sm:hidden">Recce PDF</span>
                  </button>
+                 </>)}
                  <button onClick={handleExportExcel} disabled={isExportingExcel} className="flex items-center px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
                    <FileSpreadsheet className="w-4 h-4 sm:mr-2"/>
                    <span className="hidden sm:inline">Excel ({selectedStoreIds.size})</span>
@@ -953,7 +960,7 @@ export default function RecceListPage() {
                                 <th className="px-6 py-3 text-left w-12">
                                   <button onClick={toggleAllSelection}>
                                     {(() => {
-                                      return selectedStoreIds.size > 0 && selectedStoreIds.size === stores.length && stores.length > 0 ? 
+                                      return selectableIds.length > 0 && selectableIds.every((id) => selectedStoreIds.has(id)) ? 
                                         <CheckSquare className="h-5 w-5 text-yellow-500" /> : 
                                         <Square className={`h-5 w-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                                     })()}
@@ -1044,7 +1051,7 @@ export default function RecceListPage() {
                                                </button>
                                              )}
 
-                                             {isAdmin && (
+                                             {isAdmin && isDownloadable(store) && (
                                                <div className="relative">
                                                  <button
                                                    onClick={() => toggleDownloadMenu(store._id, "recce")}
@@ -1054,16 +1061,20 @@ export default function RecceListPage() {
                                                    <Download className="w-4 h-4" />
                                                  </button>
                                                  {downloadMenuOpen?.storeId === store._id && downloadMenuOpen?.type === "recce" && (
-                                                   <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                                                     <button onClick={() => handleDownload(store._id, store.dealerCode, "recce", "pdf")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}>
-                                                       <FileText className="w-3.5 h-3.5" /> PDF
-                                                     </button>
-                                                     <button onClick={() => handleDownload(store._id, store.dealerCode, "recce", "ppt")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}>
-                                                       <FileSpreadsheet className="w-3.5 h-3.5" /> PPT
-                                                     </button>
-                                                     <button onClick={() => handleDownload(store._id, store.dealerCode, "recce", "excel")} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}>
-                                                       <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-                                                     </button>
+                                                   <div className={`absolute right-0 mt-1 w-52 rounded-lg shadow-lg z-50 border py-1 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                                                     {/* Recce report = recce photos only. Before/After photos are in the Installation report. */}
+                                                     {(["recce"] as const).map((rt, ri) => (
+                                                       <div key={rt} className={ri > 0 ? `mt-1 border-t pt-1 ${darkMode ? "border-gray-700" : "border-gray-100"}` : ""}>
+                                                         <p className={`px-3 pt-1.5 pb-1 text-[11px] font-bold uppercase tracking-wide ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                                                           {rt === "recce" ? "Recce report" : "Installation (before / after)"}
+                                                         </p>
+                                                         {(["pdf", "ppt", "excel"] as const).map((fmt) => (
+                                                           <button key={fmt} onClick={() => handleDownload(store._id, store.dealerCode, rt, fmt)} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}>
+                                                             {fmt === "pdf" ? <FileText className="w-3.5 h-3.5" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} {fmt === "pdf" ? "PDF" : fmt === "ppt" ? "PPT" : "Excel"}
+                                                           </button>
+                                                         ))}
+                                                       </div>
+                                                     ))}
                                                    </div>
                                                  )}
                                                </div>

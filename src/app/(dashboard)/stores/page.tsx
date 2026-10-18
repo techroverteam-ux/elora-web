@@ -141,6 +141,11 @@ export default function StoresPage() {
     new Set(),
   );
   const [isSelectAllLoading, setIsSelectAllLoading] = useState(false);
+  // Status of every store we have seen (current page + "select all"), so bulk actions
+  // only offer what the API accepts for the selected stores, even across pages.
+  const statusById = useRef<Record<string, string>>({});
+  // Stores the open assign popup will actually assign (eligible ones only).
+  const [assignIds, setAssignIds] = useState<string[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignStage, setAssignStage] = useState<"RECCE" | "INSTALLATION">(
     "RECCE",
@@ -511,120 +516,6 @@ export default function StoresPage() {
     }
   };
 
-  const downloadBulkPDF = async (type: "recce" | "installation") => {
-    if (selectedStoreIds.size === 0) {
-      toast.error("Please select stores first");
-      return;
-    }
-    
-    try {
-      toast.loading(`Generating bulk ${type} PDF...`);
-      console.log('Sending bulk PDF request:', {
-        storeIds: Array.from(selectedStoreIds),
-        type,
-        endpoint: '/stores/pdf/bulk'
-      });
-      
-      const response = await api.post(`/stores/pdf/bulk`, {
-        storeIds: Array.from(selectedStoreIds),
-        type
-      }, {
-        responseType: "blob",
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      
-      // Extract filename from Content-Disposition header if available
-      const contentDisposition = response.headers["content-disposition"];
-      let filename = `Bulk_${type.charAt(0).toUpperCase() + type.slice(1)}_${selectedStoreIds.size}_Stores.pdf`;
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
-        if (filenameMatch) filename = filenameMatch[1];
-      }
-      
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
-      toast.dismiss();
-      toast.success(`Bulk ${type} PDF downloaded! (${selectedStoreIds.size} stores)`);
-      setSelectedStoreIds(new Set());
-    } catch (error: any) {
-      toast.dismiss();
-      console.error('Bulk PDF Error:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-
-      let errorMessage = `The server failed to generate the bulk ${type} PDF. This store may not have recce data submitted yet.`;
-      if (error.response?.data instanceof Blob) {
-        try {
-          const text = await error.response.data.text();
-          const parsed = JSON.parse(text);
-          if (parsed.message) errorMessage = parsed.message;
-        } catch {
-          // blob was not JSON (e.g. corrupted PDF), keep default message
-        }
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      }
-      toast.error(errorMessage, { duration: 5000 });
-    }
-  };
-
-  const downloadBulkPPT = async (type: "recce" | "installation") => {
-    if (selectedStoreIds.size === 0) {
-      toast.error("Please select stores first");
-      return;
-    }
-    
-    try {
-      toast.loading(`Generating bulk ${type} PPT...`);
-      console.log('Sending bulk PPT request:', {
-        storeIds: Array.from(selectedStoreIds),
-        type,
-        endpoint: '/stores/ppt/bulk'
-      });
-      
-      const response = await api.post(`/stores/ppt/bulk`, {
-        storeIds: Array.from(selectedStoreIds),
-        type
-      }, {
-        responseType: "blob",
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      
-      // Extract filename from Content-Disposition header if available
-      const contentDisposition = response.headers["content-disposition"];
-      let filename = `Bulk_${type.charAt(0).toUpperCase() + type.slice(1)}_${selectedStoreIds.size}_Stores.pptx`;
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
-        if (filenameMatch) filename = filenameMatch[1];
-      }
-      
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
-      toast.dismiss();
-      toast.success(`Bulk ${type} PPT downloaded! (${selectedStoreIds.size} stores)`);
-      setSelectedStoreIds(new Set());
-    } catch (error: any) {
-      toast.dismiss();
-      console.error('Bulk PPT Error:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      
-      const errorMessage = error.response?.data?.message || `Failed to download bulk ${type} PPT`;
-      toast.error(errorMessage);
-    }
-  };
 
   const downloadExcel = async (
     storeId: string,
@@ -730,6 +621,9 @@ export default function StoresPage() {
         ? allStores.filter((s: any) => s.currentStatus === StoreStatus.RECCE_APPROVED)
         : allStores;
 
+      allStores.forEach((s: any) => {
+        if (s?._id && s.currentStatus) statusById.current[s._id] = s.currentStatus;
+      });
       const allIds = selectableAllStores.map((s: any) => s._id);
       setSelectedStoreIds(new Set(allIds));
       toast.success(`Selected ${allIds.length} stores`, { id: "selectAll" });
@@ -740,6 +634,15 @@ export default function StoresPage() {
       setIsSelectAllLoading(false);
     }
   };
+
+  // Same rules as POST /stores/assign: recce only for new stores, installation only after recce approval.
+  const RECCE_ASSIGNABLE = ["UPLOADED", "MANUALLY_ADDED"];
+  const INSTALL_ASSIGNABLE = [StoreStatus.RECCE_APPROVED as string];
+  stores.forEach((s) => {
+    if (s?._id && s.currentStatus) statusById.current[s._id] = s.currentStatus;
+  });
+  const selectedWith = (statuses: string[]) => Array.from(selectedStoreIds).filter((id) => statuses.includes(statusById.current[id]));
+  const eligibleFor = (stage: "RECCE" | "INSTALLATION") => selectedWith(stage === "RECCE" ? RECCE_ASSIGNABLE : INSTALL_ASSIGNABLE);
 
   const openAssignModal = async (
     stage: "RECCE" | "INSTALLATION",
@@ -752,6 +655,7 @@ export default function StoresPage() {
         return toast.error("Select stores first");
       setSingleAssignTarget(null);
     }
+    setAssignIds(specificStore ? [specificStore._id] : eligibleFor(stage));
     setAssignStage(stage);
     setSelectedUserId("");
     setUserSearchTerm("");
@@ -772,9 +676,11 @@ export default function StoresPage() {
     if (!selectedUserId) return toast.error("Please select a user");
     setIsAssigning(true);
     try {
-      const idsToAssign = singleAssignTarget
-        ? [singleAssignTarget._id]
-        : Array.from(selectedStoreIds);
+      const idsToAssign = singleAssignTarget ? [singleAssignTarget._id] : assignIds;
+      if (idsToAssign.length === 0) {
+        setIsAssigning(false);
+        return toast.error(assignStage === "RECCE" ? "None of the selected stores can be assigned to recce" : "None of the selected stores have an approved recce");
+      }
       await api.post("/stores/assign", {
         storeIds: idsToAssign,
         userId: selectedUserId,
@@ -1332,40 +1238,27 @@ export default function StoresPage() {
             <div className="flex gap-2 animate-in fade-in slide-in-from-right-4">
               {hasPermission('stores', 'edit') && (
                 <>
-                  <button
-                    onClick={() => openAssignModal("RECCE")}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" /> Assign Recce (
-                    {selectedStoreIds.size})
-                  </button>
-                  {/* Installation Assignment for Approved Recce */}
-                  {stores.filter(s => selectedStoreIds.has(s._id) && s.currentStatus === StoreStatus.RECCE_APPROVED).length > 0 && (
+                  {/* Only offer an assignment the selected stores can take (same rules as the API). */}
+                  {eligibleFor("RECCE").length > 0 && (
+                    <button
+                      onClick={() => openAssignModal("RECCE")}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" /> Assign Recce ({eligibleFor("RECCE").length})
+                    </button>
+                  )}
+                  {eligibleFor("INSTALLATION").length > 0 && (
                     <button
                       onClick={() => openAssignModal("INSTALLATION")}
                       className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
                     >
-                      <UserPlus className="h-4 w-4 mr-2" /> Assign Installation (
-                      {stores.filter(s => selectedStoreIds.has(s._id) && s.currentStatus === StoreStatus.RECCE_APPROVED).length})
+                      <UserPlus className="h-4 w-4 mr-2" /> Assign Installation ({eligibleFor("INSTALLATION").length})
                     </button>
                   )}
                 </>
               )}
-              
-              {/* Bulk Download Buttons */}
+
               <div className="flex gap-2">
-                <button
-                  onClick={() => downloadBulkPDF("recce")}
-                  className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium text-sm"
-                >
-                  <FileText className="h-4 w-4 mr-2" /> Bulk PDF ({selectedStoreIds.size})
-                </button>
-                <button
-                  onClick={() => downloadBulkPPT("recce")}
-                  className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm"
-                >
-                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Bulk PPT ({selectedStoreIds.size})
-                </button>
                 <button
                   onClick={handleExportSelectedStores}
                   className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
@@ -2119,16 +2012,18 @@ export default function StoresPage() {
                             {[
                               StoreStatus.INSTALLATION_ASSIGNED,
                               StoreStatus.INSTALLATION_SUBMITTED,
+                              StoreStatus.INSTALLATION_REJECTED,
+                              StoreStatus.COMPLETED,
                             ].includes(store.currentStatus) && (
                               <div className="relative">
                                 <button
                                   onClick={() =>
                                     toggleDownloadMenu(
                                       store._id,
-                                      store.currentStatus ===
-                                        StoreStatus.INSTALLATION_SUBMITTED
-                                        ? "installation"
-                                        : "recce",
+                                      // Once photos are submitted, this is the installation (before / after) report.
+                                      store.currentStatus === StoreStatus.INSTALLATION_ASSIGNED
+                                        ? "recce"
+                                        : "installation",
                                     )
                                   }
                                   className="p-1.5 rounded hover:bg-orange-50/50 dark:hover:bg-orange-900/20 text-orange-600"
@@ -2145,10 +2040,9 @@ export default function StoresPage() {
                                         handleDownload(
                                           store._id,
                                           store.dealerCode,
-                                          store.currentStatus ===
-                                            StoreStatus.INSTALLATION_SUBMITTED
-                                            ? "installation"
-                                            : "recce",
+                                          store.currentStatus === StoreStatus.INSTALLATION_ASSIGNED
+                                            ? "recce"
+                                            : "installation",
                                           "pdf",
                                         )
                                       }
@@ -2162,10 +2056,9 @@ export default function StoresPage() {
                                         handleDownload(
                                           store._id,
                                           store.dealerCode,
-                                          store.currentStatus ===
-                                            StoreStatus.INSTALLATION_SUBMITTED
-                                            ? "installation"
-                                            : "recce",
+                                          store.currentStatus === StoreStatus.INSTALLATION_ASSIGNED
+                                            ? "recce"
+                                            : "installation",
                                           "ppt",
                                         )
                                       }
@@ -2179,10 +2072,9 @@ export default function StoresPage() {
                                         handleDownload(
                                           store._id,
                                           store.dealerCode,
-                                          store.currentStatus ===
-                                            StoreStatus.INSTALLATION_SUBMITTED
-                                            ? "installation"
-                                            : "recce",
+                                          store.currentStatus === StoreStatus.INSTALLATION_ASSIGNED
+                                            ? "recce"
+                                            : "installation",
                                           "excel",
                                         )
                                       }
@@ -2339,37 +2231,22 @@ export default function StoresPage() {
               {selectedStoreIds.size > 0 && (
                 <div className={`p-4 rounded-lg border mb-4 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-blue-50 border-blue-200"}`}>
                   <div className="flex flex-wrap gap-2">
-                    {hasPermission('stores', 'edit') && (
-                      <>
+                    {hasPermission('stores', 'edit') && eligibleFor("RECCE").length > 0 && (
                         <button
                           onClick={() => openAssignModal("RECCE")}
-                          className="flex-1 min-w-[120px] inline-flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                          className="flex-1 min-w-[120px] inline-flex items-center justify-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
                         >
-                          <UserPlus className="h-4 w-4 mr-1" /> Recce ({selectedStoreIds.size})
+                          <UserPlus className="h-4 w-4 mr-1" /> Recce ({eligibleFor("RECCE").length})
                         </button>
-                        {/* Installation Assignment for Approved Recce */}
-                        {stores.filter(s => selectedStoreIds.has(s._id) && s.currentStatus === StoreStatus.RECCE_APPROVED).length > 0 && (
-                          <button
-                            onClick={() => openAssignModal("INSTALLATION")}
-                            className="flex-1 min-w-[120px] inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
-                          >
-                            <UserPlus className="h-4 w-4 mr-1" /> Install ({stores.filter(s => selectedStoreIds.has(s._id) && s.currentStatus === StoreStatus.RECCE_APPROVED).length})
-                          </button>
-                        )}
-                      </>
                     )}
-                    <button
-                      onClick={() => downloadBulkPDF("recce")}
-                      className="flex-1 min-w-[100px] inline-flex items-center justify-center px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium text-sm"
-                    >
-                      <FileText className="h-4 w-4 mr-1" /> PDF ({selectedStoreIds.size})
-                    </button>
-                    <button
-                      onClick={() => downloadBulkPPT("recce")}
-                      className="flex-1 min-w-[100px] inline-flex items-center justify-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm"
-                    >
-                      <FileSpreadsheet className="h-4 w-4 mr-1" /> PPT ({selectedStoreIds.size})
-                    </button>
+                    {hasPermission('stores', 'edit') && eligibleFor("INSTALLATION").length > 0 && (
+                        <button
+                          onClick={() => openAssignModal("INSTALLATION")}
+                          className="flex-1 min-w-[120px] inline-flex items-center justify-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm"
+                        >
+                          <UserPlus className="h-4 w-4 mr-1" /> Install ({eligibleFor("INSTALLATION").length})
+                        </button>
+                    )}
                     <button
                       onClick={handleExportSelectedStores}
                       className="flex-1 min-w-[100px] inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
@@ -3264,10 +3141,16 @@ export default function StoresPage() {
               <strong>
                 {singleAssignTarget
                   ? singleAssignTarget.storeName
-                  : `${selectedStoreIds.size} stores`}
+                  : `${assignIds.length} store${assignIds.length === 1 ? "" : "s"}`}
               </strong>{" "}
               to {assignStage === "RECCE" ? "Recce" : "Installation"} team
             </p>
+            {!singleAssignTarget && selectedStoreIds.size > assignIds.length && (
+              <p className={`mt-1 text-xs ${darkMode ? "text-yellow-300/80" : "text-yellow-800"}`}>
+                {selectedStoreIds.size - assignIds.length} selected store{selectedStoreIds.size - assignIds.length === 1 ? " is" : "s are"} skipped:{" "}
+                {assignStage === "RECCE" ? "recce can only be assigned to new stores." : "installation needs an approved recce."}
+              </p>
+            )}
           </div>
 
           {/* Search Bar */}
