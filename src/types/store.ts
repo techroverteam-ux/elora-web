@@ -105,6 +105,7 @@ export interface Store {
     photos?: Array<{
       reccePhotoIndex: number;
       installationPhoto: string;
+      photoType?: "before" | "after" | "closeup";
     }>;
     submittedBy?: string;
   };

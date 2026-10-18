@@ -50,6 +50,7 @@ import {
   Stepper,
   buildSteps,
   WorkHistoryCard,
+  InstallComparison,
   formatDate,
   formatINR,
   personName,
@@ -147,7 +148,6 @@ export default function StoreDetailsPage() {
 
   const recceImages = photos.map((p, i) => ({ src: p.photo ? getFullImageUrl(p.photo) : "", caption: `Board ${i + 1} · recce` }));
   const initialImages = initialPhotos.map((p, i) => ({ src: getFullImageUrl(p), caption: `Store photo ${i + 1}` }));
-  const installImages = installPhotos.map((p) => ({ src: getFullImageUrl(p.installationPhoto), caption: `Board ${p.reccePhotoIndex + 1} · installed` }));
 
   /* ---------------- next-step actions ---------------- */
   const nextActions = (
@@ -349,30 +349,7 @@ export default function StoreDetailsPage() {
                         { label: "Photos", value: String(installPhotos.length) },
                       ]}
                     />
-                    {installPhotos.length > 0 && (
-                      <div className="space-y-3">
-                        {installPhotos.map((p, i) => {
-                          const recce = photos[p.reccePhotoIndex];
-                          return (
-                            <div key={i} className="grid grid-cols-2 gap-3">
-                              <div>
-                                <p className={`mb-1 text-xs font-semibold ${s.muted}`}>Board {p.reccePhotoIndex + 1} · before</p>
-                                <PhotoTile
-                                  src={recce?.photo ? getFullImageUrl(recce.photo) : ""}
-                                  alt={`Board ${p.reccePhotoIndex + 1} before`}
-                                  onOpen={() => lightbox.open(recceImages, p.reccePhotoIndex)}
-                                  empty="No recce photo"
-                                />
-                              </div>
-                              <div>
-                                <p className="mb-1 text-xs font-semibold text-emerald-600">Board {p.reccePhotoIndex + 1} · installed</p>
-                                <PhotoTile src={installImages[i].src} alt={installImages[i].caption} onOpen={() => lightbox.open(installImages, i)} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <InstallComparison store={store} getUrl={getFullImageUrl} onOpen={(imgs, k) => lightbox.open(imgs, k)} />
                   </div>
                 ) : (
                   <InfoGrid
