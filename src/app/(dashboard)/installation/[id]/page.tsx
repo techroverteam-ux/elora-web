@@ -135,9 +135,11 @@ export default function InstallationSubmissionPage() {
         fileIndex++;
       });
     });
-    if (fileIndex === 0) {
-      return toast("No new photos to send. Replace a photo first.");
-    }
+    const alreadySubmitted = !!store?.installation?.submittedDate;
+    // Already submitted and nothing replaced: nothing to save (the button is disabled in this case too).
+    if (fileIndex === 0 && alreadySubmitted) return;
+    // Not submitted yet but every photo is already on the server: submit with no new files.
+    // The API keeps the saved photos and marks the installation as submitted.
     formData.append("installationPhotosData", JSON.stringify(photosData));
 
     setSubmitting(true);
@@ -146,7 +148,7 @@ export default function InstallationSubmissionPage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      toast.success("Installation Marked as Complete!");
+      toast.success(alreadySubmitted ? "Installation photos updated" : "Installation marked as complete!");
       router.push("/installation");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Submission failed");
@@ -397,12 +399,28 @@ export default function InstallationSubmissionPage() {
               <span className={`font-bold ${s.text}`}>
                 {doneCount} of {approvedTotal}
               </span>{" "}
-              boards ready{newCount > 0 ? ` · ${newCount} new photo${newCount > 1 ? "s" : ""} to send` : ""}
+              boards ready
+              {submitted
+                ? newCount > 0
+                  ? ` · ${newCount} replaced photo${newCount > 1 ? "s" : ""} to save`
+                  : ` · submitted ${formatDate(store.installation?.submittedDate)}. Replace a photo to update it.`
+                : newCount > 0
+                ? ` · ${newCount} new photo${newCount > 1 ? "s" : ""} to send`
+                : ""}
             </p>
             <ProgressBar total={approvedTotal || 1} segments={[{ value: doneCount, tone: doneCount === approvedTotal && approvedTotal > 0 ? "success" : "brand" }]} />
           </div>
-          <Btn type="submit" form="installation-form" variant="success" size="lg" loading={submitting} icon={<CheckCircle2 className="h-5 w-5" />} className="sm:min-w-[240px]">
-            Complete installation
+          <Btn
+            type="submit"
+            form="installation-form"
+            variant="success"
+            size="lg"
+            loading={submitting}
+            disabled={submitting || (submitted && newCount === 0)}
+            icon={<CheckCircle2 className="h-5 w-5" />}
+            className="sm:min-w-[240px]"
+          >
+            {submitted ? "Save changes" : "Complete installation"}
           </Btn>
         </StickyBar>
       )}
