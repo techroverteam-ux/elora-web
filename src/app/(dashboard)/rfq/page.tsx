@@ -38,7 +38,7 @@ export default function RFQGenerationPage() {
       try {
         const [citiesRes, clientsRes] = await Promise.all([
           api.get("/stores/cities").catch(() => ({ data: { cities: [] } })),
-          api.get("/clients").catch(() => ({ data: { clients: [] } })),
+          api.get("/clients?limit=1000").catch(() => ({ data: { clients: [] } })),
         ]);
         if (citiesRes.data?.cities) setAvailableCities(citiesRes.data.cities);
         const clientsList = clientsRes.data?.clients || [];
