@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { hasAllPermissions } from "@/src/lib/roles";
+import { hasAllPermissions, isBlockedForSubAdmin } from "@/src/lib/roles";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -36,7 +36,9 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const canView = (moduleName: string) => {
     if (!user || !user.roles || !Array.isArray(user.roles)) return false;
 
-    // Super Admin and Sub Admin see every module
+    // Sub Admin never sees User Management, Role Management or Element Mapping
+    if (isBlockedForSubAdmin(user, moduleName)) return false;
+    // Otherwise Super Admin and Sub Admin see every module
     if (hasAllPermissions(user)) return true;
 
     return user.roles.some((role: any) => {

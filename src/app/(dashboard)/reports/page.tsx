@@ -52,6 +52,13 @@ export default function ReportsPage() {
     }).catch(() => {});
   }, []);
 
+  // Sub Admins can't list users (no User Management), so take the "Assigned to"
+  // names from the report's own assignments instead.
+  useEffect(() => {
+    if (availableUsers.length > 0 || !rawAnalytics?.assignments?.length) return;
+    setAvailableUsers([...new Set(rawAnalytics.assignments.map((a: any) => a.assignedTo).filter(Boolean))] as string[]);
+  }, [rawAnalytics, availableUsers.length]);
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);

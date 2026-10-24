@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { isSubAdmin, SUB_ADMIN_BLOCKED_PATHS } from "@/src/lib/roles";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import Header from "@/src/components/layout/Header";
@@ -9,7 +10,11 @@ import Sidebar from "@/src/components/layout/Sidebar";
 import Footer from "@/src/components/layout/Footer";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const pathname = usePathname();
+  // Sub Admins can't open User Management, Role Management or Element Mapping by URL
+  const blockedForSubAdmin =
+    isSubAdmin(user) && SUB_ADMIN_BLOCKED_PATHS.some((p) => pathname === p || pathname?.startsWith(`${p}/`));
   const { darkMode } = useTheme();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -20,6 +25,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [isLoading, isAuthenticated, router]);
 
+  useEffect(() => {
+    if (!isLoading && blockedForSubAdmin) router.replace("/dashboard");
+  }, [isLoading, blockedForSubAdmin, router]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -28,7 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || blockedForSubAdmin) {
     return null;
   }
 
