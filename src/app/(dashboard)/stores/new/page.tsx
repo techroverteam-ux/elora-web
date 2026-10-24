@@ -162,20 +162,75 @@ export default function AddStorePage() {
     });
   };
 
+  /**
+   * Address for a GPS point, from OpenStreetMap (the same fallback the mobile
+   * app uses). The mobile app's Google key is locked to the Android app, so the
+   * browser can't use it.
+   */
+  const reverseGeocode = async (lat: number, lng: number) => {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=en`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) throw new Error(`Address lookup failed (${res.status})`);
+    const data = await res.json();
+    const a = data?.address || {};
+    const clean = (v?: string) => (v || "").replace(/\s+(District|Tehsil)$/i, "").trim();
+    const street = [a.house_number, a.building, a.road].filter(Boolean).join(", ");
+    const area = [a.neighbourhood, a.suburb, a.quarter].filter(Boolean).filter((v: string, i: number, arr: string[]) => arr.indexOf(v) === i).join(", ");
+    const city = a.city || a.town || a.village || a.municipality || a.suburb || "";
+    const district = clean(a.state_district || a.county || "");
+    const state = a.state || "";
+    const postcode = a.postcode || "";
+    const seen = new Set<string>();
+    const address = [street, area, city, district, state, postcode]
+      .filter((p) => {
+        const k = String(p || "").trim().toLowerCase();
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .join(", ");
+    return { address: address || data?.display_name || "", city, district, state };
+  };
+
   const locateMe = () => {
     if (!navigator.geolocation) return toast.error("Location is not available in this browser");
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        set({ latitude: pos.coords.latitude.toFixed(6), longitude: pos.coords.longitude.toFixed(6) });
-        setLocating(false);
-        toast.success("Location added");
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        set({ latitude: latitude.toFixed(6), longitude: longitude.toFixed(6) });
+        try {
+          const geo = await reverseGeocode(latitude, longitude);
+          if (geo.address || geo.city || geo.state) {
+            // Same as the mobile app: the GPS result replaces what's typed
+            setForm((prev) => ({
+              ...prev,
+              dealerAddress: geo.address || prev.dealerAddress,
+              city: geo.city || prev.city,
+              district: geo.district || prev.district,
+              state: geo.state || prev.state,
+            }));
+            toast.success("Location and address filled in");
+          } else {
+            toast("Coordinates added. Couldn't find the address, please type it in.");
+          }
+        } catch {
+          toast("Coordinates added. Couldn't look up the address, please type it in.");
+        } finally {
+          setLocating(false);
+        }
       },
-      () => {
+      (err) => {
         setLocating(false);
-        toast.error("Could not get your location");
+        toast.error(
+          err?.code === 1
+            ? "Location permission is blocked. Allow location for this site in your browser."
+            : "Could not get your location"
+        );
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000 }
     );
   };
 
