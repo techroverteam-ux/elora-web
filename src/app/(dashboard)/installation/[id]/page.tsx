@@ -7,6 +7,7 @@ import { Store } from "@/src/types/store";
 import { Camera, CheckCircle2, Building2, Image as ImageIcon, Info, Layers, RefreshCw, Hammer, Store as StoreIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/src/context/AuthContext";
+import { isAdminRole } from "@/src/lib/roles";
 import { useImageService } from "@/src/hooks/useImageService";
 import {
   Badge,
@@ -61,7 +62,7 @@ export default function InstallationSubmissionPage() {
 
   const isInstallationRole = user?.roles?.some(r => r.name === "INSTALLATION");
   // Same rule as the Installation list, which shows report downloads to admins only.
-  const isAdmin = !!user?.roles?.some((r: any) => r?.code === "SUPER_ADMIN" || r?.code === "ADMIN");
+  const isAdmin = isAdminRole(user);
 
   useEffect(() => {
     if (!id) return;

@@ -95,7 +95,7 @@ export default function UserDetailsPage() {
 
   const isRecceUser = stats.user.roles.some(r => r.code === "RECCE");
   const isInstallUser = stats.user.roles.some(r => r.code === "INSTALLATION");
-  const isAdmin = stats.user.roles.some(r => r.code === "SUPER_ADMIN" || r.code === "ADMIN");
+  const isAdmin = stats.user.roles.some(r => r.code === "SUPER_ADMIN" || r.code === "ADMIN" || r.code === "SUB_ADMIN");
 
   return (
     <div className="space-y-6 pb-20">

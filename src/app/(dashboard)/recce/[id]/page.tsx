@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/src/context/AuthContext";
+import { isAdminRole } from "@/src/lib/roles";
 import { useImageService } from "@/src/hooks/useImageService";
 import {
   ApprovalBadge,
@@ -93,7 +94,7 @@ export default function RecceSubmissionPage() {
   const [editing, setEditing] = useState(false);
 
   const isRecceUser = user?.roles?.some((r: any) => r.code === "RECCE" || r.name === "RECCE");
-  const isAdmin = user?.roles?.some((r: any) => r.code === "SUPER_ADMIN" || r.code === "ADMIN");
+  const isAdmin = isAdminRole(user);
 
   const [notes, setNotes] = useState("");
   const [initialPhotos, setInitialPhotos] = useState<File[]>([]);

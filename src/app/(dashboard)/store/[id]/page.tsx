@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/src/context/AuthContext";
+import { isAdminRole } from "@/src/lib/roles";
 import { useImageService } from "@/src/hooks/useImageService";
 import {
   ApprovalBadge,
@@ -80,7 +81,7 @@ export default function StoreDetailsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<any>({});
 
-  const canEdit = user?.roles?.some((r: any) => ["SUPER_ADMIN", "ADMIN"].includes(r?.code));
+  const canEdit = isAdminRole(user);
 
   useEffect(() => {
     if (!id) return;

@@ -28,6 +28,7 @@ import {
 import toast from "react-hot-toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
+import { isAdminRole } from "@/src/lib/roles";
 import * as XLSX from "xlsx";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
 import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
@@ -40,12 +41,8 @@ export default function InstallationListPage() {
   const { darkMode } = useTheme();
   const { user } = useAuth();
   
-  const isAdmin = React.useMemo(() => {
-    if (!user || !user.roles || !Array.isArray(user.roles)) return false;
-    return user.roles.some((role) => 
-      role?.code === "SUPER_ADMIN" || role?.code === "ADMIN"
-    );
-  }, [user]);
+  // Super Admin, Admin and Sub Admin all get the admin view
+  const isAdmin = React.useMemo(() => isAdminRole(user), [user]);
   
   const statusCounts = useStatusCounts();
   const [stores, setStores] = useState<Store[]>([]);

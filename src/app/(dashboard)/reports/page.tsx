@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import api from "@/src/lib/api";
 import { useAuth } from "@/src/context/AuthContext";
+import { isAdminRole } from "@/src/lib/roles";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
   BarChart3,
@@ -60,12 +61,8 @@ export default function ReportsPage() {
     return `${day}-${month}-${year}`;
   };
 
-  const isAdmin = React.useMemo(() => {
-    if (!user || !user.roles || !Array.isArray(user.roles)) return false;
-    return user.roles.some((role) => 
-      role?.code === "SUPER_ADMIN" || role?.code === "ADMIN"
-    );
-  }, [user]);
+  // Super Admin, Admin and Sub Admin all get the admin view
+  const isAdmin = React.useMemo(() => isAdminRole(user), [user]);
 
   useEffect(() => {
     fetchAnalytics();

@@ -7,6 +7,7 @@ import api from "@/src/lib/api";
 import { Store } from "@/src/types/store";
 import { useImageService } from "@/src/hooks/useImageService";
 import { useAuth } from "@/src/context/AuthContext";
+import { isAdminRole } from "@/src/lib/roles";
 import {
   CheckCircle2,
   XCircle,
@@ -113,7 +114,7 @@ export default function RecceReviewPage() {
   const inputClass = useInputClass();
   const lightbox = useLightbox();
   const { user } = useAuth();
-  const isAdmin = !!user?.roles?.some((r: any) => ["SUPER_ADMIN", "ADMIN"].includes(r?.code));
+  const isAdmin = isAdminRole(user);
 
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);

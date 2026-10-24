@@ -33,10 +33,19 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { exportUsersToExcel } from "@/src/utils/excelExport";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import { useAuth } from "@/src/context/AuthContext";
+import { hasRole, isSuperAdmin } from "@/src/lib/roles";
+
+type ClientOption = { _id: string; clientName: string; clientCode: string; branchName?: string };
 
 export default function UsersPage() {
   const { darkMode } = useTheme();
   const router = useRouter();
+  const { user: currentUser } = useAuth();
+  // Only a Super Admin maps clients to Sub Admins and hands out admin-tier roles
+  const actorIsSuperAdmin = isSuperAdmin(currentUser);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [clientSearch, setClientSearch] = useState("");
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,12 +88,34 @@ export default function UsersPage() {
     email: "",
     password: "",
     roles: [] as string[],
+    assignedClients: [] as string[],
     isActive: true,
+  });
+
+  // Is "Sub Admin" among the roles picked in the form?
+  const formHasSubAdmin = formData.roles.some((rId) => hasRole({ roles: [roles.find((r) => r._id === rId)] }, "SUB_ADMIN"));
+  const isAdminTierRole = (r: Role) => hasRole({ roles: [r] }, "SUPER_ADMIN", "SUB_ADMIN");
+  const filteredClients = clients.filter((c) => {
+    const q = clientSearch.trim().toLowerCase();
+    return !q || `${c.clientName} ${c.clientCode} ${c.branchName || ""}`.toLowerCase().includes(q);
   });
 
   useEffect(() => {
     fetchRoles();
   }, []);
+
+  useEffect(() => {
+    if (actorIsSuperAdmin) fetchClients();
+  }, [actorIsSuperAdmin]);
+
+  const fetchClients = async () => {
+    try {
+      const { data } = await api.get("/clients?limit=1000");
+      setClients(data.clients || []);
+    } catch (error) {
+      console.error("Failed to fetch clients", error);
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -229,7 +260,8 @@ export default function UsersPage() {
 
   const openCreateModal = () => {
     setEditingUser(null);
-    setFormData({ name: "", email: "", password: "", roles: [], isActive: true });
+    setFormData({ name: "", email: "", password: "", roles: [], assignedClients: [], isActive: true });
+    setClientSearch("");
     setIsModalOpen(true);
   };
 
@@ -248,8 +280,10 @@ export default function UsersPage() {
       email: user.email,
       password: "",
       roles: userRoles,
+      assignedClients: (user.assignedClients || []).map((c: any) => String(c?._id ?? c)),
       isActive: user.isActive,
     });
+    setClientSearch("");
     setIsModalOpen(true);
   };
 
@@ -269,6 +303,10 @@ export default function UsersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (actorIsSuperAdmin && formHasSubAdmin && formData.assignedClients.length === 0) {
+      toast.error("Pick at least one client for this Sub Admin");
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -279,6 +317,8 @@ export default function UsersPage() {
         roles: formData.roles,
         isActive: formData.isActive
       };
+      // Client mapping only applies to Sub Admins; clear it if the role was removed
+      if (actorIsSuperAdmin) payload.assignedClients = formHasSubAdmin ? formData.assignedClients : [];
 
       if (formData.password) payload.password = formData.password;
 
@@ -511,6 +551,12 @@ export default function UsersPage() {
                                 </span>
                             )) : <span className="text-gray-400 text-sm">No Role</span>}
                         </div>
+                        {(user as any).assignedClients?.length > 0 && (
+                            <p className={`mt-1.5 text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`} title={(user as any).assignedClients.map((c: any) => c.clientName).join(", ")}>
+                                Clients: {(user as any).assignedClients.slice(0, 3).map((c: any) => c.clientName).join(", ")}
+                                {(user as any).assignedClients.length > 3 && ` +${(user as any).assignedClients.length - 3} more`}
+                            </p>
+                        )}
                     </td>
                     <td className="px-6 py-4">
                         <button 
@@ -569,6 +615,11 @@ export default function UsersPage() {
                         </span>
                       )) : <span className="text-gray-400 text-xs">No Role</span>}
                     </div>
+                    {(user as any).assignedClients?.length > 0 && (
+                      <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        Clients: {(user as any).assignedClients.map((c: any) => c.clientName).join(", ")}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between pt-2">
                       <button 
                         onClick={() => toggleUserStatus(user)}
@@ -704,9 +755,58 @@ export default function UsersPage() {
                     className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 outline-none transition-all text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                 >
                     <option value="">Select a role...</option>
-                    {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+                    {roles.filter(r => actorIsSuperAdmin || !isAdminTierRole(r)).map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
                 </select>
             </div>
+
+            {formHasSubAdmin && (
+              <div className="space-y-1.5">
+                <div className="flex items-baseline justify-between">
+                  <label className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Clients this Sub Admin manages</label>
+                  {actorIsSuperAdmin && <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{formData.assignedClients.length} selected</span>}
+                </div>
+                <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  They get full access to these clients&apos; stores, recce, installation and reports. Stores of other clients stay hidden.
+                </p>
+                {actorIsSuperAdmin ? (
+                  <>
+                    <input
+                      type="text"
+                      value={clientSearch}
+                      onChange={(e) => setClientSearch(e.target.value)}
+                      placeholder="Search clients..."
+                      className={`w-full px-4 py-2 rounded-lg border outline-none text-sm focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                    />
+                    <div className={`max-h-48 overflow-y-auto rounded-lg border divide-y ${darkMode ? "border-gray-600 divide-gray-700" : "border-gray-200 divide-gray-100"}`}>
+                      {filteredClients.length === 0 ? (
+                        <p className="px-3 py-3 text-sm text-gray-400">{clients.length === 0 ? "No clients yet" : "No clients match"}</p>
+                      ) : filteredClients.map((c) => {
+                        const checked = formData.assignedClients.includes(c._id);
+                        return (
+                          <label key={c._id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer text-sm ${darkMode ? "hover:bg-gray-700/60 text-gray-200" : "hover:bg-gray-50 text-gray-800"}`}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => setFormData({
+                                ...formData,
+                                assignedClients: checked
+                                  ? formData.assignedClients.filter((id) => id !== c._id)
+                                  : [...formData.assignedClients, c._id],
+                              })}
+                              className="h-4 w-4 accent-yellow-500"
+                            />
+                            <span className="flex-1 min-w-0 truncate">{c.clientName}{c.branchName ? ` · ${c.branchName}` : ""}</span>
+                            <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{c.clientCode}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <p className={`text-xs italic ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Only a Super Admin can change which clients a Sub Admin manages.</p>
+                )}
+              </div>
+            )}
 
           <div className={`flex justify-end gap-3 pt-4 border-t mt-6 ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
             <button type="button" onClick={() => setIsModalOpen(false)} className={`px-5 py-2.5 text-sm font-semibold rounded-xl border transition-colors ${darkMode ? "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"}`}>Cancel</button>
