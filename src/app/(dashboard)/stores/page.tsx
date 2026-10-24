@@ -13,6 +13,8 @@ import {
   MapPin,
   Trash2,
   UserPlus,
+  ArrowRightLeft,
+  Zap,
   CheckSquare,
   Square,
   Download,
@@ -40,7 +42,7 @@ import { usePermissions } from "@/src/hooks/usePermissions";
 import Modal from "@/src/components/ui/Modal";
 import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
-import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts } from "@/src/components/detail";
+import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts, TransferDialog, canTransfer, canUnassign, type TransferStage, DirectInstallDialog, canDirectInstall } from "@/src/components/detail";
 
 // Every status a store can have; picking all of them means "show every store".
 const ALL_STORE_STATUSES = [...Object.values(StoreStatus), "MANUALLY_ADDED"];
@@ -698,10 +700,20 @@ export default function StoresPage() {
     }
   };
 
+  // Transfer a job to another person (one store from its row, or the selected ones)
+  const [transfer, setTransfer] = useState<{ stage: TransferStage; stores: Store[] } | null>(null);
+  const selectedStores = stores.filter((st) => selectedStoreIds.has(st._id));
+  const transferable = (stage: TransferStage) => selectedStores.filter((st) => canTransfer(st, stage));
+  // New stores straight to an installer (no recce)
+  const [directStores, setDirectStores] = useState<Store[] | null>(null);
+  const directable = selectedStores.filter(canDirectInstall);
+
   const handleUnassign = async (
     storeId: string,
     stage: "RECCE" | "INSTALLATION",
   ) => {
+    // Only offered before any work was submitted; the store goes back one step
+    if (!window.confirm(`Take this ${stage === "RECCE" ? "recce" : "installation"} job off the person? Use Transfer instead to hand it to someone else.`)) return;
     try {
       await api.post("/stores/unassign", {
         storeIds: [storeId],
@@ -1233,6 +1245,27 @@ export default function StoresPage() {
             </div>
           )}
 
+          <TransferDialog
+            open={!!transfer}
+            onClose={() => setTransfer(null)}
+            stage={transfer?.stage || "RECCE"}
+            stores={transfer?.stores || []}
+            onDone={() => {
+              setSelectedStoreIds(new Set());
+              fetchStores();
+            }}
+          />
+
+          <DirectInstallDialog
+            open={!!directStores}
+            onClose={() => setDirectStores(null)}
+            stores={directStores || []}
+            onDone={() => {
+              setSelectedStoreIds(new Set());
+              fetchStores();
+            }}
+          />
+
           {/* Bulk Actions */}
           {selectedStoreIds.size > 0 && (
             <div className="flex gap-2 animate-in fade-in slide-in-from-right-4">
@@ -1253,6 +1286,31 @@ export default function StoresPage() {
                       className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
                     >
                       <UserPlus className="h-4 w-4 mr-2" /> Assign Installation ({eligibleFor("INSTALLATION").length})
+                    </button>
+                  )}
+                  {directable.length > 0 && (
+                    <button
+                      onClick={() => setDirectStores(directable)}
+                      className="inline-flex items-center px-4 py-2 bg-yellow-400 text-gray-950 rounded-lg hover:bg-yellow-300 font-medium text-sm"
+                      title="Skip recce and send straight to an installer"
+                    >
+                      <Zap className="h-4 w-4 mr-2" /> Direct Installation ({directable.length})
+                    </button>
+                  )}
+                  {transferable("RECCE").length > 0 && (
+                    <button
+                      onClick={() => setTransfer({ stage: "RECCE", stores: transferable("RECCE") })}
+                      className="inline-flex items-center px-4 py-2 bg-yellow-400 text-gray-950 rounded-lg hover:bg-yellow-300 font-medium text-sm"
+                    >
+                      <ArrowRightLeft className="h-4 w-4 mr-2" /> Transfer Recce ({transferable("RECCE").length})
+                    </button>
+                  )}
+                  {transferable("INSTALLATION").length > 0 && (
+                    <button
+                      onClick={() => setTransfer({ stage: "INSTALLATION", stores: transferable("INSTALLATION") })}
+                      className="inline-flex items-center px-4 py-2 bg-yellow-400 text-gray-950 rounded-lg hover:bg-yellow-300 font-medium text-sm"
+                    >
+                      <ArrowRightLeft className="h-4 w-4 mr-2" /> Transfer Installation ({transferable("INSTALLATION").length})
                     </button>
                   )}
                 </>
@@ -1772,13 +1830,24 @@ export default function StoresPage() {
                                 >
                                   {(store.workflow.recceAssignedTo as any).name}
                                 </span>
-                                {hasPermission('stores', 'edit') && (
+                                {hasPermission('stores', 'edit') && canTransfer(store, "RECCE") && (
+                                  <button
+                                    onClick={() => setTransfer({ stage: "RECCE", stores: [store] })}
+                                    className="text-yellow-600 hover:text-yellow-700"
+                                    title="Transfer recce to someone else"
+                                    aria-label="Transfer recce"
+                                  >
+                                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {hasPermission('stores', 'edit') && canUnassign(store, "RECCE") && (
                                   <button
                                     onClick={() =>
                                       handleUnassign(store._id, "RECCE")
                                     }
                                     className="text-red-500 hover:text-red-700"
                                     title="Unassign Recce"
+                                    aria-label="Unassign recce"
                                   >
                                     <X className="w-3 h-3" />
                                   </button>
@@ -1810,13 +1879,24 @@ export default function StoresPage() {
                                     ).name
                                   }
                                 </span>
-                                {hasPermission('stores', 'edit') && (
+                                {hasPermission('stores', 'edit') && canTransfer(store, "INSTALLATION") && (
+                                  <button
+                                    onClick={() => setTransfer({ stage: "INSTALLATION", stores: [store] })}
+                                    className="text-yellow-600 hover:text-yellow-700"
+                                    title="Transfer installation to someone else"
+                                    aria-label="Transfer installation"
+                                  >
+                                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {hasPermission('stores', 'edit') && canUnassign(store, "INSTALLATION") && (
                                   <button
                                     onClick={() =>
                                       handleUnassign(store._id, "INSTALLATION")
                                     }
                                     className="text-red-500 hover:text-red-700"
                                     title="Unassign Installation"
+                                    aria-label="Unassign installation"
                                   >
                                     <X className="w-3 h-3" />
                                   </button>
@@ -1851,6 +1931,16 @@ export default function StoresPage() {
                                 title="Assign Recce"
                               >
                                 <UserPlus className="w-4 h-4" />
+                              </button>
+                            )}
+                            {hasPermission('stores', 'edit') && canDirectInstall(store) && (
+                              <button
+                                onClick={() => setDirectStores([store])}
+                                className="p-1.5 rounded hover:bg-yellow-50 dark:hover:bg-yellow-900/20 text-yellow-600"
+                                title="Direct installation: skip recce, assign installer"
+                                aria-label="Direct installation"
+                              >
+                                <Zap className="w-4 h-4" />
                               </button>
                             )}
 
@@ -2461,6 +2551,14 @@ export default function StoresPage() {
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium"
                         >
                           <UserPlus className="w-3.5 h-3.5" /> Assign Recce
+                        </button>
+                      )}
+                      {hasPermission('stores', 'edit') && canDirectInstall(store) && (
+                        <button
+                          onClick={() => setDirectStores([store])}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-yellow-50 text-yellow-700 text-xs font-medium"
+                        >
+                          <Zap className="w-3.5 h-3.5" /> Direct install
                         </button>
                       )}
                       {hasPermission('recce', 'edit') && store.currentStatus === StoreStatus.RECCE_SUBMITTED && (

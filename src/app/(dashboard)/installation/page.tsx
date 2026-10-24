@@ -32,7 +32,8 @@ import { isAdminRole } from "@/src/lib/roles";
 import * as XLSX from "xlsx";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
 import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
-import { PageIntro, ScopeNote, StageStrip, StatusCell, useStatusCounts } from "@/src/components/detail";
+import { PageIntro, ScopeNote, StageStrip, StatusCell, useStatusCounts, TransferDialog, canTransfer } from "@/src/components/detail";
+import { ArrowRightLeft } from "lucide-react";
 
 const INSTALL_SCOPE = ["INSTALLATION_ASSIGNED", "INSTALLATION_SUBMITTED", "INSTALLATION_REJECTED", "COMPLETED"];
 
@@ -43,6 +44,9 @@ export default function InstallationListPage() {
   
   // Super Admin, Admin and Sub Admin all get the admin view
   const isAdmin = React.useMemo(() => isAdminRole(user), [user]);
+
+  // Move an installation job to another installer (row button or selected stores)
+  const [transferStores, setTransferStores] = useState<Store[] | null>(null);
   
   const statusCounts = useStatusCounts();
   const [stores, setStores] = useState<Store[]>([]);
@@ -563,6 +567,14 @@ export default function InstallationListPage() {
                  <button onClick={handleBulkPDFDownload} disabled={isDownloadingPDF} className="flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600">
                    <FileText className="w-4 h-4 mr-2"/> PDF ({selectedStoreIds.size})
                  </button>
+                 {(() => {
+                   const movable = stores.filter((st) => selectedStoreIds.has(st._id) && canTransfer(st, "INSTALLATION"));
+                   return movable.length > 0 ? (
+                     <button onClick={() => setTransferStores(movable)} className="flex items-center px-4 py-2 bg-yellow-400 text-gray-950 rounded-lg text-sm font-medium hover:bg-yellow-300">
+                       <ArrowRightLeft className="w-4 h-4 mr-2" /> Transfer ({movable.length})
+                     </button>
+                   ) : null;
+                 })()}
                </>
              )}
              <button onClick={handleExport} className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium border ${darkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-white border-gray-300 text-gray-700"}`}>
@@ -570,6 +582,17 @@ export default function InstallationListPage() {
              </button>
         </div>
       </div>
+
+      <TransferDialog
+        open={!!transferStores}
+        onClose={() => setTransferStores(null)}
+        stage="INSTALLATION"
+        stores={transferStores || []}
+        onDone={() => {
+          setSelectedStoreIds(new Set());
+          fetchStores();
+        }}
+      />
 
       <StageStrip
         title="Installation stages"
@@ -679,6 +702,14 @@ export default function InstallationListPage() {
                             <button onClick={() => router.push(`/installation/${store._id}`)} className={`w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 text-white ${isDone ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
                                 {isDone ? <><CheckCircle2 className="h-4 w-4" /> View Details</> : <><Camera className="h-4 w-4" /> Upload Proof</>}
                             </button>
+                            {isAdmin && canTransfer(store, "INSTALLATION") && (
+                              <button
+                                onClick={() => setTransferStores([store])}
+                                className="w-full mt-2 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 text-gray-950 bg-yellow-100 hover:bg-yellow-200"
+                              >
+                                <ArrowRightLeft className="h-4 w-4" /> Transfer to another installer
+                              </button>
+                            )}
                             {canDeleteStore(store) && (
                               <button
                                 onClick={() => handleDelete(store._id)}
@@ -764,6 +795,16 @@ export default function InstallationListPage() {
                                                  className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isDone ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}>
                                                  {isDone ? <><Eye className="w-3 h-3 mr-1"/> View</> : <><Camera className="w-3 h-3 mr-1"/> Start</>}
                                              </button>
+                                             {isAdmin && canTransfer(store, "INSTALLATION") && (
+                                               <button
+                                                 onClick={() => setTransferStores([store])}
+                                                 className="p-1.5 rounded-lg transition-colors text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-950/30"
+                                                 title="Transfer to another installer"
+                                                 aria-label="Transfer installation"
+                                               >
+                                                 <ArrowRightLeft className="w-4 h-4" />
+                                               </button>
+                                             )}
                                              
                                              {canDeleteStore(store) && (
                                                <button

@@ -5,3 +5,5 @@ export * from "./storeParts";
 export * from "./listKit";
 export * from "./reportDownload";
 export * from "./installPhotos";
+export * from "./transfer";
+export * from "./directInstall";

@@ -77,6 +77,15 @@ export interface Store {
     installationAssignedTo?: { _id: string; name: string; email: string };
     installationAssignedBy?: { _id: string; name: string; email: string };
     priority: "HIGH" | "MEDIUM" | "LOW";
+    transferHistory?: Array<{
+      stage: "RECCE" | "INSTALLATION";
+      action: "TRANSFER" | "UNASSIGN";
+      fromName?: string;
+      toName?: string;
+      byName?: string;
+      at: string;
+      reason?: string;
+    }>;
   };
 
   recce?: {

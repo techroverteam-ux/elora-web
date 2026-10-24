@@ -4,7 +4,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
-import { ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, ImageOff, ImagePlus, Loader2, Presentation, Search, Upload, X, Zap } from "lucide-react";
+import { ArrowRightLeft, ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, ImageOff, ImagePlus, Loader2, Presentation, Search, Upload, X, Zap } from "lucide-react";
 import api from "@/src/lib/api";
 import { useAuth } from "@/src/context/AuthContext";
 import { usePermissions } from "@/src/hooks/usePermissions";
@@ -17,6 +17,8 @@ import {
   Badge,
   Btn,
   Dialog,
+  TransferDialog,
+  canTransfer,
   EmptyBlock,
   PageIntro,
   PhotoTile,
@@ -275,6 +277,11 @@ function DirectInstallationList() {
       return next;
     });
 
+  // Hand installation jobs to another installer
+  const asTransferStore = (st: DIStore) => ({ _id: st._id, storeName: st.storeName, dealerCode: st.dealerCode, currentStatus: st.currentStatus, workflow: { installationAssignedTo: st.installer } });
+  const [transferList, setTransferList] = useState<any[] | null>(null);
+  const movableSelected = stores.filter((st) => selected.has(st._id)).map(asTransferStore).filter((st) => canTransfer(st, "INSTALLATION"));
+
   const openReportsFor = (st: DIStore) =>
     setReportTarget({
       ids: [st._id],
@@ -465,7 +472,12 @@ function DirectInstallationList() {
               <button type="button" onClick={() => setSelected(new Map())} className={cx("text-xs font-semibold underline-offset-2 hover:underline", s.muted)}>
                 Clear
               </button>
-              <div className="ml-auto">
+              <div className="ml-auto flex flex-wrap gap-2">
+                {canEdit && movableSelected.length > 0 && (
+                  <Btn size="sm" icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => setTransferList(movableSelected)}>
+                    Transfer installer ({movableSelected.length})
+                  </Btn>
+                )}
                 <Btn size="sm" variant="primary" icon={<Download className="h-4 w-4" />} onClick={openReportsForSelected}>
                   Download PPT / PDF
                 </Btn>
@@ -542,7 +554,18 @@ function DirectInstallationList() {
                           <p>{st.location?.city || "—"}</p>
                           <p className={cx("text-xs", s.muted)}>{[st.location?.district, st.location?.state].filter(Boolean).join(", ")}</p>
                         </td>
-                        <td className={cx("whitespace-nowrap px-4 py-3", s.body)}>{st.installer?.name || "—"}</td>
+                        <td className={cx("whitespace-nowrap px-4 py-3", s.body)}>
+                          <p>{st.installer?.name || "—"}</p>
+                          {canEdit && canTransfer(asTransferStore(st), "INSTALLATION") && (
+                            <button
+                              type="button"
+                              onClick={() => setTransferList([asTransferStore(st)])}
+                              className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-yellow-600 hover:underline"
+                            >
+                              <ArrowRightLeft className="h-3 w-3" /> Transfer
+                            </button>
+                          )}
+                        </td>
                         <td className={cx("whitespace-nowrap px-4 py-3 tabular-nums", s.body)}>
                           <p className="font-semibold">{st.boardCount}</p>
                           <p className={cx("text-xs", s.muted)}>{st.totalSqft} sq.ft</p>
@@ -681,6 +704,16 @@ function DirectInstallationList() {
           </div>
         </div>
       )}
+      <TransferDialog
+        open={!!transferList}
+        onClose={() => setTransferList(null)}
+        stage="INSTALLATION"
+        stores={transferList || []}
+        onDone={() => {
+          setSelected(new Map());
+          fetchStores();
+        }}
+      />
       <Dialog
         open={!!reportTarget}
         onClose={() => !reportBusy && setReportTarget(null)}

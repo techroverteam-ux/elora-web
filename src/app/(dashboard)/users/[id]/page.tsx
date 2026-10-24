@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 import { ProfileSkeleton } from "@/src/components/ui/Skeleton";
 import toast from "react-hot-toast";
-import { ActiveBadge, statusMeta } from "@/src/components/detail";
+import { ActiveBadge, Btn, TransferAllDialog, statusMeta } from "@/src/components/detail";
+import { ArrowRightLeft } from "lucide-react";
+import { usePermissions } from "@/src/hooks/usePermissions";
 
 interface UserStats {
   user: {
@@ -67,6 +69,8 @@ export default function UserDetailsPage() {
   const { darkMode } = useTheme();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [transferAllOpen, setTransferAllOpen] = useState(false);
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     if (params.id) {
@@ -115,7 +119,21 @@ export default function UserDetailsPage() {
             Comprehensive user activity and statistics
           </p>
         </div>
+        {/* Absent or leaving: move their unfinished recce / installation jobs */}
+        {(isRecceUser || isInstallUser) && hasPermission("stores", "edit") && (
+          <div className="ml-auto">
+            <Btn variant="primary" icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => setTransferAllOpen(true)}>
+              Transfer pending work
+            </Btn>
+          </div>
+        )}
       </div>
+      <TransferAllDialog
+        open={transferAllOpen}
+        onClose={() => setTransferAllOpen(false)}
+        user={{ _id: String(params.id), name: stats.user.name }}
+        onDone={fetchUserStats}
+      />
 
       {/* User Info Card */}
       <div className={`rounded-xl border p-6 ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>

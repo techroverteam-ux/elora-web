@@ -34,7 +34,8 @@ import { isAdminRole } from "@/src/lib/roles";
 import * as XLSX from "xlsx";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
 import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
-import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts } from "@/src/components/detail";
+import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts, TransferDialog, canTransfer } from "@/src/components/detail";
+import { ArrowRightLeft } from "lucide-react";
 
 const RECCE_SCOPE = ["RECCE_ASSIGNED", "RECCE_SUBMITTED", "RECCE_APPROVED", "RECCE_REJECTED"];
 // The Recce page lists recce stages plus "Install assigned" (the step right after approval).
@@ -49,6 +50,9 @@ export default function RecceListPage() {
   // Check if user is admin
   // Super Admin, Admin and Sub Admin all get the admin view
   const isAdmin = React.useMemo(() => isAdminRole(user), [user]);
+
+  // Move a recce job to another person (row button or selected stores)
+  const [transferStores, setTransferStores] = useState<Store[] | null>(null);
   
   const statusCounts = useStatusCounts();
   const [stores, setStores] = useState<Store[]>([]);
@@ -755,6 +759,16 @@ export default function RecceListPage() {
                    <span className="hidden sm:inline">Excel ({selectedStoreIds.size})</span>
                    <span className="sm:hidden">Excel</span>
                  </button>
+                 {(() => {
+                   const movable = stores.filter((st) => selectedStoreIds.has(st._id) && canTransfer(st, "RECCE"));
+                   return movable.length > 0 ? (
+                     <button onClick={() => setTransferStores(movable)} className="flex items-center px-3 sm:px-4 py-2 bg-yellow-400 text-gray-950 rounded-lg text-sm font-medium hover:bg-yellow-300">
+                       <ArrowRightLeft className="w-4 h-4 sm:mr-2" />
+                       <span className="hidden sm:inline">Transfer recce ({movable.length})</span>
+                       <span className="sm:hidden">Transfer</span>
+                     </button>
+                   ) : null;
+                 })()}
                  {isAdmin && selectedStoreIds.size > 0 && (
                    <button 
                      onClick={handleBulkInstallationAssignment} 
@@ -781,6 +795,17 @@ export default function RecceListPage() {
              </button>
         </div>
       </div>
+
+      <TransferDialog
+        open={!!transferStores}
+        onClose={() => setTransferStores(null)}
+        stage="RECCE"
+        stores={transferStores || []}
+        onDone={() => {
+          setSelectedStoreIds(new Set());
+          fetchStores();
+        }}
+      />
 
       {/* Where these stores are */}
       <StageStrip
@@ -914,6 +939,11 @@ export default function RecceListPage() {
                             <span className={darkMode ? "text-gray-200" : "text-gray-900"}>
                               {isAdmin ? (store.workflow?.recceAssignedTo as any)?.name : (store.workflow?.recceAssignedBy as any)?.name}
                             </span>
+                            {isAdmin && canTransfer(store, "RECCE") && (
+                              <button onClick={() => setTransferStores([store])} className="ml-2 inline-flex items-center gap-1 font-semibold text-yellow-600 hover:underline">
+                                <ArrowRightLeft className="w-3 h-3" /> Transfer
+                              </button>
+                            )}
                           </div>
                         )}
                         {isAdmin && store.recce?.reccePhotos && store.recce.reccePhotos.length > 0 && (
@@ -1041,6 +1071,16 @@ export default function RecceListPage() {
                                                </button>
                                              )}
                                              
+                                             {isAdmin && canTransfer(store, "RECCE") && (
+                                               <button
+                                                 onClick={() => setTransferStores([store])}
+                                                 className="p-1.5 rounded-lg transition-colors text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-950/30"
+                                                 title="Transfer recce to someone else"
+                                                 aria-label="Transfer recce"
+                                               >
+                                                 <ArrowRightLeft className="w-4 h-4" />
+                                               </button>
+                                             )}
                                              {canDeleteStore(store) && (
                                                <button
                                                  onClick={() => handleDelete(store._id)}

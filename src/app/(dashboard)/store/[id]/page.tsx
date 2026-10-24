@@ -20,6 +20,7 @@ import {
   UserPlus,
   IndianRupee,
   FileSpreadsheet,
+  ArrowRightLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/src/context/AuthContext";
@@ -52,6 +53,10 @@ import {
   buildSteps,
   WorkHistoryCard,
   InstallComparison,
+  TransferDialog,
+  TransferHistoryCard,
+  canTransfer,
+  type TransferStage,
   formatDate,
   formatINR,
   personName,
@@ -68,6 +73,7 @@ export default function StoreDetailsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const params = useParams();
+  const [transferStage, setTransferStage] = useState<TransferStage | null>(null);
   const id = params?.id as string;
 
   const { getFullImageUrl } = useImageService();
@@ -153,6 +159,16 @@ export default function StoreDetailsPage() {
   /* ---------------- next-step actions ---------------- */
   const nextActions = (
     <>
+      {canEdit && canTransfer(store, "RECCE") && (
+        <Btn variant="secondary" icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => setTransferStage("RECCE")}>
+          Transfer recce
+        </Btn>
+      )}
+      {canEdit && canTransfer(store, "INSTALLATION") && (
+        <Btn variant="secondary" icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => setTransferStage("INSTALLATION")}>
+          Transfer installer
+        </Btn>
+      )}
       {canEdit && store.currentStatus === "RECCE_SUBMITTED" && (
         <Btn variant="primary" icon={<ClipboardCheck className="h-4 w-4" />} onClick={() => router.push(`/recce/${store._id}/review`)}>
           Review recce
@@ -231,6 +247,14 @@ export default function StoreDetailsPage() {
         </Section>
 
         <WorkHistoryCard store={store} />
+        <TransferHistoryCard history={store.workflow?.transferHistory} />
+        <TransferDialog
+          open={!!transferStage}
+          onClose={() => setTransferStage(null)}
+          stage={transferStage || "RECCE"}
+          stores={[store]}
+          onDone={fetchStore}
+        />
 
         <div className="grid items-start gap-4 lg:grid-cols-3">
           {/* ---------------- main column ---------------- */}
