@@ -357,63 +357,90 @@ function DirectInstallationList() {
         />
       ) : (
         <div className={cx("overflow-hidden rounded-xl border", s.card)}>
-          <ul className={cx("divide-y", s.dark ? "divide-gray-800" : "divide-gray-100")}>
-            {stores.map((st) => {
-              const open = expanded.has(st._id);
-              return (
-                <li key={st._id}>
-                  {/* Store row */}
-                  <div className="grid grid-cols-[auto_1fr] gap-3 px-3 py-3 sm:px-4 lg:grid-cols-[auto_minmax(0,2.2fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-center">
-                    <button
-                      type="button"
-                      onClick={() => toggle(st._id)}
-                      aria-expanded={open}
-                      aria-label={open ? "Hide boards" : "Show boards"}
-                      className={cx("mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg border lg:mt-0", s.dark ? "border-gray-700 hover:bg-gray-800" : "border-gray-200 hover:bg-gray-50")}
-                    >
-                      <ChevronDown className={cx("h-4 w-4 transition-transform", open && "rotate-180")} />
-                    </button>
-                    <div className="min-w-0">
-                      <Link href={`/store/${st._id}`} className={cx("block truncate font-semibold hover:underline", s.text)}>
-                        {st.storeName || "Unnamed store"}
-                      </Link>
-                      <p className={cx("truncate text-xs", s.muted)}>
-                        {st.dealerCode}
-                        {st.storeId && <> · {st.storeId}</>} · {st.clientName || st.clientCode}
-                      </p>
-                    </div>
-                    <div className={cx("col-start-2 text-sm lg:col-start-auto", s.body)}>
-                      <p className="truncate">{[st.location?.city, st.location?.state].filter(Boolean).join(", ") || "—"}</p>
-                      <p className={cx("truncate text-xs", s.muted)}>Installer: {st.installer?.name || "—"}</p>
-                    </div>
-                    <div className="col-start-2 text-sm lg:col-start-auto">
-                      <p className={s.body}>
-                        <span className="font-semibold tabular-nums">{st.boardCount}</span> board{st.boardCount === 1 ? "" : "s"} ·{" "}
-                        <span className="tabular-nums">{st.totalSqft}</span> sq.ft
-                      </p>
-                      {st.photosMissing > 0 ? (
-                        <Badge tone="warning" icon={<ImageOff className="h-3 w-3" />}>
-                          {st.photosMissing} photo{st.photosMissing === 1 ? "" : "s"} missing
-                        </Badge>
-                      ) : (
-                        <p className={cx("text-xs", s.muted)}>All recce photos in</p>
-                      )}
-                    </div>
-                    <div className="col-start-2 lg:col-start-auto">
-                      <StatusBadge status={st.currentStatus} />
-                      <p className={cx("mt-1 text-xs", s.muted)}>
-                        Uploaded {formatDate(st.createdAt)}
-                        {st.createdBy?.name && <> by {st.createdBy.name}</>}
-                      </p>
-                    </div>
-                    <div className={cx("col-start-2 text-sm font-semibold tabular-nums lg:col-start-auto lg:text-right", s.text)}>
-                      {showMoney && st.totalCost !== undefined ? formatINR(st.totalCost) : null}
-                    </div>
-                  </div>
-
-                  {/* Boards */}
-                  {open && (
-                    <div className={cx("border-t px-3 py-3 sm:px-4", s.dark ? "border-gray-800 bg-gray-950/40" : "border-gray-100 bg-gray-50/60")}>
+          {/* Wide table: scrolls sideways on small screens, header stays on top */}
+          <div className="max-h-[70vh] overflow-auto">
+            <table className="min-w-[1100px] w-full text-sm">
+              <thead className={cx("sticky top-0 z-10", s.dark ? "bg-gray-800" : "bg-gray-50")}>
+                <tr>
+                  <th className="w-12 px-4 py-3" aria-label="Show boards" />
+                  <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Store</th>
+                  <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Client</th>
+                  <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Location</th>
+                  <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Installer</th>
+                  <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Boards</th>
+                  <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Recce photos</th>
+                  <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Status</th>
+                  <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Uploaded</th>
+                  {showMoney && <th className={cx("whitespace-nowrap px-4 py-3 text-right text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Cost</th>}
+                </tr>
+              </thead>
+              <tbody className={cx("divide-y", s.dark ? "divide-gray-800" : "divide-gray-100")}>
+                {stores.map((st) => {
+                  const open = expanded.has(st._id);
+                  return (
+                    <React.Fragment key={st._id}>
+                      <tr className={cx("align-top", s.dark ? "hover:bg-gray-800/40" : "hover:bg-gray-50")}>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => toggle(st._id)}
+                            aria-expanded={open}
+                            aria-label={open ? "Hide boards" : "Show boards"}
+                            className={cx("flex h-8 w-8 items-center justify-center rounded-lg border", s.dark ? "border-gray-700 hover:bg-gray-800" : "border-gray-200 hover:bg-white")}
+                          >
+                            <ChevronDown className={cx("h-4 w-4 transition-transform", open && "rotate-180")} />
+                          </button>
+                        </td>
+                        <td className="max-w-[260px] px-4 py-3">
+                          <Link href={`/store/${st._id}`} className={cx("block truncate font-semibold hover:underline", s.text)}>
+                            {st.storeName || "Unnamed store"}
+                          </Link>
+                          <p className={cx("truncate text-xs", s.muted)}>
+                            {st.dealerCode}
+                            {st.storeId && <> · {st.storeId}</>}
+                          </p>
+                        </td>
+                        <td className={cx("whitespace-nowrap px-4 py-3", s.body)}>
+                          <p className="font-medium">{st.clientCode || "—"}</p>
+                          {st.clientName && <p className={cx("text-xs", s.muted)}>{st.clientName}</p>}
+                        </td>
+                        <td className={cx("whitespace-nowrap px-4 py-3", s.body)}>
+                          <p>{st.location?.city || "—"}</p>
+                          <p className={cx("text-xs", s.muted)}>{[st.location?.district, st.location?.state].filter(Boolean).join(", ")}</p>
+                        </td>
+                        <td className={cx("whitespace-nowrap px-4 py-3", s.body)}>{st.installer?.name || "—"}</td>
+                        <td className={cx("whitespace-nowrap px-4 py-3 tabular-nums", s.body)}>
+                          <p className="font-semibold">{st.boardCount}</p>
+                          <p className={cx("text-xs", s.muted)}>{st.totalSqft} sq.ft</p>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          {st.photosMissing > 0 ? (
+                            <Badge tone="warning" icon={<ImageOff className="h-3 w-3" />}>
+                              {st.photosMissing} missing
+                            </Badge>
+                          ) : (
+                            <Badge tone="success">All in</Badge>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <StatusBadge status={st.currentStatus} />
+                        </td>
+                        <td className={cx("whitespace-nowrap px-4 py-3", s.body)}>
+                          <p>{formatDate(st.createdAt)}</p>
+                          {st.createdBy?.name && <p className={cx("text-xs", s.muted)}>by {st.createdBy.name}</p>}
+                        </td>
+                        {showMoney && (
+                          <td className={cx("whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums", s.text)}>
+                            {st.totalCost !== undefined ? formatINR(st.totalCost) : "—"}
+                          </td>
+                        )}
+                      </tr>
+                      {open && (
+                        <tr className={s.dark ? "bg-gray-950/40" : "bg-gray-50/60"}>
+                          <td colSpan={showMoney ? 10 : 9} className="p-0">
+                            {/* Boards stay in view while the table scrolls sideways */}
+                            <div className="sticky left-0 max-w-[calc(100vw-2rem)] md:max-w-[calc(100vw-20rem)]">
+                    <div className="px-4 py-3">
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {st.boards.map((b) => {
                           const busy = uploadingKey === `${st._id}:${b.index}`;
@@ -481,11 +508,16 @@ function DirectInstallationList() {
                         })}
                       </div>
                     </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
           {/* Pagination */}
           <div className={cx("flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-sm", s.divider, s.muted)}>
