@@ -330,6 +330,7 @@ const SECTIONS: Record<string, { label: string; href: string; detail?: string }>
   store: { label: "Store Operations", href: "/stores", detail: "Store details" },
   recce: { label: "Recce", href: "/recce", detail: "Recce details" },
   installation: { label: "Installation", href: "/installation", detail: "Installation details" },
+  "direct-installation": { label: "Direct Installation", href: "/direct-installation", detail: "Bulk upload" },
   elements: { label: "Element Mapping", href: "/elements" },
   rfq: { label: "RFQ Generation", href: "/rfq" },
   enquiries: { label: "Enquiries", href: "/enquiries" },

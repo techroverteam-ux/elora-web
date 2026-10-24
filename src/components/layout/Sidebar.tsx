@@ -11,6 +11,7 @@ import {
   Store,
   Map,
   Hammer,
+  Zap,
   MessageSquare,
   BarChart3,
   X,
@@ -91,6 +92,12 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       href: "/installation",
       icon: Hammer,
       module: "installation",
+    },
+    {
+      name: "Direct Installation",
+      href: "/direct-installation",
+      icon: Zap,
+      module: "stores",
     },
     {
       name: "Element Mapping",
