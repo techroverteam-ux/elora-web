@@ -4,7 +4,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
-import { ChevronDown, ChevronLeft, ChevronRight, Download, ImageOff, ImagePlus, Search, Upload, X, Zap } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, ImageOff, ImagePlus, Loader2, Presentation, Search, Upload, X, Zap } from "lucide-react";
 import api from "@/src/lib/api";
 import { useAuth } from "@/src/context/AuthContext";
 import { usePermissions } from "@/src/hooks/usePermissions";
@@ -16,6 +16,7 @@ import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
 import {
   Badge,
   Btn,
+  Dialog,
   EmptyBlock,
   PageIntro,
   PhotoTile,
@@ -224,12 +225,106 @@ function DirectInstallationList() {
     }
   };
 
+  // Upload template pre-filled with the stores in view (current filters), to correct and re-upload
+  const [editExporting, setEditExporting] = useState(false);
+  const handleEditDownload = async () => {
+    setEditExporting(true);
+    try {
+      const p = new URLSearchParams(params);
+      p.set("prefill", "1");
+      const res = await api.get(`/direct-installations/template?${p.toString()}`, { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Direct_Installation_Data_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Fill the red cells, then upload it on Bulk upload");
+    } catch {
+      toast.error("Could not download the data");
+    } finally {
+      setEditExporting(false);
+    }
+  };
+
   const toggle = (id: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+
+  // ---------------- PPT / PDF reports (single store or selected stores) ----------------
+  const [selected, setSelected] = useState<Map<string, string>>(new Map()); // _id -> dealerCode
+  const [reportTarget, setReportTarget] = useState<{ ids: string[]; label: string; dealerCode?: string; installed: boolean } | null>(null);
+  const [reportBusy, setReportBusy] = useState("");
+
+  const pageIds = stores.map((st) => st._id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const toggleSelect = (st: DIStore) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      next.has(st._id) ? next.delete(st._id) : next.set(st._id, st.dealerCode);
+      return next;
+    });
+  const toggleSelectPage = () =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (allOnPageSelected) pageIds.forEach((id) => next.delete(id));
+      else stores.forEach((st) => next.set(st._id, st.dealerCode));
+      return next;
+    });
+
+  const openReportsFor = (st: DIStore) =>
+    setReportTarget({
+      ids: [st._id],
+      label: st.storeName || st.dealerCode,
+      dealerCode: st.dealerCode,
+      installed: ["INSTALLATION_SUBMITTED", "COMPLETED", "INSTALLATION_REJECTED"].includes(st.currentStatus),
+    });
+  const openReportsForSelected = () =>
+    setReportTarget({
+      ids: Array.from(selected.keys()),
+      label: `${selected.size} selected store${selected.size === 1 ? "" : "s"}`,
+      installed: true,
+    });
+
+  const downloadReport = async (type: "recce" | "installation", format: "ppt" | "pdf") => {
+    if (!reportTarget) return;
+    const key = `${type}-${format}`;
+    setReportBusy(key);
+    const label = format.toUpperCase();
+    const toastId = toast.loading(`Generating ${type} ${label}…`);
+    try {
+      const res = await api.post(`/stores/${format}/bulk`, { storeIds: reportTarget.ids, type }, { responseType: "blob" });
+      const single = reportTarget.ids.length === 1;
+      let filename = single
+        ? `${type === "recce" ? "Recce" : "Installation"}_${reportTarget.dealerCode || reportTarget.ids[0]}.${format === "ppt" ? "pptx" : "pdf"}`
+        : `Direct_Installation_${type === "recce" ? "Recce" : "Installation"}_${reportTarget.ids.length}_Stores_${new Date().toISOString().slice(0, 10)}.${format === "ppt" ? "pptx" : "pdf"}`;
+      const m = res.headers?.["content-disposition"]?.match(/filename="?(.+?)"?$/i);
+      if (m) filename = m[1];
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(`${label} downloaded`, { id: toastId });
+    } catch (error: any) {
+      // Error bodies arrive as a Blob because of responseType: "blob"
+      let message = `Failed to download ${label}`;
+      try {
+        const data = error?.response?.data;
+        if (data instanceof Blob) message = JSON.parse(await data.text())?.message || message;
+        else if (data?.message) message = data.message;
+      } catch {}
+      toast.error(message, { id: toastId });
+    } finally {
+      setReportBusy("");
+    }
+  };
 
   // Add or replace one board's recce photo
   const [uploadingKey, setUploadingKey] = useState("");
@@ -280,6 +375,11 @@ function DirectInstallationList() {
             <Btn icon={<Download className="h-4 w-4" />} loading={exporting} onClick={handleExport} disabled={total === 0}>
               Export Excel
             </Btn>
+            {canUpload && (
+              <Btn icon={<FileSpreadsheet className="h-4 w-4" />} loading={editExporting} onClick={handleEditDownload} disabled={total === 0}>
+                Edit in Excel
+              </Btn>
+            )}
             {canUpload && (
               <Btn variant="primary" icon={<Upload className="h-4 w-4" />} onClick={() => router.push("/direct-installation/upload")}>
                 Bulk upload
@@ -357,12 +457,36 @@ function DirectInstallationList() {
         />
       ) : (
         <div className={cx("overflow-hidden rounded-xl border", s.card)}>
+          {selected.size > 0 && (
+            <div className={cx("flex flex-wrap items-center gap-3 border-b px-4 py-2.5 text-sm", s.dark ? "border-gray-800 bg-gray-800/60" : "border-gray-200 bg-yellow-50")}>
+              <span className={cx("font-semibold", s.text)}>
+                {selected.size} store{selected.size === 1 ? "" : "s"} selected
+              </span>
+              <button type="button" onClick={() => setSelected(new Map())} className={cx("text-xs font-semibold underline-offset-2 hover:underline", s.muted)}>
+                Clear
+              </button>
+              <div className="ml-auto">
+                <Btn size="sm" variant="primary" icon={<Download className="h-4 w-4" />} onClick={openReportsForSelected}>
+                  Download PPT / PDF
+                </Btn>
+              </div>
+            </div>
+          )}
           {/* Wide table: scrolls sideways on small screens, header stays on top */}
           <div className="max-h-[70vh] overflow-auto">
             <table className="min-w-[1100px] w-full text-sm">
               <thead className={cx("sticky top-0 z-10", s.dark ? "bg-gray-800" : "bg-gray-50")}>
                 <tr>
-                  <th className="w-12 px-4 py-3" aria-label="Show boards" />
+                  <th className="w-10 py-3 pl-4">
+                    <input
+                      type="checkbox"
+                      checked={allOnPageSelected}
+                      onChange={toggleSelectPage}
+                      aria-label="Select all stores on this page"
+                      className="h-4 w-4 cursor-pointer accent-yellow-500"
+                    />
+                  </th>
+                  <th className="w-12 px-2 py-3" aria-label="Show boards" />
                   <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Store</th>
                   <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Client</th>
                   <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Location</th>
@@ -372,6 +496,7 @@ function DirectInstallationList() {
                   <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Status</th>
                   <th className={cx("whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Uploaded</th>
                   {showMoney && <th className={cx("whitespace-nowrap px-4 py-3 text-right text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Cost</th>}
+                  <th className={cx("whitespace-nowrap px-4 py-3 text-right text-xs font-bold uppercase tracking-wider", s.dark ? "text-gray-300" : "text-gray-600")}>Reports</th>
                 </tr>
               </thead>
               <tbody className={cx("divide-y", s.dark ? "divide-gray-800" : "divide-gray-100")}>
@@ -379,8 +504,17 @@ function DirectInstallationList() {
                   const open = expanded.has(st._id);
                   return (
                     <React.Fragment key={st._id}>
-                      <tr className={cx("align-top", s.dark ? "hover:bg-gray-800/40" : "hover:bg-gray-50")}>
-                        <td className="px-4 py-3">
+                      <tr className={cx("align-top", selected.has(st._id) ? (s.dark ? "bg-yellow-500/5" : "bg-yellow-50/70") : "", s.dark ? "hover:bg-gray-800/40" : "hover:bg-gray-50")}>
+                        <td className="py-3 pl-4 pt-5">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(st._id)}
+                            onChange={() => toggleSelect(st)}
+                            aria-label={`Select ${st.storeName || st.dealerCode}`}
+                            className="h-4 w-4 cursor-pointer accent-yellow-500"
+                          />
+                        </td>
+                        <td className="px-2 py-3">
                           <button
                             type="button"
                             onClick={() => toggle(st._id)}
@@ -434,10 +568,15 @@ function DirectInstallationList() {
                             {st.totalCost !== undefined ? formatINR(st.totalCost) : "—"}
                           </td>
                         )}
+                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                          <Btn size="sm" icon={<Download className="h-3.5 w-3.5" />} onClick={() => openReportsFor(st)} aria-label={`Download PPT or PDF for ${st.storeName || st.dealerCode}`}>
+                            PPT / PDF
+                          </Btn>
+                        </td>
                       </tr>
                       {open && (
                         <tr className={s.dark ? "bg-gray-950/40" : "bg-gray-50/60"}>
-                          <td colSpan={showMoney ? 10 : 9} className="p-0">
+                          <td colSpan={showMoney ? 12 : 11} className="p-0">
                             {/* Boards stay in view while the table scrolls sideways */}
                             <div className="sticky left-0 max-w-[calc(100vw-2rem)] md:max-w-[calc(100vw-20rem)]">
                     <div className="px-4 py-3">
@@ -542,6 +681,52 @@ function DirectInstallationList() {
           </div>
         </div>
       )}
+      <Dialog
+        open={!!reportTarget}
+        onClose={() => !reportBusy && setReportTarget(null)}
+        title="Download report"
+        description={reportTarget?.label}
+        icon={<Download className="h-5 w-5" />}
+        footer={
+          <Btn onClick={() => setReportTarget(null)} disabled={!!reportBusy}>
+            Close
+          </Btn>
+        }
+      >
+        <div className="space-y-4">
+          {(["recce", "installation"] as const).map((type) => (
+            <div key={type}>
+              <p className={cx("text-sm font-semibold", s.text)}>{type === "recce" ? "Recce report" : "Installation report"}</p>
+              <p className={cx("mb-2 text-xs", s.muted)}>
+                {type === "recce"
+                  ? "Boards with their recce photos, sizes and elements."
+                  : reportTarget?.installed
+                  ? "Boards with the installed photos."
+                  : "Not installed yet, so installed photos will be empty."}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {(["ppt", "pdf"] as const).map((format) => {
+                  const busy = reportBusy === `${type}-${format}`;
+                  return (
+                    <Btn
+                      key={format}
+                      block
+                      disabled={!!reportBusy}
+                      icon={busy ? <Loader2 className="h-4 w-4 animate-spin" /> : format === "ppt" ? <Presentation className="h-4 w-4 text-orange-500" /> : <FileText className="h-4 w-4 text-red-500" />}
+                      onClick={() => downloadReport(type, format)}
+                    >
+                      {busy ? "Generating…" : format === "ppt" ? "PowerPoint" : "PDF"}
+                    </Btn>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {reportTarget && reportTarget.ids.length > 1 && (
+            <p className={cx("text-xs", s.muted)}>All {reportTarget.ids.length} stores go into one file. Large selections can take a minute.</p>
+          )}
+        </div>
+      </Dialog>
       {lightbox.node}
     </div>
   );

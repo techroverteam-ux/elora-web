@@ -47,6 +47,8 @@ type VBoard = {
   rate?: number;
   cost?: number;
   photoKeys: string[];
+  existingIndex?: number;
+  hasPhoto?: boolean;
 };
 type VStore = {
   key: string;
@@ -62,13 +64,15 @@ type VStore = {
   totalSqft: number;
   totalCost?: number;
   errors: string[];
+  mode?: "create" | "update";
+  storeDbId?: string;
 };
 type Validation = { stores: VStore[]; errors: Array<{ row: number; message: string }>; rowCount: number };
 type Outcome = {
   state: "waiting" | "working" | "done" | "failed";
   message?: string;
   storeDbId?: string;
-  failedBoards?: Array<{ index: number; boardNo: string; keys: string[] }>;
+  failedBoards?: Array<{ index: number; boardNo: string; keys: string[]; hasPhoto?: boolean }>;
 };
 
 export default function DirectInstallationUploadPage() {
@@ -84,7 +88,7 @@ export default function DirectInstallationUploadPage() {
   const [photos, setPhotos] = useState<Map<string, File>>(new Map());
   const [validation, setValidation] = useState<Validation | null>(null);
   const [checking, setChecking] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading] = useState<"" | "blank" | "data">("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const [importing, setImporting] = useState(false);
@@ -92,20 +96,20 @@ export default function DirectInstallationUploadPage() {
   const [batchId, setBatchId] = useState("");
 
   /* ---------------- step 1: template ---------------- */
-  const downloadTemplate = async () => {
-    setDownloading(true);
+  const downloadTemplate = async (withData: boolean) => {
+    setDownloading(withData ? "data" : "blank");
     try {
-      const res = await api.get("/direct-installations/template", { responseType: "blob" });
+      const res = await api.get(`/direct-installations/template${withData ? "?prefill=1" : ""}`, { responseType: "blob" });
       const url = URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = url;
-      a.download = "Direct_Installation_Template.xlsx";
+      a.download = withData ? `Direct_Installation_Data_${new Date().toISOString().slice(0, 10)}.xlsx` : "Direct_Installation_Template.xlsx";
       a.click();
       URL.revokeObjectURL(url);
     } catch {
       toast.error("Could not download the template");
     } finally {
-      setDownloading(false);
+      setDownloading("");
     }
   };
 
@@ -160,14 +164,16 @@ export default function DirectInstallationUploadPage() {
     });
   };
   const fileFor = (b: VBoard) => b.photoKeys.map((k) => photos.get(k)).find(Boolean);
+  const needsPhoto = (b: VBoard) => !b.hasPhoto && !fileFor(b);
 
   /* ---------------- summary ---------------- */
   const summary = useMemo(() => {
     const stores = validation?.stores || [];
     const boards = stores.flatMap((st) => st.boards);
-    const missing = boards.filter((b) => !fileFor(b)).length;
+    const missing = boards.filter(needsPhoto).length;
     return {
       stores: stores.length,
+      updates: stores.filter((st) => st.mode === "update").length,
       boards: boards.length,
       errors: validation?.errors.length || 0,
       missing,
@@ -182,13 +188,14 @@ export default function DirectInstallationUploadPage() {
   const finished = !importing && Object.keys(outcomes).length > 0;
 
   /* ---------------- import ---------------- */
-  const uploadBoardPhotos = async (storeDbId: string, boards: Array<{ index: number; boardNo: string; keys: string[] }>) => {
+  const uploadBoardPhotos = async (storeDbId: string, boards: Array<{ index: number; boardNo: string; keys: string[]; hasPhoto?: boolean }>) => {
     const failed: typeof boards = [];
     const queue = [...boards];
     const worker = async () => {
       while (queue.length) {
         const b = queue.shift()!;
         const file = b.keys.map((k) => photos.get(k)).find(Boolean);
+        if (!file && b.hasPhoto) continue; // existing photo stays
         try {
           if (!file) throw new Error("photo not selected");
           const fd = new FormData();
@@ -219,13 +226,13 @@ export default function DirectInstallationUploadPage() {
           const storeRows = rows.filter((r) => dealerOf(r).toLowerCase() === st.key);
           const { data } = await api.post("/direct-installations", { rows: storeRows, batchId: id });
           storeDbId = data.store._id as string;
-          boards = (data.boards || []).map((b: any) => ({ index: b.index, boardNo: b.boardNo, keys: b.photoKeys }));
+          boards = (data.boards || []).map((b: any) => ({ index: b.index, boardNo: b.boardNo, keys: b.photoKeys, hasPhoto: !!b.hasPhoto }));
         }
         const failedBoards = await uploadBoardPhotos(storeDbId!, boards || []);
         setOutcomes((o) => ({
           ...o,
           [st.key]: failedBoards.length
-            ? { state: "failed", storeDbId, failedBoards, message: `Store created, but ${failedBoards.length} photo${failedBoards.length === 1 ? "" : "s"} failed: board ${failedBoards.map((b) => b.boardNo).join(", ")}` }
+            ? { state: "failed", storeDbId, failedBoards, message: `Store saved, but ${failedBoards.length} photo${failedBoards.length === 1 ? "" : "s"} failed: board ${failedBoards.map((b) => b.boardNo).join(", ")}` }
             : { state: "done", storeDbId },
         }));
       } catch (e: any) {
@@ -287,10 +294,15 @@ export default function DirectInstallationUploadPage() {
           1,
           false,
           "Download the template",
-          "It lists your clients, their elements and the installer names to use.",
-          <Btn icon={<Download className="h-4 w-4" />} loading={downloading} onClick={downloadTemplate}>
-            Template (.xlsx)
-          </Btn>
+          "Blank for new stores, or with your existing direct installations filled in to correct them or add boards. Red cells still need filling.",
+          <div className="flex flex-wrap gap-2">
+            <Btn icon={<Download className="h-4 w-4" />} loading={downloading === "blank"} disabled={!!downloading} onClick={() => downloadTemplate(false)}>
+              Blank template
+            </Btn>
+            <Btn icon={<FileSpreadsheet className="h-4 w-4" />} loading={downloading === "data"} disabled={!!downloading} onClick={() => downloadTemplate(true)}>
+              With existing data
+            </Btn>
+          </div>
         )}
         {stepCard(
           2,
@@ -349,7 +361,7 @@ export default function DirectInstallationUploadPage() {
         <>
           <StatTiles
             items={[
-              { key: "stores", label: "Stores", value: summary.stores, tone: "info" },
+              { key: "stores", label: summary.updates ? `Stores (${summary.updates} to update)` : "Stores", value: summary.stores, tone: "info" },
               { key: "boards", label: "Boards", value: summary.boards, tone: "violet" },
               { key: "errors", label: "Row errors", value: summary.errors, tone: summary.errors ? "danger" : "success" },
               { key: "missing", label: "Photos missing", value: summary.missing, tone: summary.missing ? "warning" : "success" },
@@ -375,7 +387,7 @@ export default function DirectInstallationUploadPage() {
           <div className={cx("overflow-hidden rounded-xl border", s.card)}>
             <ul className={cx("divide-y", s.dark ? "divide-gray-800" : "divide-gray-100")}>
               {validation.stores.map((st) => {
-                const matched = st.boards.filter((b) => fileFor(b)).length;
+                const matched = st.boards.filter((b) => !needsPhoto(b)).length;
                 const o = outcomes[st.key];
                 const open = expanded.has(st.key);
                 return (
@@ -384,7 +396,8 @@ export default function DirectInstallationUploadPage() {
                       <ChevronDown className={cx("h-4 w-4 shrink-0 transition-transform", open && "rotate-180", s.muted)} />
                       <div className="min-w-0 flex-1">
                         <p className={cx("truncate font-semibold", s.text)}>
-                          {st.storeName || "—"} <span className={cx("font-normal", s.muted)}>· {st.dealerCode}</span>
+                          {st.storeName || "—"} <span className={cx("font-normal", s.muted)}>· {st.dealerCode}</span>{" "}
+                          <Badge tone={st.mode === "update" ? "violet" : "info"}>{st.mode === "update" ? "Update" : "New"}</Badge>
                         </p>
                         <p className={cx("truncate text-xs", s.muted)}>
                           {st.clientName || st.clientCode} · {[st.city, st.district].filter(Boolean).join(", ")} · Installer: {st.installerName || "—"} · rows{" "}
@@ -446,7 +459,12 @@ export default function DirectInstallationUploadPage() {
                                     {showMoney && <td className="py-1 pr-3 tabular-nums">{formatINR(b.cost)}</td>}
                                     <td className="py-1">
                                       {f ? (
-                                        <span className="text-emerald-600">{f.name}</span>
+                                        <span className="text-emerald-600">
+                                          {f.name}
+                                          {b.hasPhoto && <span className={s.muted}> (replaces saved photo)</span>}
+                                        </span>
+                                      ) : b.hasPhoto ? (
+                                        <span className={s.muted}>Saved photo kept</span>
                                       ) : (
                                         <span className="inline-flex items-center gap-1 text-amber-600">
                                           <ImageOff className="h-3.5 w-3.5" /> needs {b.photoKeys[b.photoKeys.length - 1].toUpperCase()}.jpg
@@ -498,7 +516,7 @@ export default function DirectInstallationUploadPage() {
                 </p>
               ) : (
                 <p className={s.body}>
-                  Ready: {summary.stores} store{summary.stores === 1 ? "" : "s"}, {summary.boards} board{summary.boards === 1 ? "" : "s"}. Recce will be marked approved and sent to the installers.
+                  Ready: {summary.stores - summary.updates} new and {summary.updates} existing store{summary.stores === 1 ? "" : "s"}, {summary.boards} board{summary.boards === 1 ? "" : "s"}. Recce is marked approved and the stores go to their installers.
                 </p>
               )}
             </div>
@@ -526,7 +544,7 @@ export default function DirectInstallationUploadPage() {
                     runImport();
                   }}
                 >
-                  Import {summary.stores} store{summary.stores === 1 ? "" : "s"}
+                  {summary.updates ? "Save" : "Import"} {summary.stores} store{summary.stores === 1 ? "" : "s"}
                 </Btn>
               )}
             </div>
