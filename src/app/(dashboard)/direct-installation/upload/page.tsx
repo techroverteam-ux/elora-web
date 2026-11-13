@@ -72,7 +72,7 @@ type Outcome = {
   state: "waiting" | "working" | "done" | "failed";
   message?: string;
   storeDbId?: string;
-  failedBoards?: Array<{ index: number; boardNo: string; keys: string[]; hasPhoto?: boolean }>;
+  failedBoards?: Array<{ index: number; boardNo: string; keys: string[]; rowNumber?: number; error?: string }>;
 };
 
 export default function DirectInstallationUploadPage() {
@@ -86,6 +86,7 @@ export default function DirectInstallationUploadPage() {
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [skippedExamples, setSkippedExamples] = useState(0);
   const [photos, setPhotos] = useState<Map<string, File>>(new Map());
+  const [boardPhotos, setBoardPhotos] = useState<Map<number, File>>(new Map());
   const [validation, setValidation] = useState<Validation | null>(null);
   const [checking, setChecking] = useState(false);
   const [downloading, setDownloading] = useState<"" | "blank" | "data">("");
@@ -130,6 +131,8 @@ export default function DirectInstallationUploadPage() {
       }
       setExcelName(file.name);
       setRows(real);
+      setBoardPhotos(new Map());
+      setBatchId("");
       setSkippedExamples(examples.length);
       setValidation(null);
       setOutcomes({});
@@ -155,15 +158,19 @@ export default function DirectInstallationUploadPage() {
   /* ---------------- step 3: photos ---------------- */
   const onPhotos = (files: FileList | null) => {
     if (!files?.length) return;
+    // Snapshot before the input is reset: FileList is a live browser collection.
+    const selected = Array.from(files).filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
+    if (!selected.length) {
+      toast.error("No image files selected");
+      return;
+    }
     setPhotos((prev) => {
       const next = new Map(prev);
-      Array.from(files)
-        .filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name))
-        .forEach((f) => next.set(photoKey(f.name), f));
+      selected.forEach((f) => next.set(photoKey(f.name), f));
       return next;
     });
   };
-  const fileFor = (b: VBoard) => b.photoKeys.map((k) => photos.get(k)).find(Boolean);
+  const fileFor = (b: VBoard) => boardPhotos.get(b.rowNumber) || b.photoKeys.map((k) => photos.get(k)).find(Boolean);
   const needsPhoto = (b: VBoard) => !b.hasPhoto && !fileFor(b);
 
   /* ---------------- summary ---------------- */
@@ -177,32 +184,35 @@ export default function DirectInstallationUploadPage() {
       boards: boards.length,
       errors: validation?.errors.length || 0,
       missing,
+      unmatched: [...photos.keys()].filter((key) => !boards.some((b) => b.photoKeys.includes(key))).length,
       cost: stores.reduce((a, st) => a + (st.totalCost || 0), 0),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [validation, photos]);
+  }, [validation, photos, boardPhotos]);
 
-  const ready = !!validation && summary.stores > 0 && summary.errors === 0 && summary.missing === 0;
+  const ready = !!validation && !checking && summary.stores > 0 && summary.errors === 0;
   const doneCount = Object.values(outcomes).filter((o) => o.state === "done").length;
   const failedCount = Object.values(outcomes).filter((o) => o.state === "failed").length;
   const finished = !importing && Object.keys(outcomes).length > 0;
 
   /* ---------------- import ---------------- */
-  const uploadBoardPhotos = async (storeDbId: string, boards: Array<{ index: number; boardNo: string; keys: string[]; hasPhoto?: boolean }>) => {
+  const uploadBoardPhotos = async (storeDbId: string, boards: NonNullable<Outcome["failedBoards"]>) => {
     const failed: typeof boards = [];
     const queue = [...boards];
     const worker = async () => {
       while (queue.length) {
         const b = queue.shift()!;
-        const file = b.keys.map((k) => photos.get(k)).find(Boolean);
-        if (!file && b.hasPhoto) continue; // existing photo stays
+        const file = (b.rowNumber === undefined ? undefined : boardPhotos.get(b.rowNumber)) || b.keys.map((k) => photos.get(k)).find(Boolean);
+        if (!file) continue; // Photos are optional; existing photos stay unchanged.
         try {
-          if (!file) throw new Error("photo not selected");
+          const image = await compressImage(file);
+          if (image.size > 4 * 1024 * 1024) throw new Error("Image exceeds 4 MB. Choose a smaller image or convert it to JPEG.");
           const fd = new FormData();
-          fd.append("photo", await compressImage(file), file.name.replace(/\.[^.]+$/, "") + ".jpg");
+          const filename = image.type === "image/jpeg" ? file.name.replace(/\.[^.]+$/, "") + ".jpg" : file.name;
+          fd.append("photo", image, filename);
           await api.post(`/direct-installations/${storeDbId}/boards/${b.index}/photo`, fd, { headers: { "Content-Type": "multipart/form-data" } });
-        } catch {
-          failed.push(b);
+        } catch (e: any) {
+          failed.push({ ...b, error: e?.response?.data?.message || e?.message || "Upload failed" });
         }
       }
     };
@@ -226,13 +236,13 @@ export default function DirectInstallationUploadPage() {
           const storeRows = rows.filter((r) => dealerOf(r).toLowerCase() === st.key);
           const { data } = await api.post("/direct-installations", { rows: storeRows, batchId: id });
           storeDbId = data.store._id as string;
-          boards = (data.boards || []).map((b: any) => ({ index: b.index, boardNo: b.boardNo, keys: b.photoKeys, hasPhoto: !!b.hasPhoto }));
+          boards = (data.boards || []).map((b: any) => ({ index: b.index, boardNo: b.boardNo, keys: b.photoKeys, rowNumber: st.boards.find((vb) => vb.boardNo === b.boardNo)?.rowNumber }));
         }
         const failedBoards = await uploadBoardPhotos(storeDbId!, boards || []);
         setOutcomes((o) => ({
           ...o,
           [st.key]: failedBoards.length
-            ? { state: "failed", storeDbId, failedBoards, message: `Store saved, but ${failedBoards.length} photo${failedBoards.length === 1 ? "" : "s"} failed: board ${failedBoards.map((b) => b.boardNo).join(", ")}` }
+            ? { state: "failed", storeDbId, failedBoards, message: `Store saved, but ${failedBoards.length} photo${failedBoards.length === 1 ? "" : "s"} failed: ${failedBoards.map((b) => `board ${b.boardNo}: ${b.error}`).join("; ")}` }
             : { state: "done", storeDbId },
         }));
       } catch (e: any) {
@@ -247,6 +257,7 @@ export default function DirectInstallationUploadPage() {
     setExcelName("");
     setRows([]);
     setPhotos(new Map());
+    setBoardPhotos(new Map());
     setValidation(null);
     setOutcomes({});
     setBatchId("");
@@ -286,7 +297,7 @@ export default function DirectInstallationUploadPage() {
       <PageIntro
         icon={<Zap className="h-6 w-6 text-yellow-500" />}
         title="Upload direct installations"
-        description="One row per board, plus one recce photo per board. Each store is created with its recce submitted and approved, and assigned to the installer you name."
+        description="One row per board, with optional recce photos. Each store is created with its recce submitted and approved, and assigned to the installer you name."
       />
 
       <div className="grid gap-3 lg:grid-cols-3">
@@ -325,8 +336,8 @@ export default function DirectInstallationUploadPage() {
         {stepCard(
           3,
           !!validation && summary.missing === 0 && summary.boards > 0,
-          "Add the recce photos",
-          "Name each photo DEALERCODE_BOARDNO, e.g. D1023_1.jpg, or use the Photo File Name column.",
+          "Add recce photos (optional)",
+          "Match photos by DEALERCODE_BOARDNO (e.g. D1023_1.jpg) or the Photo File Name column, or choose a photo for each board below. You can import without photos.",
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2">
               <label className={cx("inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold", s.dark ? "border-gray-700 hover:bg-gray-800" : "border-gray-300 hover:bg-gray-50", importing && "pointer-events-none opacity-50")}>
@@ -339,12 +350,17 @@ export default function DirectInstallationUploadPage() {
                 <input type="file" webkitdirectory="" multiple className="sr-only" onChange={(e) => { onPhotos(e.target.files); e.target.value = ""; }} />
               </label>
             </div>
-            {photos.size > 0 && (
+            {(photos.size > 0 || boardPhotos.size > 0) && (
               <p className={cx("text-sm", s.body)}>
-                {photos.size} photo{photos.size === 1 ? "" : "s"} selected{" "}
-                <button type="button" className={cx("ml-1 text-xs font-semibold underline", s.muted)} onClick={() => setPhotos(new Map())} disabled={importing}>
+                {photos.size + boardPhotos.size} photo selection{photos.size + boardPhotos.size === 1 ? "" : "s"}{" "}
+                <button type="button" className={cx("ml-1 text-xs font-semibold underline", s.muted)} onClick={() => { setPhotos(new Map()); setBoardPhotos(new Map()); }} disabled={importing}>
                   clear
                 </button>
+              </p>
+            )}
+            {validation && summary.unmatched > 0 && (
+              <p className="text-sm text-amber-600">
+                {summary.unmatched} selected photo{summary.unmatched === 1 ? " does" : "s do"} not match a board and will not upload. Choose the photo for its board below, or rename it to match the Excel.
               </p>
             )}
           </div>
@@ -364,7 +380,7 @@ export default function DirectInstallationUploadPage() {
               { key: "stores", label: summary.updates ? `Stores (${summary.updates} to update)` : "Stores", value: summary.stores, tone: "info" },
               { key: "boards", label: "Boards", value: summary.boards, tone: "violet" },
               { key: "errors", label: "Row errors", value: summary.errors, tone: summary.errors ? "danger" : "success" },
-              { key: "missing", label: "Photos missing", value: summary.missing, tone: summary.missing ? "warning" : "success" },
+              { key: "missing", label: "Without photo (optional)", value: summary.missing, tone: summary.missing ? "neutral" : "success" },
               ...(showMoney ? [{ key: "cost", label: "Board cost", value: formatINR(summary.cost), tone: "brand" as const }] : []),
             ]}
           />
@@ -467,9 +483,17 @@ export default function DirectInstallationUploadPage() {
                                         <span className={s.muted}>Saved photo kept</span>
                                       ) : (
                                         <span className="inline-flex items-center gap-1 text-amber-600">
-                                          <ImageOff className="h-3.5 w-3.5" /> needs {b.photoKeys[b.photoKeys.length - 1].toUpperCase()}.jpg
+                                          <ImageOff className="h-3.5 w-3.5" /> No photo (optional)
                                         </span>
                                       )}
+                                      <label className={cx("ml-2 inline-flex cursor-pointer font-semibold underline", s.muted, importing && "pointer-events-none opacity-50")}>
+                                        {f || b.hasPhoto ? "Change photo" : "Choose photo"}
+                                        <input type="file" accept="image/*,.heic,.heif" className="sr-only" disabled={importing} aria-label={`Choose photo for ${st.dealerCode}, board ${b.boardNo}`} onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) setBoardPhotos((prev) => new Map(prev).set(b.rowNumber, file));
+                                          e.target.value = "";
+                                        }} />
+                                      </label>
                                     </td>
                                   </tr>
                                 );
@@ -512,7 +536,7 @@ export default function DirectInstallationUploadPage() {
                 <p className="font-medium text-red-600">Fix the Excel errors above, then choose the file again.</p>
               ) : summary.missing > 0 ? (
                 <p className="font-medium text-amber-600">
-                  {summary.missing} board{summary.missing === 1 ? " has" : "s have"} no photo yet. Every board needs its recce photo.
+                  {summary.missing} board{summary.missing === 1 ? " has" : "s have"} no photo. Photos are optional; you can import now.
                 </p>
               ) : (
                 <p className={s.body}>
