@@ -33,6 +33,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { isAdminRole } from "@/src/lib/roles";
 import * as XLSX from "xlsx";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import AssignedPersonnelFilter from "@/src/components/ui/AssignedPersonnelFilter";
 import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
 import { PageIntro, ScopeNote, StageStrip, StatusCell, LinkBtn, useStatusCounts, TransferDialog, canTransfer } from "@/src/components/detail";
 import { ArrowRightLeft } from "lucide-react";
@@ -81,6 +82,7 @@ export default function RecceListPage() {
   const [filterStoreName, setFilterStoreName] = useState("");
   const [filterStoreCode, setFilterStoreCode] = useState("");
   const [filterCity, setFilterCity] = useState<string[]>([]);
+  const [filterPersonnel, setFilterPersonnel] = useState<string[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -236,7 +238,9 @@ export default function RecceListPage() {
     }
   }, [installUserSearchTerm, availableInstallUsers]);
 
+  const listRequest = React.useRef(0);
   const fetchStores = async () => {
+    const requestId = ++listRequest.current;
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -246,6 +250,7 @@ export default function RecceListPage() {
       if (filterStoreName) params.append("storeName", filterStoreName);
       if (filterStoreCode) params.append("storeCode", filterStoreCode);
       if (filterCity.length > 0) params.append("city", filterCity.join(","));
+      if (isAdmin && filterPersonnel.length) params.append("recceAssignedTo", filterPersonnel.join(","));
       
       // Filter by recce-related statuses only
       if (filterStatus.length > 0) {
@@ -259,6 +264,7 @@ export default function RecceListPage() {
       }
 
       const { data } = await api.get(`/stores?${params.toString()}`);
+      if (requestId !== listRequest.current) return;
       
       // Client-side filter: when no status filter, apply recce-specific logic
       // When status filter is active, trust the API result directly
@@ -279,10 +285,12 @@ export default function RecceListPage() {
           setTotalStores(data.pagination.total);
       }
     } catch (error) {
-      toast.error("Failed to load stores");
+      if (requestId === listRequest.current) toast.error("Failed to load stores");
     } finally {
-      setLoading(false);
-      setInitialLoad(false);
+      if (requestId === listRequest.current) {
+        setLoading(false);
+        setInitialLoad(false);
+      }
     }
   };
 
@@ -319,7 +327,7 @@ export default function RecceListPage() {
 
   useEffect(() => {
     fetchStores();
-  }, [page, limit, debouncedSearch, filterStatus, filterStoreName, filterStoreCode, filterCity]);
+  }, [page, limit, debouncedSearch, filterStatus, filterStoreName, filterStoreCode, filterCity, filterPersonnel]);
 
   // Fetch available filter options
   useEffect(() => {
@@ -428,7 +436,10 @@ export default function RecceListPage() {
     if (isExporting) return;
     setIsExporting(true);
     try {
-      const response = await api.get('/stores/export/recce', { responseType: 'blob' });
+      const response = await api.get('/stores/export/recce', {
+        responseType: 'blob',
+        params: { recceAssignedTo: isAdmin && filterPersonnel.length ? filterPersonnel.join(',') : undefined },
+      });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -862,6 +873,8 @@ export default function RecceListPage() {
                 onChange={(vals) => { setFilterCity(vals); setPage(1); }}
                 className="w-[150px]"
               />
+              {isAdmin && <AssignedPersonnelFilter stage="RECCE" selected={filterPersonnel}
+                onChange={(ids) => { setFilterPersonnel(ids); setPage(1); setSelectedStoreIds(new Set()); }} />}
             </div>
          </div>
       </div>
@@ -878,18 +891,20 @@ export default function RecceListPage() {
         <div className={`rounded-xl border p-12 text-center ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
           <Search className={`w-16 h-16 mx-auto mb-4 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
           <h3 className={`text-lg font-semibold mb-2 ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
-            {debouncedSearch ? "No stores found" : filterStatus.length > 0 ? "No stores with this status" : "No recce tasks available"}
+            {filterPersonnel.length > 0 ? "No stores for selected personnel" : debouncedSearch ? "No stores found" : filterStatus.length > 0 ? "No stores with this status" : "No recce tasks available"}
           </h3>
           <p className={`text-sm mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-            {debouncedSearch 
+            {filterPersonnel.length > 0
+              ? "No stores match the selected personnel and filters. Try another person or clear the filters."
+              : debouncedSearch
               ? `No stores match "${debouncedSearch}". Try a different search term.`
               : filterStatus.length > 0
                 ? `No stores found with selected status. Try selecting a different status.`
                 : "There are no recce tasks assigned yet."}
           </p>
-          {(debouncedSearch || filterStatus.length > 0) && (
+          {(debouncedSearch || filterStatus.length > 0 || filterCity.length > 0 || filterPersonnel.length > 0) && (
             <button 
-              onClick={() => { setSearchTerm(""); setFilterStatus([]); setPage(1); }}
+              onClick={() => { setSearchTerm(""); setFilterStatus([]); setFilterCity([]); setFilterPersonnel([]); setPage(1); setSelectedStoreIds(new Set()); }}
               className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600"
             >
               Clear Filters

@@ -31,6 +31,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { isAdminRole } from "@/src/lib/roles";
 import * as XLSX from "xlsx";
 import FilterDropdown from "@/src/components/ui/FilterDropdown";
+import AssignedPersonnelFilter from "@/src/components/ui/AssignedPersonnelFilter";
 import { ListSkeleton, RefreshBar } from "@/src/components/ui/Skeleton";
 import { PageIntro, ScopeNote, StageStrip, StatusCell, useStatusCounts, TransferDialog, canTransfer } from "@/src/components/detail";
 import { ArrowRightLeft } from "lucide-react";
@@ -65,6 +66,7 @@ export default function InstallationListPage() {
   const [totalStores, setTotalStores] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterPersonnel, setFilterPersonnel] = useState<string[]>([]);
   // Links from the dashboard can open this list on a stage: ?status=RECCE_SUBMITTED
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -220,13 +222,16 @@ export default function InstallationListPage() {
     }
   };
 
+  const listRequest = React.useRef(0);
   const fetchStores = async () => {
+    const requestId = ++listRequest.current;
     try {
       setLoading(true);
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", limit.toString());
       if (debouncedSearch) params.append("search", debouncedSearch);
+      if (isAdmin && filterPersonnel.length) params.append("installationAssignedTo", filterPersonnel.join(","));
       
       // Filter by installation-related statuses only
       if (filterStatus.length > 0) {
@@ -237,6 +242,7 @@ export default function InstallationListPage() {
       }
 
       const { data } = await api.get(`/stores?${params.toString()}`);
+      if (requestId !== listRequest.current) return;
       
       // When status filter active, trust API; otherwise enforce installation-only client-side
       let installationStores = data.stores || [];
@@ -253,16 +259,18 @@ export default function InstallationListPage() {
           setTotalStores(data.pagination.total);
       }
     } catch (error) {
-      toast.error("Failed to load tasks");
+      if (requestId === listRequest.current) toast.error("Failed to load tasks");
     } finally {
-      setLoading(false);
-      setInitialLoad(false);
+      if (requestId === listRequest.current) {
+        setLoading(false);
+        setInitialLoad(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchStores();
-  }, [page, limit, debouncedSearch, filterStatus]);
+  }, [page, limit, debouncedSearch, filterStatus, filterPersonnel]);
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -360,7 +368,10 @@ export default function InstallationListPage() {
     if (isExporting) return;
     setIsExporting(true);
     try {
-      const response = await api.get('/stores/export/installation', { responseType: 'blob' });
+      const response = await api.get('/stores/export/installation', {
+        responseType: 'blob',
+        params: { installationAssignedTo: isAdmin && filterPersonnel.length ? filterPersonnel.join(',') : undefined },
+      });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -628,6 +639,8 @@ export default function InstallationListPage() {
               onChange={(vals) => { setFilterStatus(vals.map(installStatusLabelToValue)); setPage(1); }}
               className="md:w-[180px]"
             />
+            {isAdmin && <AssignedPersonnelFilter stage="INSTALLATION" selected={filterPersonnel}
+              onChange={(ids) => { setFilterPersonnel(ids); setPage(1); setSelectedStoreIds(new Set()); }} />}
          </div>
       </div>
 
@@ -643,18 +656,20 @@ export default function InstallationListPage() {
         <div className={`rounded-xl border p-12 text-center ${darkMode ? "bg-purple-900/30 border-purple-700/50" : "bg-white border-gray-200"}`}>
           <Wrench className={`w-16 h-16 mx-auto mb-4 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
           <h3 className={`text-lg font-semibold mb-2 ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
-            {debouncedSearch ? "No stores found" : filterStatus.length > 0 ? "No stores with this status" : "No installation tasks available"}
+            {filterPersonnel.length > 0 ? "No stores for selected personnel" : debouncedSearch ? "No stores found" : filterStatus.length > 0 ? "No stores with this status" : "No installation tasks available"}
           </h3>
           <p className={`text-sm mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-            {debouncedSearch 
+            {filterPersonnel.length > 0
+              ? "No stores match the selected personnel and filters. Try another person or clear the filters."
+              : debouncedSearch
               ? `No stores match "${debouncedSearch}". Try a different search term.`
               : filterStatus.length > 0
                 ? `No stores found with selected status. Try selecting a different status.`
                 : "There are no installation tasks assigned yet."}
           </p>
-          {(debouncedSearch || filterStatus.length > 0) && (
+          {(debouncedSearch || filterStatus.length > 0 || filterPersonnel.length > 0) && (
             <button 
-              onClick={() => { setSearchTerm(""); setFilterStatus([]); setPage(1); }}
+              onClick={() => { setSearchTerm(""); setFilterStatus([]); setFilterPersonnel([]); setPage(1); setSelectedStoreIds(new Set()); }}
               className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600"
             >
               Clear Filters
